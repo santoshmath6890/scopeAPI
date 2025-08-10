@@ -10,10 +10,35 @@ import (
 
 	"github.com/google/uuid"
 	"scopeapi.local/backend/services/threat-detection/internal/models"
+	"scopeapi.local/backend/services/threat-detection/internal/repository"
+	"scopeapi.local/backend/shared/logging"
+	"scopeapi.local/backend/shared/messaging/kafka"
 )
 
+type BehavioralAnalysisServiceInterface interface {
+	AnalyzeBehavior(ctx context.Context, request *models.BehaviorAnalysisRequest) (*models.BehaviorAnalysisResult, error)
+	GetBehaviorPatterns(ctx context.Context, entityID string, entityType string, limit int) ([]models.BehaviorPattern, error)
+	CreateBaseline(ctx context.Context, entityID string, entityType string) (*models.BaselineProfile, error)
+	GetBaselines(ctx context.Context, entityID string, entityType string) (*models.BaselineProfile, error)
+	GetRiskAssessment(ctx context.Context, entityID string, entityType string) (*models.RiskAssessment, error)
+}
+
 type BehavioralAnalysisService struct {
-	patternRepo interface{} // TODO: Replace with actual repository interface
+	patternRepo   repository.PatternRepositoryInterface
+	kafkaProducer kafka.ProducerInterface
+	logger        logging.Logger
+}
+
+func NewBehavioralAnalysisService(
+	patternRepo repository.PatternRepositoryInterface,
+	kafkaProducer kafka.ProducerInterface,
+	logger logging.Logger,
+) *BehavioralAnalysisService {
+	return &BehavioralAnalysisService{
+		patternRepo:   patternRepo,
+		kafkaProducer: kafkaProducer,
+		logger:        logger,
+	}
 }
 
 func (s *BehavioralAnalysisService) analyzeAccessPatterns(ctx context.Context, features map[string]interface{}, baseline *models.BaselineProfile, request *models.BehaviorAnalysisRequest) ([]models.BehaviorPattern, error) {
@@ -418,7 +443,7 @@ func (s *BehavioralAnalysisService) generateBehaviorRecommendations(patterns []m
 }
 
 func (s *BehavioralAnalysisService) publishBehaviorEvents(ctx context.Context, patterns []models.BehaviorPattern) error {
-	for _, pattern := range patterns {
+	for _, _ = range patterns {
 		// TODO: Implement event publishing (marshal eventData and send to Kafka)
 	}
 
@@ -430,7 +455,7 @@ func (s *BehavioralAnalysisService) updateBaselineProfile(ctx context.Context, e
 	return fmt.Errorf("UpdateBaselineProfile not implemented")
 }
 
-func (s *BehavioralAnalysisService) GetBehaviorPatterns(ctx context.Context, filter *models.BehaviorPatternFilter) ([]models.BehaviorPattern, error) {
+func (s *BehavioralAnalysisService) GetBehaviorPatternsWithFilter(ctx context.Context, filter *models.BehaviorPatternFilter) ([]models.BehaviorPattern, error) {
 	// TODO: Implement GetBehaviorPatterns on patternRepo
 	return nil, fmt.Errorf("GetBehaviorPatterns not implemented")
 }
@@ -693,7 +718,7 @@ func (s *BehavioralAnalysisService) getPeakHours(hourlyAccess map[int]int) []int
 
 func (s *BehavioralAnalysisService) GetRiskAssessment(ctx context.Context, entityID string, entityType string) (*models.RiskAssessment, error) {
 	// Get recent behavior patterns for the entity
-	filter := &models.BehaviorPatternFilter{
+	_ = &models.BehaviorPatternFilter{
 		EntityID:   entityID,
 		EntityType: entityType,
 		// TimeRange and Status not in model
@@ -744,4 +769,40 @@ func (s *BehavioralAnalysisService) DetectBehaviorChanges(ctx context.Context, e
 	// PATCH: Remove s.patternRepo.GetBehaviorPatterns (not defined on interface)
 	// TODO: Implement DetectBehaviorChanges logic when repository and model support is available
 	return nil, fmt.Errorf("DetectBehaviorChanges not implemented")
+}
+
+// Interface method implementations
+func (s *BehavioralAnalysisService) AnalyzeBehavior(ctx context.Context, request *models.BehaviorAnalysisRequest) (*models.BehaviorAnalysisResult, error) {
+	// TODO: Implement behavior analysis logic
+	return &models.BehaviorAnalysisResult{
+		RequestID:         request.RequestID,
+		PatternsDetected:  []models.BehaviorPattern{},
+		AnomaliesDetected: []models.BehaviorAnomaly{},
+		AnalyzedAt:        time.Now(),
+	}, nil
+}
+
+func (s *BehavioralAnalysisService) GetBehaviorPatterns(ctx context.Context, entityID string, entityType string, limit int) ([]models.BehaviorPattern, error) {
+	// TODO: Implement pattern retrieval logic using entity filters
+	return []models.BehaviorPattern{}, nil
+}
+
+func (s *BehavioralAnalysisService) CreateBaseline(ctx context.Context, entityID string, entityType string) (*models.BaselineProfile, error) {
+	// TODO: Implement baseline creation logic
+	return &models.BaselineProfile{
+		AccessPatterns: &models.AccessPatterns{
+			NormalAccessHours:   []int{},
+			AverageHourlyAccess: 0.0,
+		},
+	}, nil
+}
+
+func (s *BehavioralAnalysisService) GetBaselines(ctx context.Context, entityID string, entityType string) (*models.BaselineProfile, error) {
+	// TODO: Implement baseline retrieval logic
+	return &models.BaselineProfile{
+		AccessPatterns: &models.AccessPatterns{
+			NormalAccessHours:   []int{},
+			AverageHourlyAccess: 0.0,
+		},
+	}, nil
 }

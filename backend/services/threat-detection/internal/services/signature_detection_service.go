@@ -415,7 +415,7 @@ func (s *SignatureDetectionService) publishSignatureEvents(ctx context.Context, 
 
 		message := kafka.Message{
 			Topic: "signature_events",
-			Key:   match.SignatureID,
+			Key:   []byte(match.SignatureID),
 			Value: eventJSON,
 		}
 
@@ -493,7 +493,12 @@ func (s *SignatureDetectionService) GetSignatureStatistics(ctx context.Context, 
 		DisabledSignatures: 0,
 		SignaturesByType:   make(map[string]int),
 		SignaturesByCategory: make(map[string]int),
-		MatchStatistics:    make(map[string]*models.SignatureMatchStats),
+		MatchStatistics:    &models.SignatureMatchStats{
+			TotalMatches:      0,
+			MatchesByType:     make(map[string]int),
+			MatchesByCategory: make(map[string]int),
+			MatchesBySeverity: make(map[string]int),
+		},
 		GeneratedAt:        time.Now(),
 	}
 
@@ -510,7 +515,7 @@ func (s *SignatureDetectionService) GetSignatureStatistics(ctx context.Context, 
 	}
 
 	// Get match statistics from repository
-	matchStats, err := s.threatRepo.GetSignatureMatchStatistics(ctx, timeRange)
+	matchStats, err := s.threatRepo.GetSignatureMatchStatistics(ctx)
 	if err != nil {
 		s.logger.Warn("Failed to get signature match statistics", "error", err)
 	} else {
@@ -522,7 +527,7 @@ func (s *SignatureDetectionService) GetSignatureStatistics(ctx context.Context, 
 
 func (s *SignatureDetectionService) OptimizeSignatures(ctx context.Context) (*models.SignatureOptimizationResult, error) {
 	result := &models.SignatureOptimizationResult{
-		OptimizedSignatures: []string{},
+		OptimizedSignatures: 0,
 		RemovedSignatures:   []string{},
 		UpdatedSignatures:   []string{},
 		Recommendations:     []string{},
@@ -530,39 +535,29 @@ func (s *SignatureDetectionService) OptimizeSignatures(ctx context.Context) (*mo
 	}
 
 	// Get signature performance data
-	stats, err := s.GetSignatureStatistics(ctx, 30*24*time.Hour) // Last 30 days
+	_, err := s.GetSignatureStatistics(ctx, 30*24*time.Hour) // Last 30 days
 	if err != nil {
 		return nil, fmt.Errorf("failed to get signature statistics: %w", err)
 	}
 
 	// Identify low-performing signatures
-	for signatureID, matchStats := range stats.MatchStatistics {
-		signature, exists := s.signatures[signatureID]
-		if !exists {
+	for signatureID, signature := range s.signatures {
+		if !signature.Enabled {
 			continue
 		}
 
-		// Check for signatures with high false positive rate
-		if matchStats.FalsePositiveRate > 0.8 && matchStats.TotalMatches > 10 {
-			result.RemovedSignatures = append(result.RemovedSignatures, signatureID)
+		// Check for signatures that are very old but low confidence
+		if signature.Confidence < 0.5 && time.Since(signature.CreatedAt) > 30*24*time.Hour {
+			result.UpdatedSignatures = append(result.UpdatedSignatures, signatureID)
 			result.Recommendations = append(result.Recommendations, 
-				fmt.Sprintf("Signature '%s' has high false positive rate (%.1f%%) - consider disabling", 
-					signature.Name, matchStats.FalsePositiveRate*100))
-		}
-
-		// Check for signatures that never match
-		if matchStats.TotalMatches == 0 && time.Since(signature.CreatedAt) > 7*24*time.Hour {
-			result.RemovedSignatures = append(result.RemovedSignatures, signatureID)
-			result.Recommendations = append(result.Recommendations, 
-				fmt.Sprintf("Signature '%s' has no matches in 30 days - consider reviewing or disabling", 
+				fmt.Sprintf("Signature '%s' has low confidence - consider tuning", 
 					signature.Name))
 		}
 
-		// Check for signatures with low confidence but high match rate
-		if signature.Confidence < 0.5 && matchStats.TotalMatches > 100 {
-			result.UpdatedSignatures = append(result.UpdatedSignatures, signatureID)
+		// Check for signatures that are very old and might need review
+		if time.Since(signature.CreatedAt) > 90*24*time.Hour {
 			result.Recommendations = append(result.Recommendations, 
-				fmt.Sprintf("Signature '%s' has low confidence but high matches - consider tuning", 
+				fmt.Sprintf("Signature '%s' is over 90 days old - consider reviewing", 
 					signature.Name))
 		}
 	}

@@ -29,6 +29,7 @@ type Threat struct {
 	AttackType    string    `json:"attack_type"`
 	RequestDetail string    `json:"request_detail"`
 	ResponseDetail string   `json:"response_detail"`
+	ResponseData  map[string]interface{} `json:"response_data"`
 	Timestamp     time.Time `json:"timestamp"`
 }
 

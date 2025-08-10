@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -686,7 +687,7 @@ func (s *ThreatDetectionService) publishThreatEvent(ctx context.Context, threats
 		
 		message := kafka.Message{
 			Topic: "threat_events",
-			Key:   threat.ID,
+			Key:   []byte(threat.ID),
 			Value: eventJSON,
 		}
 		
@@ -716,7 +717,19 @@ func (s *ThreatDetectionService) GetThreat(ctx context.Context, threatID string)
 }
 
 func (s *ThreatDetectionService) UpdateThreatStatus(ctx context.Context, threatID string, update *models.ThreatUpdateRequest) error {
-	return s.threatRepo.UpdateThreat(ctx, threatID, update)
+	// Get existing threat
+	threat, err := s.threatRepo.GetThreat(ctx, threatID)
+	if err != nil {
+		return err
+	}
+	
+	// Update fields from request
+	if update.Status != "" {
+		threat.Status = update.Status
+	}
+	// Note: Additional update logic can be added here for other fields
+	
+	return s.threatRepo.UpdateThreat(ctx, threatID, threat)
 }
 
 func (s *ThreatDetectionService) DeleteThreat(ctx context.Context, threatID string) error {

@@ -156,7 +156,7 @@ start_data_ingestion() {
     echo "[INFO] Building backend services..."
     local project_root="$(cd "$(dirname "$0")" && pwd)"
     cd "$project_root/backend"
-    if make data-ingestion; then
+    if make data-ingestion > /dev/null 2>&1; then
         echo "[SUCCESS] Data Ingestion Service built successfully"
         
         # Start the service from root bin directory with proper config path
@@ -184,7 +184,7 @@ start_api_discovery() {
     # Build API Discovery Service
     local project_root="$(cd "$(dirname "$0")" && pwd)"
     cd "$project_root/backend"
-    if make api-discovery; then
+    if make api-discovery > /dev/null 2>&1; then
         echo "[SUCCESS] API Discovery Service built successfully"
         
         # Start the service from root bin directory with proper config path
@@ -245,7 +245,7 @@ start_admin_console() {
     fi
     
     echo "[INFO] Starting Angular development server..."
-    npm start &
+    npm start > ../logs/admin-console.log 2>&1 &
     ADMIN_CONSOLE_PID=$!
     echo "[SUCCESS] Admin Console started with PID: $ADMIN_CONSOLE_PID"
     
@@ -270,11 +270,24 @@ main() {
     check_postgresql || print_warning "Continuing without PostgreSQL..."
     check_kafka || print_warning "Continuing without Kafka..."
     
+    # Create logs directory if it doesn't exist
+    mkdir -p logs
+    
+    # Create PID file to track running services
+    PID_FILE="scopeapi.pid"
+    rm -f "$PID_FILE"
+    
     # Start services
     start_data_ingestion
     start_api_discovery
     start_threat_detection
     start_admin_console
+    
+    # Save PIDs to file for stop script
+    echo "DATA_INGESTION_PID=$DATA_INGESTION_PID" >> "$PID_FILE"
+    echo "API_DISCOVERY_PID=$API_DISCOVERY_PID" >> "$PID_FILE"
+    echo "THREAT_DETECTION_PID=$THREAT_DETECTION_PID" >> "$PID_FILE"
+    echo "ADMIN_CONSOLE_PID=$ADMIN_CONSOLE_PID" >> "$PID_FILE"
     
     echo ""
     echo "📊 Data Ingestion Service: http://localhost:$DATA_INGESTION_PORT"
@@ -288,11 +301,6 @@ main() {
     echo "  • Threat Detection: http://localhost:$THREAT_DETECTION_PORT/health"
     echo "📊 Metrics: http://localhost:$DATA_INGESTION_PORT/metrics"
     echo ""
-    echo "Press Ctrl+C to stop all services"
-    
-    # Wait for interrupt
-    trap 'echo ""; echo "🛑 Shutting down ScopeAPI Platform..."; kill $DATA_INGESTION_PID $API_DISCOVERY_PID $THREAT_DETECTION_PID $ADMIN_CONSOLE_PID 2>/dev/null; exit 0' INT
-    wait
 }
 
 # Run main function

@@ -8,6 +8,11 @@ type SignatureDetectionRequest struct {
 	EntityType  string                 `json:"entity_type"`
 	Payload     map[string]interface{} `json:"payload"`
 	Timestamp   time.Time              `json:"timestamp"`
+	RequestData map[string]interface{} `json:"request_data"`
+	IPAddress   string                 `json:"ip_address"`
+	UserAgent   string                 `json:"user_agent"`
+	APIID       string                 `json:"api_id"`
+	EndpointID  string                 `json:"endpoint_id"`
 }
 
 type SignatureDetectionResult struct {
@@ -37,6 +42,7 @@ type ThreatSignature struct {
 }
 
 type SignatureFilter struct {
+	SignatureID  string    `json:"signature_id,omitempty"`
 	Severity     string    `json:"severity,omitempty"`
 	Pattern      string    `json:"pattern,omitempty"`
 	SignatureSet string    `json:"signature_set,omitempty"`
@@ -44,11 +50,28 @@ type SignatureFilter struct {
 }
 
 type SignatureTestResult struct {
-	TestID      string    `json:"test_id"`
-	SignatureID string    `json:"signature_id"`
-	Passed      bool      `json:"passed"`
-	Details     string    `json:"details"`
-	TestedAt    time.Time `json:"tested_at"`
+	TestID        string                `json:"test_id"`
+	SignatureID   string                `json:"signature_id"`
+	SignatureName string                `json:"signature_name"`
+	Passed        bool                  `json:"passed"`
+	Details       string                `json:"details"`
+	TestCases     []SignatureTestCase   `json:"test_cases"`
+	TotalTests    int                   `json:"total_tests"`
+	PassedTests   int                   `json:"passed_tests"`
+	FailedTests   int                   `json:"failed_tests"`
+	TestedAt      time.Time             `json:"tested_at"`
+}
+
+type SignatureTestCase struct {
+	TestID       string                 `json:"test_id"`
+	TestName     string                 `json:"test_name"`
+	TestData     map[string]interface{} `json:"test_data"`
+	Expected     bool                   `json:"expected"`
+	Actual       bool                   `json:"actual"`
+	Passed       bool                   `json:"passed"`
+	ErrorMessage string                 `json:"error_message,omitempty"`
+	MatchedRule  string                 `json:"matched_rule,omitempty"`
+	Error        string                 `json:"error,omitempty"`
 }
 
 type SignatureMatch struct {
@@ -67,6 +90,8 @@ type SignatureMatch struct {
 	RuleValue     string    `json:"rule_value"`
 	MatchedAt     time.Time `json:"matched_at"`
 	Metadata      map[string]interface{} `json:"metadata"`
+	Matched       bool      `json:"matched"`
+	Details       string    `json:"details"`
 }
 
 type SignatureRule struct {
@@ -83,12 +108,36 @@ type SignatureRule struct {
 }
 
 type SignatureStatistics struct {
-	TotalSignatures int `json:"total_signatures"`
-	Matched         int `json:"matched"`
-	Unmatched       int `json:"unmatched"`
+	TotalSignatures       int                          `json:"total_signatures"`
+	Matched               int                          `json:"matched"`
+	Unmatched             int                          `json:"unmatched"`
+	EnabledSignatures     int                          `json:"enabled_signatures"`
+	DisabledSignatures    int                          `json:"disabled_signatures"`
+	SignaturesByType      map[string]int               `json:"signatures_by_type"`
+	SignaturesByCategory  map[string]int               `json:"signatures_by_category"`
+	MatchStatistics       *SignatureMatchStats         `json:"match_statistics"`
+	GeneratedAt           time.Time                    `json:"generated_at"`
+}
+
+type SignatureMatchStats struct {
+	TotalMatches     int            `json:"total_matches"`
+	MatchesByType    map[string]int `json:"matches_by_type"`
+	MatchesByCategory map[string]int `json:"matches_by_category"`
+	MatchesBySeverity map[string]int `json:"matches_by_severity"`
 }
 
 type SignatureOptimizationResult struct {
-	OptimizedSignatures int    `json:"optimized_signatures"`
-	Details             string `json:"details"`
-} 
+	OptimizedSignatures int       `json:"optimized_signatures"`
+	Details             string    `json:"details"`
+	RemovedSignatures   []string  `json:"removed_signatures"`
+	UpdatedSignatures   []string  `json:"updated_signatures"`
+	Recommendations     []string  `json:"recommendations"`
+	OptimizedAt         time.Time `json:"optimized_at"`
+}
+
+// Signature type constants
+const (
+	SignatureTypeCustom    = "custom"
+	SignatureTypeBuiltIn   = "builtin"
+	SignatureTypeCommunity = "community"
+) 
