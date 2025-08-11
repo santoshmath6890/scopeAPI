@@ -102,7 +102,7 @@ func main() {
 
 	// Start server
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":" + os.Getenv("SERVER_PORT"),
 		Handler: router,
 	}
 
@@ -112,7 +112,7 @@ func main() {
 		}
 	}()
 
-	logger.Info("API Discovery Service started on port 8080")
+	logger.Info("API Discovery Service started on port " + os.Getenv("SERVER_PORT"))
 
 	// Wait for interrupt signal to gracefully shutdown
 	quit := make(chan os.Signal, 1)

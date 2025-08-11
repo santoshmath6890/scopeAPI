@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -212,7 +213,7 @@ func (s *EnvoyIntegrationService) CreateFilter(ctx context.Context, integrationI
 		return nil, fmt.Errorf("failed to marshal filter: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(filterData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -256,7 +257,7 @@ func (s *EnvoyIntegrationService) UpdateFilter(ctx context.Context, integrationI
 		return nil, fmt.Errorf("failed to marshal filter: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "PUT", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "PUT", url, bytes.NewBuffer(filterData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

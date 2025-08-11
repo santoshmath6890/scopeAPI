@@ -16,14 +16,29 @@ NC='\033[0m' # No Color
 PROJECT_NAME="scopeapi"
 NETWORK_NAME="${PROJECT_NAME}-network"
 
+# Load environment variables from .env file if it exists
+load_env_vars() {
+    if [ -f ".env" ]; then
+        print_info "Loading environment variables from .env file"
+        # Use source to properly handle variables with spaces
+        set -a
+        source .env
+        set +a
+    else
+        print_warning ".env file not found. Please create one based on env.example"
+        print_info "Some services may fail to start without required environment variables"
+    fi
+}
+
 # Service configurations
 ZOOKEEPER_PORT=2181
 KAFKA_PORT=9092
 POSTGRES_PORT=5432
-POSTGRES_DB="scopeapi"
-POSTGRES_USER="scopeapi"
-POSTGRES_PASSWORD="scopeapi123"
+POSTGRES_DB="${POSTGRES_DB:-scopeapi}"
+POSTGRES_USER="${POSTGRES_USER:-scopeapi}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD}"
 REDIS_PORT=6379
+REDIS_PASSWORD="${REDIS_PASSWORD}"
 ELASTICSEARCH_PORT=9200
 KIBANA_PORT=5601
 
@@ -126,6 +141,11 @@ start_kafka() {
 start_postgres() {
     print_info "Starting PostgreSQL..."
     
+    if [ -z "$POSTGRES_PASSWORD" ]; then
+        print_error "POSTGRES_PASSWORD environment variable is not set. Please set it in your .env file."
+        exit 1
+    fi
+    
     # Check if PostgreSQL is already running on the system
     if pg_isready -h localhost -p 5432 >/dev/null 2>&1; then
         print_warning "PostgreSQL is already running on the system (port 5432)"
@@ -150,7 +170,7 @@ start_postgres() {
         postgres:15
     
     print_success "PostgreSQL started on port $POSTGRES_PORT"
-    print_info "Database: $POSTGRES_DB, User: $POSTGRES_USER, Password: $POSTGRES_PASSWORD"
+    print_info "Database: $POSTGRES_DB, User: $POSTGRES_USER, Password: [HIDDEN]"
 }
 
 # Function to start Redis
@@ -162,15 +182,20 @@ start_redis() {
         return
     fi
     
+    if [ -z "$REDIS_PASSWORD" ]; then
+        print_error "REDIS_PASSWORD environment variable is not set. Please set it in your .env file."
+        exit 1
+    fi
+    
     docker run -d \
         --name scopeapi-redis \
         --network "$NETWORK_NAME" \
         -p "$REDIS_PORT:$REDIS_PORT" \
-        -e REDIS_PASSWORD=scopeapi123 \
-        redis:7-alpine redis-server --requirepass scopeapi123
+        -e REDIS_PASSWORD="$REDIS_PASSWORD" \
+        redis:7-alpine redis-server --requirepass "$REDIS_PASSWORD"
     
     print_success "Redis started on port $REDIS_PORT"
-    print_info "Password: scopeapi123"
+    print_info "Password: [HIDDEN]"
 }
 
 # Function to start Elasticsearch
@@ -224,6 +249,7 @@ start_all() {
     print_header "Starting ScopeAPI Infrastructure Services"
     
     check_docker
+    load_env_vars
     create_network
     
     print_info "Starting services in order..."
@@ -320,7 +346,7 @@ show_status() {
     echo ""
     print_info "Connection Details:"
     echo "  PostgreSQL: psql -h localhost -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB"
-    echo "  Redis:      redis-cli -h localhost -p $REDIS_PORT -a scopeapi123"
+    echo "  Redis:      redis-cli -h localhost -p $REDIS_PORT -a [PASSWORD]"
     echo "  Kafka:      kafka-console-consumer --bootstrap-server localhost:$KAFKA_PORT --topic test"
 }
 
@@ -418,6 +444,31 @@ fix_docker_permissions() {
     print_success "Docker permissions fix completed!"
 }
 
+# Function to setup environment file
+setup_env() {
+    print_header "Setting up Environment Configuration"
+    
+    if [ -f ".env" ]; then
+        print_warning ".env file already exists"
+        read -p "Do you want to overwrite it? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            print_info "Environment setup cancelled"
+            return
+        fi
+    fi
+    
+    if [ -f "env.example" ]; then
+        cp env.example .env
+        print_success "Created .env file from env.example"
+        print_info "Please edit .env file and set your secure passwords"
+        print_info "Then run: $0 start"
+    else
+        print_error "env.example file not found"
+        print_info "Please create a .env file manually with the required environment variables"
+    fi
+}
+
 # Function to show help
 show_help() {
     echo "ScopeAPI Infrastructure Management Script"
@@ -432,6 +483,7 @@ show_help() {
     echo "  logs <service>  Show logs for a specific service"
     echo "  cleanup         Remove all containers and volumes"
     echo "  fix-permissions Fix Docker permission issues"
+    echo "  setup-env       Set up environment file from template"
     echo "  help            Show this help message"
     echo ""
     echo "Services:"
@@ -447,6 +499,7 @@ show_help() {
     echo "  $0 logs kafka              # Show Kafka logs"
     echo "  $0 status                  # Show service status"
     echo "  $0 fix-permissions         # Fix Docker permissions"
+    echo "  $0 setup-env               # Set up environment file"
     echo "  $0 cleanup                 # Remove everything"
 }
 
@@ -473,6 +526,9 @@ main() {
             ;;
         fix-permissions)
             fix_docker_permissions
+            ;;
+        setup-env)
+            setup_env
             ;;
         help|--help|-h)
             show_help

@@ -20,16 +20,37 @@ PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 PID_FILE="$PROJECT_ROOT/logs/scopeapi.pid"
 LOGS_DIR="$PROJECT_ROOT/logs"
 
+# Load environment variables from .env file if it exists
+load_env_vars() {
+    if [ -f ".env" ]; then
+        print_info "Loading environment variables from .env file"
+        # Use source to properly handle variables with spaces
+        set -a
+        source .env
+        set +a
+    else
+        print_error ".env file not found. Please create one based on env.example"
+        print_info "Run: ./docker-infrastructure.sh setup-env or ./scripts/generate-passwords.sh"
+        exit 1
+    fi
+}
+
 # Service configuration
 DATA_INGESTION_PORT=8081
 API_DISCOVERY_PORT=8082
 THREAT_DETECTION_PORT=8083
+GATEWAY_INTEGRATION_PORT=8084
+ATTACK_BLOCKING_PORT=8085
+DATA_PROTECTION_PORT=8086
 ADMIN_CONSOLE_PORT=4200
 
 # Global PID variables
 DATA_INGESTION_PID=""
 API_DISCOVERY_PID=""
 THREAT_DETECTION_PID=""
+GATEWAY_INTEGRATION_PID=""
+ATTACK_BLOCKING_PID=""
+DATA_PROTECTION_PID=""
 ADMIN_CONSOLE_PID=""
 
 # Print functions
@@ -195,9 +216,9 @@ start_data_ingestion() {
     # Set environment variables
     export DB_HOST=localhost
     export DB_PORT=5432
-    export DB_USER=scopeapi
-    export DB_PASSWORD=scopeapi123
-    export DB_NAME=scopeapi
+    export DB_USER="${POSTGRES_USER:-scopeapi}"
+    export DB_PASSWORD="${POSTGRES_PASSWORD}"
+    export DB_NAME="${POSTGRES_DB:-scopeapi}"
     export KAFKA_BROKERS=localhost:9092
     export SERVER_PORT=$DATA_INGESTION_PORT
     
@@ -222,9 +243,9 @@ start_api_discovery() {
     # Set environment variables
     export DB_HOST=localhost
     export DB_PORT=5432
-    export DB_USER=scopeapi
-    export DB_PASSWORD=scopeapi123
-    export DB_NAME=scopeapi
+    export DB_USER="${POSTGRES_USER:-scopeapi}"
+    export DB_PASSWORD="${POSTGRES_PASSWORD}"
+    export DB_NAME="${POSTGRES_DB:-scopeapi}"
     export KAFKA_BROKERS=localhost:9092
     export SERVER_PORT=$API_DISCOVERY_PORT
     
@@ -239,19 +260,22 @@ start_api_discovery() {
 start_threat_detection() {
     print_info "Starting Threat Detection Service..."
     
+    # Load environment variables if not already loaded
+    if [[ -z "$DB_PASSWORD" ]]; then
+        load_env_vars
+    fi
+    
     if pgrep -f "threat-detection" >/dev/null; then
         print_warning "Threat Detection Service is already running"
         return
     fi
     
-    cd "$PROJECT_ROOT/backend/services/threat-detection"
-    
     # Set environment variables
     export DB_HOST=localhost
     export DB_PORT=5432
-    export DB_USER=scopeapi
-    export DB_PASSWORD=scopeapi123
-    export DB_NAME=scopeapi
+    export DB_USER="${POSTGRES_USER:-scopeapi}"
+    export DB_PASSWORD="${POSTGRES_PASSWORD}"
+    export DB_NAME="${POSTGRES_DB:-scopeapi}"
     export KAFKA_BROKERS=localhost:9092
     export SERVER_PORT=$THREAT_DETECTION_PORT
     
@@ -260,6 +284,117 @@ start_threat_detection() {
     THREAT_DETECTION_PID=$!
     
     print_success "Threat Detection Service started with PID: $THREAT_DETECTION_PID"
+}
+
+# Function to start gateway integration service
+start_gateway_integration() {
+    print_info "Starting Gateway Integration Service..."
+    
+    if pgrep -f "gateway-integration" >/dev/null; then
+        print_warning "Gateway Integration Service is already running"
+        return
+    fi
+    
+    cd "$PROJECT_ROOT/backend/services/gateway-integration"
+    
+    # Set environment variables
+    export DB_HOST=localhost
+    export DB_PORT=5432
+    export DB_USER="${POSTGRES_USER:-scopeapi}"
+    export DB_PASSWORD="${POSTGRES_PASSWORD}"
+    export DB_NAME="${POSTGRES_DB:-scopeapi}"
+    export KAFKA_BROKERS=localhost:9092
+    export SERVER_PORT=$GATEWAY_INTEGRATION_PORT
+    
+    # Start the service
+    nohup go run cmd/main.go > "$LOGS_DIR/gateway-integration.log" 2>&1 &
+    GATEWAY_INTEGRATION_PID=$!
+    
+    print_success "Gateway Integration Service started with PID: $GATEWAY_INTEGRATION_PID"
+}
+
+# Function to start attack blocking service
+start_attack_blocking() {
+    print_info "Starting Attack Blocking Service..."
+    
+    if pgrep -f "attack-blocking" >/dev/null; then
+        print_warning "Attack Blocking Service is already running"
+        return
+    fi
+    
+    cd "$PROJECT_ROOT/backend/services/attack-blocking"
+    
+    # Set environment variables
+    export DB_HOST=localhost
+    export DB_PORT=5432
+    export DB_USER="${POSTGRES_USER:-scopeapi}"
+    export DB_PASSWORD="${POSTGRES_PASSWORD}"
+    export DB_NAME="${POSTGRES_DB:-scopeapi}"
+    export KAFKA_BROKERS=localhost:9092
+    export SERVER_PORT=$ATTACK_BLOCKING_PORT
+    
+    # Start the service
+    nohup go run cmd/main.go > "$LOGS_DIR/attack-blocking.log" 2>&1 &
+    ATTACK_BLOCKING_PID=$!
+    
+    print_success "Attack Blocking Service started with PID: $ATTACK_BLOCKING_PID"
+}
+
+# Function to start data protection service
+start_data_protection() {
+    print_info "Starting Data Protection Service..."
+    
+    if pgrep -f "data-protection" >/dev/null; then
+        print_warning "Data Protection Service is already running"
+        return
+    fi
+    
+    cd "$PROJECT_ROOT/backend/services/data-protection"
+    
+    # Set environment variables
+    export DB_HOST=localhost
+    export DB_PORT=5432
+    export DB_USER="${POSTGRES_USER:-scopeapi}"
+    export DB_PASSWORD="${POSTGRES_PASSWORD}"
+    export DB_NAME="${POSTGRES_DB:-scopeapi}"
+    export KAFKA_BROKERS=localhost:9092
+    export SERVER_PORT=$DATA_PROTECTION_PORT
+    
+    # Start the service
+    nohup go run cmd/main.go > "$LOGS_DIR/data-protection.log" 2>&1 &
+    DATA_PROTECTION_PID=$!
+    
+    print_success "Data Protection Service started with PID: $DATA_PROTECTION_PID"
+}
+
+# Function to build gateway integration service
+build_gateway_integration() {
+    print_info "Building Gateway Integration Service..."
+    
+    cd "$PROJECT_ROOT/backend/services/gateway-integration"
+    
+    # Check if Makefile exists and use it
+    if [[ -f "Makefile" ]]; then
+        print_info "Using Makefile to build service..."
+        make build
+    else
+        print_info "Building with go build..."
+        go build -o gateway-integration ./cmd/main.go
+    fi
+    
+    print_success "Gateway Integration Service built successfully!"
+}
+
+# Function to build all services
+build_all_services() {
+    print_header "Building ScopeAPI Services"
+    
+    print_info "Building services..."
+    
+    # Build Gateway Integration Service (since it's complete)
+    build_gateway_integration
+    
+    print_success "All services built successfully!"
 }
 
 # Function to start admin console
@@ -290,6 +425,9 @@ start_admin_console() {
 start_all_services() {
     print_header "Starting ScopeAPI Services"
     
+    # Load environment variables
+    load_env_vars
+    
     # Create logs directory if it doesn't exist
     mkdir -p "$LOGS_DIR"
     
@@ -299,6 +437,9 @@ start_all_services() {
     start_data_ingestion
     start_api_discovery
     start_threat_detection
+    start_gateway_integration
+    start_attack_blocking
+    start_data_protection
     start_admin_console
     
     # Wait a moment for services to start
@@ -309,6 +450,9 @@ start_all_services() {
     echo "DATA_INGESTION_PID=$DATA_INGESTION_PID" > "$PID_FILE"
     echo "API_DISCOVERY_PID=$API_DISCOVERY_PID" >> "$PID_FILE"
     echo "THREAT_DETECTION_PID=$THREAT_DETECTION_PID" >> "$PID_FILE"
+    echo "GATEWAY_INTEGRATION_PID=$GATEWAY_INTEGRATION_PID" >> "$PID_FILE"
+    echo "ATTACK_BLOCKING_PID=$ATTACK_BLOCKING_PID" >> "$PID_FILE"
+    echo "DATA_PROTECTION_PID=$DATA_PROTECTION_PID" >> "$PID_FILE"
     echo "ADMIN_CONSOLE_PID=$ADMIN_CONSOLE_PID" >> "$PID_FILE"
     
     print_success "All services started successfully!"
@@ -331,6 +475,9 @@ stop_all_services() {
         pkill -f "data-ingestion" 2>/dev/null || true
         pkill -f "api-discovery" 2>/dev/null || true
         pkill -f "threat-detection" 2>/dev/null || true
+        pkill -f "gateway-integration" 2>/dev/null || true
+        pkill -f "attack-blocking" 2>/dev/null || true
+        pkill -f "data-protection" 2>/dev/null || true
         pkill -f "ng serve" 2>/dev/null || true
         
         print_success "Services stopped by process name"
@@ -380,6 +527,9 @@ show_status() {
     check_service_status "Data Ingestion Service" "data-ingestion" "$DATA_INGESTION_PORT" "http://localhost:$DATA_INGESTION_PORT/health"
     check_service_status "API Discovery Service" "api-discovery" "$API_DISCOVERY_PORT" "http://localhost:$API_DISCOVERY_PORT/health"
     check_service_status "Threat Detection Service" "threat-detection" "$THREAT_DETECTION_PORT" "http://localhost:$THREAT_DETECTION_PORT/health"
+    check_service_status "Gateway Integration Service" "gateway-integration" "$GATEWAY_INTEGRATION_PORT" "http://localhost:$GATEWAY_INTEGRATION_PORT/health"
+    check_service_status "Attack Blocking Service" "attack-blocking" "$ATTACK_BLOCKING_PORT" "http://localhost:$ATTACK_BLOCKING_PORT/health"
+    check_service_status "Data Protection Service" "data-protection" "$DATA_PROTECTION_PORT" "http://localhost:$DATA_PROTECTION_PORT/health"
     check_service_status "Admin Console" "ng serve" "$ADMIN_CONSOLE_PORT" "http://localhost:$ADMIN_CONSOLE_PORT"
     
     # Check system resources
@@ -396,22 +546,27 @@ show_help() {
     echo "Usage: $0 [COMMAND]"
     echo ""
     echo "Commands:"
-    echo "  start           Start all ScopeAPI services"
-    echo "  stop            Stop all ScopeAPI services"
-    echo "  status          Show status of all services"
-    echo "  help            Show this help message"
+echo "  start           Start all ScopeAPI services"
+echo "  stop            Stop all ScopeAPI services"
+echo "  status          Show status of all services"
+echo "  build           Build all ScopeAPI services"
+echo "  help            Show this help message"
     echo ""
     echo "Examples:"
-    echo "  $0 start                    # Start all services"
-    echo "  $0 stop                     # Stop all services"
-    echo "  $0 status                   # Show service status"
-    echo "  $0 help                     # Show this help"
+echo "  $0 start                    # Start all services"
+echo "  $0 stop                     # Stop all services"
+echo "  $0 status                   # Show service status"
+echo "  $0 build                    # Build all services"
+echo "  $0 help                     # Show this help"
     echo ""
     echo "Services managed:"
-    echo "  - Data Ingestion Service (port $DATA_INGESTION_PORT)"
-    echo "  - API Discovery Service (port $API_DISCOVERY_PORT)"
-    echo "  - Threat Detection Service (port $THREAT_DETECTION_PORT)"
-    echo "  - Admin Console (port $ADMIN_CONSOLE_PORT)"
+echo "  - Data Ingestion Service (port $DATA_INGESTION_PORT)"
+echo "  - API Discovery Service (port $API_DISCOVERY_PORT)"
+echo "  - Threat Detection Service (port $THREAT_DETECTION_PORT)"
+echo "  - Gateway Integration Service (port $GATEWAY_INTEGRATION_PORT)"
+echo "  - Attack Blocking Service (port $ATTACK_BLOCKING_PORT)"
+echo "  - Data Protection Service (port $DATA_PROTECTION_PORT)"
+echo "  - Admin Console (port $ADMIN_CONSOLE_PORT)"
     echo ""
     echo "Files:"
     echo "  PID File: $PID_FILE"
@@ -429,6 +584,9 @@ main() {
             ;;
         status)
             show_status
+            ;;
+        build)
+            build_all_services
             ;;
         help|--help|-h)
             show_help

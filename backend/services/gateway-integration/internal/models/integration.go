@@ -93,6 +93,42 @@ type IntegrationConfig struct {
 	UpdatedAt   time.Time              `json:"updated_at" db:"updated_at"`
 }
 
+// GatewayConfig represents a gateway configuration with versioning
+type GatewayConfig struct {
+	ID             int64                  `json:"id" db:"id"`
+	IntegrationID  int64                  `json:"integration_id" db:"integration_id"`
+	ConfigType     string                 `json:"config_type" db:"config_type"`
+	ConfigData     map[string]interface{} `json:"config_data" db:"config_data"`
+	Version        int                    `json:"version" db:"version"`
+	Status         string                 `json:"status" db:"status"`
+	CreatedAt      time.Time              `json:"created_at" db:"created_at"`
+	UpdatedAt      time.Time              `json:"updated_at" db:"updated_at"`
+}
+
+// IntegrationStats represents statistics about integrations
+type IntegrationStats struct {
+	Total        int64 `json:"total"`
+	Active       int64 `json:"active"`
+	Error        int64 `json:"error"`
+	Pending      int64 `json:"pending"`
+	KongCount   int64 `json:"kong_count"`
+	NginxCount  int64 `json:"nginx_count"`
+	TraefikCount int64 `json:"traefik_count"`
+	EnvoyCount  int64 `json:"envoy_count"`
+	HAProxyCount int64 `json:"haproxy_count"`
+}
+
+// HAProxyStats represents HAProxy statistics
+type HAProxyStats struct {
+	TotalConnections int64 `json:"total_connections"`
+	ActiveConnections int64 `json:"active_connections"`
+	RequestsPerSecond int64 `json:"requests_per_second"`
+	BytesIn int64 `json:"bytes_in"`
+	BytesOut int64 `json:"bytes_out"`
+	SessionRate int64 `json:"session_rate"`
+	MaxSessionRate int64 `json:"max_session_rate"`
+}
+
 // KongConfig represents Kong-specific configuration
 type KongConfig struct {
 	AdminURL    string            `json:"admin_url"`
@@ -318,6 +354,7 @@ type HAProxyConfig struct {
 	TestCommand   string           `json:"test_command"`
 	Frontends     []HAProxyFrontend `json:"frontends"`
 	Backends      []HAProxyBackend  `json:"backends"`
+	Servers       []HAProxyServer   `json:"servers"`
 	Defaults      map[string]string `json:"defaults"`
 }
 

@@ -388,7 +388,7 @@ func (s *IntegrationService) publishIntegrationEvent(ctx context.Context, eventT
 
 	message := kafka.Message{
 		Topic: "gateway_events",
-		Key:   integration.ID,
+		Key:   []byte(integration.ID),
 		Value: eventBytes,
 	}
 

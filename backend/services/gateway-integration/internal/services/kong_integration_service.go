@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -213,7 +214,7 @@ func (s *KongIntegrationService) CreatePlugin(ctx context.Context, integrationID
 		return nil, fmt.Errorf("failed to marshal plugin: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(pluginData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -257,7 +258,7 @@ func (s *KongIntegrationService) UpdatePlugin(ctx context.Context, integrationID
 		return nil, fmt.Errorf("failed to marshal plugin: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "PATCH", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "PATCH", url, bytes.NewBuffer(pluginData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

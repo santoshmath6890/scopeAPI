@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -249,7 +250,7 @@ func (s *HAProxyIntegrationService) UpdateBackend(ctx context.Context, integrati
 		return nil, fmt.Errorf("failed to marshal backend: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "PUT", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "PUT", url, bytes.NewBuffer(backendData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

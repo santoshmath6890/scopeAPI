@@ -1,8 +1,9 @@
-go 1.21
+go 1.22
 
 use (
 	./backend/services/data-ingestion
 	./backend/services/api-discovery
 	./backend/services/threat-detection
+	./backend/services/gateway-integration
 	./backend/shared
 )

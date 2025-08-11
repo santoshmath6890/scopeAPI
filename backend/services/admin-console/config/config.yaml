@@ -24,11 +24,11 @@ logging:
   format: "json"
 
 database:
-  host: "postgres"
-  port: 5432
-  name: "scopeapi_admin"
-  user: "scopeapi_user"
-  password: "scopeapi_password"
+  host: "${POSTGRES_HOST:-postgres}"
+  port: ${POSTGRES_PORT:-5432}
+  name: "${POSTGRES_DB:-scopeapi_admin}"
+  user: "${POSTGRES_USER:-scopeapi_user}"
+  password: "${POSTGRES_PASSWORD}"
   sslmode: "disable"
 
 redis:

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -174,7 +175,7 @@ func (s *TraefikIntegrationService) CreateMiddleware(ctx context.Context, integr
 		return nil, fmt.Errorf("failed to marshal middleware: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(middlewareData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -218,7 +219,7 @@ func (s *TraefikIntegrationService) UpdateMiddleware(ctx context.Context, integr
 		return nil, fmt.Errorf("failed to marshal middleware: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "PUT", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "PUT", url, bytes.NewBuffer(middlewareData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

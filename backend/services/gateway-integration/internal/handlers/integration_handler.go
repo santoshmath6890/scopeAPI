@@ -3,7 +3,6 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"scopeapi.local/backend/services/gateway-integration/internal/models"
@@ -14,11 +13,11 @@ import (
 // IntegrationHandler handles HTTP requests for integration management
 type IntegrationHandler struct {
 	integrationService services.IntegrationServiceInterface
-	metrics            metrics.Collector
+	
 }
 
 // NewIntegrationHandler creates a new integration handler
-func NewIntegrationHandler(integrationService services.IntegrationServiceInterface, metrics metrics.Collector) *IntegrationHandler {
+func NewIntegrationHandler(integrationService services.IntegrationServiceInterface, ) *IntegrationHandler {
 	return &IntegrationHandler{
 		integrationService: integrationService,
 		metrics:            metrics,
@@ -42,8 +41,6 @@ func (h *IntegrationHandler) GetIntegrations(c *gin.Context) {
 	}
 
 	// Parse pagination parameters
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	if page < 1 {
 		page = 1
 	}
