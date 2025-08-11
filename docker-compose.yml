@@ -1,349 +1,202 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:15-alpine
-    container_name: scopeapi-postgres
-    environment:
-      POSTGRES_DB: scopeapi
-      POSTGRES_USER: scopeapi_user
-      POSTGRES_PASSWORD: scopeapi_password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./backend/shared/database/postgresql/migrations:/docker-entrypoint-initdb.d
+  # ZooKeeper - Required for Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: scopeapi-zookeeper
+    hostname: zookeeper
     ports:
-      - "5432:5432"
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
     networks:
       - scopeapi-network
+    restart: unless-stopped
+
+  # Kafka - Message broker for inter-service communication
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: scopeapi-kafka
+    hostname: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://localhost:9092'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_DELETE_TOPIC_ENABLE: 'true'
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 300000
+    networks:
+      - scopeapi-network
+    restart: unless-stopped
+
+  # PostgreSQL - Primary database for ScopeAPI
+  postgres:
+    image: postgres:15
+    container_name: scopeapi-postgres
+    hostname: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: scopeapi
+      POSTGRES_USER: scopeapi
+      POSTGRES_PASSWORD: scopeapi123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - scopeapi-postgres-data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    networks:
+      - scopeapi-network
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U scopeapi_user -d scopeapi"]
+      test: ["CMD-SHELL", "pg_isready -U scopeapi -d scopeapi"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  # MongoDB Database
+  # Redis - Caching and session storage
+  redis:
+    image: redis:7-alpine
+    container_name: scopeapi-redis
+    hostname: redis
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass scopeapi123 --appendonly yes
+    volumes:
+      - scopeapi-redis-data:/data
+    networks:
+      - scopeapi-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "scopeapi123", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Elasticsearch - Search and analytics engine
+  elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: scopeapi-elasticsearch
+    hostname: elasticsearch
+    ports:
+      - "9200:9200"
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: false
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+      cluster.name: scopeapi-cluster
+      node.name: scopeapi-node
+    volumes:
+      - scopeapi-elasticsearch-data:/usr/share/elasticsearch/data
+    networks:
+      - scopeapi-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Kibana - Elasticsearch visualization and management
+  kibana:
+    image: kibana:8.11.0
+    container_name: scopeapi-kibana
+    hostname: kibana
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    ports:
+      - "5601:5601"
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      KIBANA_INDEX: .kibana
+    networks:
+      - scopeapi-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Optional: MongoDB for document storage
   mongodb:
     image: mongo:7.0
     container_name: scopeapi-mongodb
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: scopeapi_admin
-      MONGO_INITDB_ROOT_PASSWORD: scopeapi_password
-      MONGO_INITDB_DATABASE: scopeapi
-    volumes:
-      - mongodb_data:/data/db
+    hostname: mongodb
     ports:
       - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: scopeapi
+      MONGO_INITDB_ROOT_PASSWORD: scopeapi123
+      MONGO_INITDB_DATABASE: scopeapi
+    volumes:
+      - scopeapi-mongodb-data:/data/db
     networks:
       - scopeapi-network
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  # Neo4j Database
-  neo4j:
-    image: neo4j:5.15
-    container_name: scopeapi-neo4j
-    environment:
-      NEO4J_AUTH: neo4j/scopeapi_password
-      NEO4J_PLUGINS: '["apoc"]'
-    volumes:
-      - neo4j_data:/data
-      - neo4j_logs:/logs
-      - neo4j_import:/var/lib/neo4j/import
-      - neo4j_plugins:/plugins
+  # Optional: InfluxDB for time-series data (metrics, logs)
+  influxdb:
+    image: influxdb:2.7
+    container_name: scopeapi-influxdb
+    hostname: influxdb
     ports:
-      - "7474:7474"
-      - "7687:7687"
+      - "8086:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: scopeapi
+      DOCKER_INFLUXDB_INIT_PASSWORD: scopeapi123
+      DOCKER_INFLUXDB_INIT_ORG: scopeapi
+      DOCKER_INFLUXDB_INIT_BUCKET: scopeapi
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: scopeapi-admin-token
+    volumes:
+      - scopeapi-influxdb-data:/var/lib/influxdb2
     networks:
       - scopeapi-network
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:7474/browser/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-
-  # Redis Cache
-  redis:
-    image: redis:7.2-alpine
-    container_name: scopeapi-redis
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-    ports:
-      - "6379:6379"
-    networks:
-      - scopeapi-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # Apache Kafka
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.4.0
-    container_name: scopeapi-zookeeper
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    networks:
-      - scopeapi-network
-
-  kafka:
-    image: confluentinc/cp-kafka:7.4.0
-    container_name: scopeapi-kafka
-    depends_on:
-      - zookeeper
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-    ports:
-      - "9092:9092"
-    networks:
-      - scopeapi-network
-
-  # API Discovery Service
-  api-discovery:
-    build:
-      context: ./backend
-      dockerfile: services/api-discovery/Dockerfile
-    container_name: scopeapi-api-discovery
-    environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=scopeapi
-      - DB_USER=scopeapi_user
-      - DB_PASSWORD=scopeapi_password
-      - KAFKA_BROKERS=kafka:29092
-    depends_on:
-      postgres:
-        condition: service_healthy
-      kafka:
-        condition: service_started
-    ports:
-      - "8081:8080"
-    networks:
-      - scopeapi-network
-    restart: unless-stopped
-
-  # Threat Detection Service
-  threat-detection:
-    build:
-      context: ./backend
-      dockerfile: services/threat-detection/Dockerfile
-    container_name: scopeapi-threat-detection
-    environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=scopeapi
-      - DB_USER=scopeapi_user
-      - DB_PASSWORD=scopeapi_password
-      - KAFKA_BROKERS=kafka:29092
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_started
-    ports:
-      - "8082:8080"
-    networks:
-      - scopeapi-network
-    restart: unless-stopped
-
-  # Data Protection Service
-  data-protection:
-    build:
-      context: ./backend
-      dockerfile: services/data-protection/Dockerfile
-    container_name: scopeapi-data-protection
-    environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=scopeapi
-      - DB_USER=scopeapi_user
-      - DB_PASSWORD=scopeapi_password
-      - KAFKA_BROKERS=kafka:29092
-    depends_on:
-      postgres:
-        condition: service_healthy
-      kafka:
-        condition: service_started
-    ports:
-      - "8083:8080"
-    networks:
-      - scopeapi-network
-    restart: unless-stopped
-
-  # Attack Blocking Service
-  attack-blocking:
-    build:
-      context: ./backend
-      dockerfile: services/attack-blocking/Dockerfile
-    container_name: scopeapi-attack-blocking
-    environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=scopeapi
-      - DB_USER=scopeapi_user
-      - DB_PASSWORD=scopeapi_password
-      - KAFKA_BROKERS=kafka:29092
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_started
-    ports:
-      - "8084:8080"
-    networks:
-      - scopeapi-network
-    restart: unless-stopped
-
-  # Data Ingestion Service
-  data-ingestion:
-    build:
-      context: ./backend
-      dockerfile: services/data-ingestion/Dockerfile
-    container_name: scopeapi-data-ingestion
-    environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=scopeapi
-      - DB_USER=scopeapi_user
-      - DB_PASSWORD=scopeapi_password
-      - KAFKA_BROKERS=kafka:29092
-    depends_on:
-      postgres:
-        condition: service_healthy
-      kafka:
-        condition: service_started
-    ports:
-      - "8085:8080"
-    networks:
-      - scopeapi-network
-    restart: unless-stopped
-
-  # Admin Console Service
-  admin-console:
-    build:
-      context: ./backend
-      dockerfile: services/admin-console/Dockerfile
-    container_name: scopeapi-admin-console
-    environment:
-      - ENVIRONMENT=production
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=scopeapi_admin
-      - DB_USER=scopeapi_user
-      - DB_PASSWORD=scopeapi_password
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - SERVICE_API_DISCOVERY_URL=http://api-discovery:8080
-      - SERVICE_THREAT_DETECTION_URL=http://threat-detection:8080
-      - SERVICE_DATA_PROTECTION_URL=http://data-protection:8080
-      - SERVICE_GATEWAY_INTEGRATION_URL=http://gateway-integration:8080
-      - SERVICE_ATTACK_BLOCKING_URL=http://attack-blocking:8080
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    ports:
-      - "8086:8080"
-    networks:
-      - scopeapi-network
-    restart: unless-stopped
-
-  # API Gateway (NGINX)
-  api-gateway:
-    image: nginx:alpine
-    container_name: scopeapi-gateway
-    volumes:
-      - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./config/nginx/conf.d:/etc/nginx/conf.d
-    ports:
-      - "8080:80"
-    depends_on:
-      - api-discovery
-      - threat-detection
-      - data-protection
-      - attack-blocking
-      - data-ingestion
-    networks:
-      - scopeapi-network
-    restart: unless-stopped
-
-  # Admin Console Application
-  admin-console:
-    build:
-      context: ./adminConsole
-      dockerfile: Dockerfile
-    container_name: scopeapi-admin-console
-    ports:
-      - "4200:80"
-    depends_on:
-      - api-gateway
-    networks:
-      - scopeapi-network
-    restart: unless-stopped
-
-  # Prometheus Monitoring
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: scopeapi-prometheus
-    volumes:
-      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    ports:
-      - "9090:9090"
-    networks:
-      - scopeapi-network
-    restart: unless-stopped
-
-  # Grafana Dashboard
-  grafana:
-    image: grafana/grafana:latest
-    container_name: scopeapi-grafana
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./config/grafana/provisioning:/etc/grafana/provisioning
-    ports:
-      - "3000:3000"
-    depends_on:
-      - prometheus
-    networks:
-      - scopeapi-network
-    restart: unless-stopped
-
-volumes:
-  postgres_data:
-  mongodb_data:
-  neo4j_data:
-  neo4j_logs:
-  neo4j_import:
-  neo4j_plugins:
-  redis_data:
-  prometheus_data:
-  grafana_data:
 
 networks:
   scopeapi-network:
-    driver: bridge 
+    driver: bridge
+    name: scopeapi-network
+
+volumes:
+  scopeapi-postgres-data:
+    driver: local
+    name: scopeapi-postgres-data
+  scopeapi-redis-data:
+    driver: local
+    name: scopeapi-redis-data
+  scopeapi-elasticsearch-data:
+    driver: local
+    name: scopeapi-elasticsearch-data
+  scopeapi-mongodb-data:
+    driver: local
+    name: scopeapi-mongodb-data
+  scopeapi-influxdb-data:
+    driver: local
+    name: scopeapi-influxdb-data 

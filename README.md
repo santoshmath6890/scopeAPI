@@ -56,43 +56,47 @@ For detailed architecture information, see [Technical Architecture](./docs/Scope
 
 ### Prerequisites
 
-- Go 1.21+
-- Node.js 18+
-- Angular CLI 17+
-- Docker & Docker Compose
-- PostgreSQL 14+
+- Docker and Docker Compose installed
+- Go 1.21+ for backend services
+- Node.js 18+ and npm for frontend
+- Git
 
-### Installation
+### Infrastructure Setup
 
-1. **Clone the repository**
+1. **Start Infrastructure Services**
    ```bash
-   git clone https://github.com/advaith-ai/scopeapi.git
-   cd scopeapi
-   ```
-
-2. **Start the backend services**
-   ```bash
-   # Using the provided script
-   ./start-scopeapi.sh
+   # Start all required services (Kafka, PostgreSQL, Redis, etc.)
+   ./docker-infrastructure.sh start
    
-   # Or manually with Docker Compose
-   docker-compose up -d
+   # If you encounter Docker permission issues:
+   ./docker-infrastructure.sh fix-permissions
    ```
 
-3. **Start the admin console microservice**
+2. **Check Infrastructure Status**
    ```bash
-   # Option A: Using Docker Compose (Recommended)
-   docker-compose up admin-console
-   
-   # Option B: Local development
-   cd backend/services/admin-console
-   make full-build
-   make run
+   ./docker-infrastructure.sh status
    ```
 
-4. **Access the application**
-   - Admin Console: http://localhost:8086 (Docker) or http://localhost:8080 (Local)
-   - API Gateway: http://localhost:8080
+### Application Setup
+
+1. **Start ScopeAPI Services**
+   ```bash
+   # Start all application services
+   ./scopeapi-manager.sh start
+   ```
+
+2. **Check Application Status**
+   ```bash
+   ./scopeapi-manager.sh status
+   ```
+
+### Access Points
+
+- **Admin Console**: http://localhost:4200
+- **API Gateway**: http://localhost:8080
+- **Kafka**: localhost:9092
+- **PostgreSQL**: localhost:5432
+- **Redis**: localhost:6379
 
 ### Development Setup
 
