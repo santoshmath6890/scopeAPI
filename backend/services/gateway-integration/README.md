@@ -81,20 +81,21 @@ make docker-build
 make docker-run
 ```
 
-### Option 3: Using Makefile
+### Option 3: Using Root Makefile
 
 ```bash
 # Show all available commands
+cd backend
 make help
 
-# Setup development environment
-make dev-setup
+# Build all services
+make all
 
-# Run tests
-make test
+# Build specific service
+make gateway-integration
 
-# Build for production
-make build-linux
+# Clean build artifacts
+make clean
 ```
 
 ## 🏗️ **Complete Service Architecture**
@@ -129,7 +130,6 @@ gateway-integration/
 │       ├── envoy_integration_service.go # ✅ Envoy operations
 │       └── haproxy_integration_service.go # ✅ HAProxy operations
 ├── Dockerfile                  # ✅ Container configuration (COMPLETE)
-├── Makefile                    # ✅ Build automation (COMPLETE)
 ├── go.mod                      # ✅ Go module dependencies
 └── README.md                   # ✅ This file (COMPLETE)
 ```
@@ -436,19 +436,19 @@ The service uses `config/config.yaml` for configuration management with support 
 ```bash
 # Clone and setup
 git clone <repository>
-cd backend/services/gateway-integration
+cd backend
 
-# Install development tools
-make install-tools
+# Show all available commands
+make help
 
-# Setup development environment
-make dev-setup
+# Build all services
+make all
 
-# Run tests
-make test
+# Build specific service
+make gateway-integration
 
-# Build service
-make build
+# Clean build artifacts
+make clean
 ```
 
 ### **Code Quality**
