@@ -183,7 +183,7 @@ scopeapi/
 │   │   └── 📁 admin-console/       # Admin console backend service
 │   └── 📁 shared/                  # Shared libraries and utilities
 ├── 📁 adminConsole/                # Angular frontend application
-├── �� scripts/                     # Project automation and management scripts
+├── 📁 scripts/                     # Project automation and management scripts
 │   ├── 🔄 scopeapi-local.sh        # Local development (process-based management)
 │   ├── 🐳 docker-infrastructure.sh # Infrastructure management
 │   ├── 🚀 scopeapi-services.sh     # Container-based microservices orchestration
