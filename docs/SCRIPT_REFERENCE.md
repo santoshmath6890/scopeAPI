@@ -127,10 +127,10 @@ This project provides **three specialized scripts** with clear separation of con
 
 ## 📚 **Related Documentation**
 
-- **[📖 Complete Documentation](INDEX.md)** - Full documentation index
+- **[📖 Complete Documentation](README.md)** - Full documentation index
 - **[💻 Development Guide](DEVELOPMENT.md)** - Development workflows
 - **[🐳 Docker Setup](DOCKER_SETUP.md)** - Container setup guide
-- **[🛠️ Scripts Usage](../scripts/USAGE.md)** - Detailed script documentation
+- **[🛠️ Scripts Usage](../scripts/README.md)** - Detailed script documentation
 
 ---
 

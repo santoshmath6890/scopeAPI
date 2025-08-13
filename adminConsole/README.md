@@ -402,7 +402,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](../LICENS
 ## 🔗 **Related Repositories**
 
 - **[Backend Services](../backend/)** - Go microservices
-- **[Infrastructure Scripts](../scripts/)** - Development automation
+- **[Infrastructure Scripts](../scripts/README.md)** - Development automation
 - **[Project Documentation](../docs/)** - Comprehensive guides
 
 ---

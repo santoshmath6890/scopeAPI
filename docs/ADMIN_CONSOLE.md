@@ -104,4 +104,4 @@ npm run fresh-start
 
 ---
 
-**📖 Back to [Main Documentation](../docs/INDEX.md) | [Project README](../README.md)**
+**📖 Back to [Main Documentation](../docs/README.md) | [Project README](../README.md)**

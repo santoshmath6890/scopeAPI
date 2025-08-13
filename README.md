@@ -131,11 +131,11 @@ cd adminConsole && ng test
 
 ## 📚 **Documentation**
 
-- **[📖 Documentation Index](docs/INDEX.md)** - Complete documentation navigation
+- **[📖 Documentation Index](docs/README.md)** - Complete documentation navigation
 - **[🏗️ Architecture Guide](docs/ARCHITECTURE.md)** - System design and technical details
 - **[💻 Development Guide](docs/DEVELOPMENT.md)** - Development setup and workflows
 - **[🐳 Docker Setup](docs/DOCKER_SETUP.md)** - Container and deployment setup
-- **[🛠️ Scripts Usage](scripts/USAGE.md)** - Development scripts guide
+- **[🛠️ Scripts Usage](scripts/README.md)** - Development scripts guide
 
 ## 🤝 **Contributing**
 

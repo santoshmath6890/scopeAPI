@@ -498,7 +498,7 @@ git push origin feature/amazing-feature
 - **[🏗️ Architecture Guide](ARCHITECTURE.md)** - System design details
 - **[💻 Development Guide](DEVELOPMENT.md)** - Development workflows
 - **[🐳 Docker Setup](DOCKER_SETUP.md)** - Container setup
-- **[🛠️ Scripts Guide](../scripts/USAGE.md)** - Available tools
+- **[🛠️ Scripts Guide](../scripts/README.md)** - Available tools
 
 ### **Community Channels**
 - **GitHub Issues** - Report bugs and request features

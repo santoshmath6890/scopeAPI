@@ -244,7 +244,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](../LICENS
 ## 🔗 **Related Repositories**
 
 - **[Frontend Admin Console](../adminConsole/)** - Angular-based admin interface
-- **[Infrastructure Scripts](../scripts/)** - Development and deployment automation
+- **[Infrastructure Scripts](../scripts/README.md)** - Development and deployment automation
 - **[Documentation](../docs/)** - Comprehensive project documentation
 
 ---

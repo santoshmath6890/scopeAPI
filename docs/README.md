@@ -22,7 +22,7 @@ Welcome to the ScopeAPI documentation! This is a comprehensive guide to understa
 - **[UI Components](ADMIN_CONSOLE.md#key-features)** - Available UI components and features
 - **[Frontend Development](ADMIN_CONSOLE.md#development-commands)** - Frontend development workflow
 - **[Development Setup](DEVELOPMENT.md)** - Local development environment
-- **[Scripts Guide](../scripts/USAGE.md)** - Available development scripts
+- **[Scripts Guide](../scripts/README.md)** - Available development scripts
 - **[API Documentation](API.md)** - Service APIs and endpoints
 - **[Testing Guide](DEVELOPMENT.md#testing)** - How to test your changes
 
@@ -129,7 +129,7 @@ cd scopeapi
 
 ```
 docs/
-├── INDEX.md               # This file - Documentation index
+├── README.md               # This file - Documentation index
 ├── ARCHITECTURE.md        # Technical architecture and design
 ├── DEVELOPMENT.md         # Development setup and workflows
 ├── API.md                 # API documentation and examples
@@ -164,7 +164,7 @@ This project provides a comprehensive set of specialized scripts:
 - **`scopeapi-setup.sh`** - Complete project setup
 
 ### **📖 Usage Guide**
-- **`USAGE.md`** - Comprehensive script documentation
+- **`README.md`** - Comprehensive script documentation
 
 ## 🎯 **Quick Script Selection:**
 
