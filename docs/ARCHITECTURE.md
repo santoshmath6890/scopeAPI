@@ -258,8 +258,8 @@ API Requests → Data Ingestion → Processing → Storage → Analysis → Repo
 - **Message Queue**: Apache Kafka 3.4+
 
 ### **Frontend**
-- **Framework**: Angular 16+
-- **Language**: TypeScript 5+
+- **Framework**: Angular 16.2+
+- **Language**: TypeScript 5.1+
 - **Styling**: SCSS with modern CSS features
 - **Build Tool**: Angular CLI with Webpack
 

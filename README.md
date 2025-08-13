@@ -1,7 +1,7 @@
 # 🚀 ScopeAPI
 
 [![Go Version](https://img.shields.io/badge/Go-1.21+-blue.svg)](https://golang.org)
-[![Angular Version](https://img.shields.io/badge/Angular-16+-red.svg)](https://angular.io)
+[![Angular Version](https://img.shields.io/badge/Angular-16.2+-red.svg)](https://angular.io)
 [![Docker Version](https://img.shields.io/badge/Docker-24+-blue.svg)](https://docker.com)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -252,12 +252,22 @@ kubectl apply -f k8s/
 - **Message Queue**: Apache Kafka 3.4+
 
 ### **Frontend**
-- **Framework**: Angular 16+
-- **Language**: TypeScript 5+
+- **Framework**: Angular 16.2+
+- **Language**: TypeScript 5.1+
 - **Styling**: SCSS with modern CSS features
 - **Build Tool**: Angular CLI with Webpack
 
 ### **Infrastructure**
+
+## ��️ **Admin Console (Frontend)**
+
+**Modern Angular 16+ web application** providing a comprehensive interface for managing all ScopeAPI services. Features responsive design, lazy-loaded modules, real-time updates, and role-based access control.
+
+**📱 Key Features**: Dashboard, API Discovery, Threat Detection, Data Protection, Attack Protection, Gateway Integration, and Authentication modules.
+
+**🚀 Quick Start**: `cd adminConsole && npm install && npm start`
+
+**📚 [Detailed Documentation →](docs/ADMIN_CONSOLE.md)**
 - **Containerization**: Docker 24+
 - **Orchestration**: Docker Compose, Kubernetes
 - **Monitoring**: Prometheus, Grafana, ELK Stack

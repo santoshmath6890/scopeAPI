@@ -16,6 +16,11 @@ Welcome to the ScopeAPI documentation! This is a comprehensive guide to understa
 - **[Data Flow](ARCHITECTURE.md#data-flow)** - How data moves through the system
 
 ### **💻 Development**
+
+### **🖥️ Frontend & UI**
+- **[Admin Console](ADMIN_CONSOLE.md)** - Angular frontend application guide
+- **[UI Components](ADMIN_CONSOLE.md#key-features)** - Available UI components and features
+- **[Frontend Development](ADMIN_CONSOLE.md#development-commands)** - Frontend development workflow
 - **[Development Setup](DEVELOPMENT.md)** - Local development environment
 - **[Scripts Guide](../scripts/USAGE.md)** - Available development scripts
 - **[API Documentation](API.md)** - Service APIs and endpoints
