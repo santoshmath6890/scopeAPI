@@ -310,17 +310,15 @@ kubectl apply -f k8s/
 
 ## 🤝 **Community & Support**
 
-### **Getting Help**
-- **📖 Documentation**: Comprehensive guides and references
-- **🐛 Issues**: Report bugs and request features
-- **💬 Discussions**: Ask questions and share ideas
-- **📧 Email**: Contact the maintainers directly
+**We welcome contributions from the community!** Here's how you can get involved:
 
-### **Contributing**
-- **Code Contributions** - Bug fixes, features, and improvements
-- **Documentation** - Help improve guides and references
-- **Testing** - Report bugs and test new features
-- **Community** - Help other users and contributors
+- **📖 Documentation**: Comprehensive guides and references
+- **🐛 Issues**: Report bugs and request features  
+- **💬 Discussions**: Ask questions and share ideas
+- **🔧 Contributing**: Bug fixes, new features, documentation improvements
+- **📧 Contact**: Reach out to maintainers directly
+
+**Getting Started**: Fork the repo, create a feature branch, make changes, test thoroughly, and submit a pull request. Follow Go best practices for backend and Angular style guide for frontend.
 
 ## 📄 **License**
 
