@@ -190,7 +190,7 @@ scopeapi/
 │   ├── 🔧 scopeapi-setup.sh        # Complete setup and validation
 │   └── 🐛 scopeapi-debug.sh        # Debug mode management
 ├── 📁 docs/                        # Comprehensive documentation
-└── 📁 README.md                    # This file
+└── 📄 README.md                    # This file
 ```
 
 ## 🚀 **Deployment**
@@ -259,7 +259,7 @@ kubectl apply -f k8s/
 
 ### **Infrastructure**
 
-## ��️ **Admin Console (Frontend)**
+## 🖥️ **Admin Console (Frontend)**
 
 **Modern Angular 16+ web application** providing a comprehensive interface for managing all ScopeAPI services. Features responsive design, lazy-loaded modules, real-time updates, and role-based access control.
 
