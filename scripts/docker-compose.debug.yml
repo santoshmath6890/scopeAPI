@@ -1,0 +1,111 @@
+# Debug configuration for ScopeAPI services
+# Extends docker-compose.yml with debugging capabilities
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.debug.yml up
+
+version: '3.8'
+
+services:
+  # API Discovery Service - Debug Mode
+  api-discovery:
+    build:
+      context: ./services/api-discovery
+      dockerfile: Dockerfile.debug
+    ports:
+      - "2345:2345"  # Delve debugger port only
+    environment:
+      - LOG_LEVEL=debug
+      - DEBUG=true
+    stdin_open: true
+    tty: true
+    # Override command to start in debug mode
+    command: ["/usr/local/bin/dlv", "--listen=0.0.0.0:2345", "--headless=true", "--continue=true", "--accept-multiclient", "exec", "./api-discovery"]
+
+  # Gateway Integration Service - Debug Mode
+  gateway-integration:
+    build:
+      context: ./services/gateway-integration
+      dockerfile: Dockerfile.debug
+    ports:
+      - "2346:2345"  # Delve debugger port only
+    environment:
+      - LOG_LEVEL=debug
+      - DEBUG=true
+    stdin_open: true
+    tty: true
+    # Override command to start in debug mode
+    command: ["/usr/local/bin/dlv", "--listen=0.0.0.0:2345", "--headless=true", "--continue=true", "--accept-multiclient", "exec", "./gateway-integration"]
+
+  # Data Ingestion Service - Debug Mode
+  data-ingestion:
+    build:
+      context: ./services/data-ingestion
+      dockerfile: Dockerfile.debug
+    ports:
+      - "2347:2345"  # Delve debugger port only
+    environment:
+      - LOG_LEVEL=debug
+      - DEBUG=true
+    stdin_open: true
+    tty: true
+    # Override command to start in debug mode
+    command: ["/usr/local/bin/dlv", "--listen=0.0.0.0:2345", "--headless=true", "--continue=true", "--accept-multiclient", "exec", "./data-ingestion"]
+
+  # Threat Detection Service - Debug Mode
+  threat-detection:
+    build:
+      context: ./services/threat-detection
+      dockerfile: Dockerfile.debug
+    ports:
+      - "2348:2345"  # Delve debugger port only
+    environment:
+      - LOG_LEVEL=debug
+      - DEBUG=true
+    stdin_open: true
+    tty: true
+    # Override command to start in debug mode
+    command: ["/usr/local/bin/dlv", "--listen=0.0.0.0:2345", "--headless=true", "--continue=true", "--accept-multiclient", "exec", "./threat-detection"]
+
+  # Data Protection Service - Debug Mode
+  data-protection:
+    build:
+      context: ./services/data-protection
+      dockerfile: Dockerfile.debug
+    ports:
+      - "2349:2345"  # Delve debugger port only
+    environment:
+      - LOG_LEVEL=debug
+      - DEBUG=true
+    stdin_open: true
+    tty: true
+    # Override command to start in debug mode
+    command: ["/usr/local/bin/dlv", "--listen=0.0.0.0:2345", "--headless=true", "--continue=true", "--accept-multiclient", "exec", "./data-protection"]
+
+  # Attack Blocking Service - Debug Mode
+  attack-blocking:
+    build:
+      context: ./services/attack-blocking
+      dockerfile: Dockerfile.debug
+    ports:
+      - "2350:2345"  # Delve debugger port only
+    environment:
+      - LOG_LEVEL=debug
+      - DEBUG=true
+    stdin_open: true
+    tty: true
+    # Override command to start in debug mode
+    command: ["/usr/local/bin/dlv", "--listen=0.0.0.0:2345", "--headless=true", "--continue=true", "--accept-multiclient", "exec", "./attack-blocking"]
+
+  # Admin Console Service - Debug Mode
+  admin-console:
+    build:
+      context: ./services/admin-console
+      dockerfile: Dockerfile.debug
+    ports:
+      - "2351:2345"  # Delve debugger port only
+    environment:
+      - LOG_LEVEL=debug
+      - DEBUG=true
+    stdin_open: true
+    tty: true
+    # Override command to start in debug mode
+    command: ["/usr/local/bin/dlv", "--listen=0.0.0.0:2345", "--headless=true", "--continue=true", "--accept-multiclient", "exec", "./admin-console"]

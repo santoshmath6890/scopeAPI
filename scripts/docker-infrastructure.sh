@@ -1,7 +1,10 @@
 #!/bin/bash
 
-# ScopeAPI Infrastructure Management Script
-# This script manages Docker containers for all infrastructure services
+# ScopeAPI Infrastructure Management Script (Infrastructure Only)
+# This script manages ONLY infrastructure services (PostgreSQL, Kafka, Redis, etc.)
+# Note: For microservices management, use scopeapi-services.sh instead
+# This script is focused on infrastructure setup and troubleshooting
+
 
 set -e
 

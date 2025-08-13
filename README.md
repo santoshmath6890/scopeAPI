@@ -1,177 +1,333 @@
-# ScopeAPI - Comprehensive API Security Platform
+# 🚀 ScopeAPI
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Go Version](https://img.shields.io/badge/Go-1.21+-blue.svg)](https://golang.org/)
-[![Angular Version](https://img.shields.io/badge/Angular-17+-red.svg)](https://angular.io/)
+[![Go Version](https://img.shields.io/badge/Go-1.21+-blue.svg)](https://golang.org)
+[![Angular Version](https://img.shields.io/badge/Angular-16+-red.svg)](https://angular.io)
+[![Docker Version](https://img.shields.io/badge/Docker-24+-blue.svg)](https://docker.com)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-## 🚀 Overview
+**ScopeAPI** is a comprehensive **API security and management platform** designed to protect, monitor, and manage APIs in modern distributed systems. It provides a unified approach to API security across multiple domains with enterprise-grade capabilities.
 
-ScopeAPI is a comprehensive, enterprise-grade API security platform designed to provide complete visibility, protection, and testing capabilities for modern API ecosystems. Built with a distributed microservices architecture, ScopeAPI offers real-time threat detection, automated security testing, and intelligent attack prevention powered by machine learning and cloud intelligence.
+## 🎯 **What is ScopeAPI?**
 
-## ✨ Key Features
+ScopeAPI is an **open-source platform** that helps organizations secure their APIs through:
 
-- 🔍 **Endpoint Discovery** - Automatic discovery and cataloging of API endpoints
-- 🛡️ **Sensitive Data Scanning** - PII detection and risk scoring
-- ⚡ **Attack Detection** - ML-powered anomaly and behavioral analysis
-- 🔍 **Attack Context** - Full context around attacks for quick vulnerability fixes
-- 🛡️ **Attack Blocking** - Real-time threat blocking with cloud intelligence
-- 🧪 **API Security Testing** - Automated OWASP API Top 10 vulnerability testing
-- 🔗 **CI/CD Integration** - Seamless integration with development pipelines
-- 📊 **Intelligent Analytics** - Interactive dashboards and comprehensive reporting
+- **🔍 API Discovery & Cataloging** - Automatically discover and catalog API endpoints
+- **🛡️ Threat Detection & Prevention** - Real-time security threat identification and blocking
+- **🔒 Data Protection & Compliance** - Sensitive data detection and regulatory compliance
+- **⚡ Attack Blocking** - Real-time threat prevention and blocking
+- **🌐 Gateway Integration** - Seamless integration with popular API gateways
+- **📊 Centralized Management** - Unified admin console for all security operations
 
-## 🏗️ Architecture
+## 🏗️ **Architecture**
 
-ScopeAPI employs a distributed, microservices-based architecture designed for scalability, resilience, and maintainability.
+ScopeAPI follows a **microservices architecture** with:
 
-### **Core Services**
-- **API Discovery Service**: Automatic endpoint discovery and cataloging
-- **Threat Detection Engine**: ML-powered anomaly and behavioral analysis
-- **Attack Blocking Engine**: Real-time threat blocking with cloud intelligence
-- **Data Protection Service**: PII detection and compliance management
-- **Security Testing Engine**: Automated vulnerability testing
-- **Gateway Integration Service**: Multi-gateway management (Kong, NGINX, Traefik, Envoy, HAProxy)
-- **Data Ingestion Service**: High-volume traffic processing
-- **Admin Console Service**: Centralized management interface with Angular frontend
+- **7 Core Microservices** - Each handling a specific security domain
+- **Event-Driven Communication** - Kafka-based message queuing
+- **Polyglot Persistence** - PostgreSQL, Redis, Elasticsearch
+- **Containerized Deployment** - Docker and Docker Compose
+- **RESTful APIs** - Standard HTTP interfaces for all services
 
-### **Technology Stack**
-- **Backend**: Go microservices with Gin framework
-- **Admin Console**: Angular 17+ with TypeScript
-- **Databases**: PostgreSQL (relational), MongoDB (document), Neo4j (graph), Redis (cache)
-- **Message Queues**: Apache Kafka for event-driven communication
-- **ML/AI**: TensorFlow, PyTorch, Apache Spark
-- **Container Orchestration**: Kubernetes, Docker
-- **Monitoring**: Prometheus, Grafana, ELK Stack
-
-### **Key Architectural Principles**
-- **Microservices**: Independent, scalable services
-- **Event-Driven**: Asynchronous communication via Kafka
-- **Polyglot Persistence**: Multi-database strategy for optimal performance
-- **Cloud-Native**: Containerized deployment
-- **Security-First**: Zero-trust architecture
-- **Observability**: Full-stack monitoring and tracing
-
-For detailed architecture information, see [Technical Architecture](./docs/ScopeAPI_Technical_Architecture.md).
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Docker and Docker Compose installed
-- Go 1.21+ for backend services
-- Node.js 18+ and npm for frontend
-- Git
-
-### Infrastructure Setup
-
-1. **Start Infrastructure Services**
-   ```bash
-   # Start all required services (Kafka, PostgreSQL, Redis, etc.)
-   ./docker-infrastructure.sh start
-   
-   # If you encounter Docker permission issues:
-   ./docker-infrastructure.sh fix-permissions
-   ```
-
-2. **Check Infrastructure Status**
-   ```bash
-   ./docker-infrastructure.sh status
-   ```
-
-### Application Setup
-
-1. **Start ScopeAPI Services**
-   ```bash
-   # Start all application services
-   ./scopeapi-manager.sh start
-   ```
-
-2. **Check Application Status**
-   ```bash
-   ./scopeapi-manager.sh status
-   ```
-
-### Access Points
-
-- **Admin Console**: http://localhost:4200
-- **API Gateway**: http://localhost:8080
-- **Kafka**: localhost:9092
-- **PostgreSQL**: localhost:5432
-- **Redis**: localhost:6379
-
-### Development Setup
-
-For detailed development setup instructions, see [README-RUN.md](README-RUN.md).
-
-## 📚 Documentation
-
-- **[Product Overview](./docs/ScopeAPI_Product_Overview.md)** - High-level product overview and features
-- **[Technical Architecture](./docs/ScopeAPI_Technical_Architecture.md)** - Detailed system architecture and design
-- **[Project Structure](./docs/ScopeAPI_Project_Structure.md)** - Complete project structure and organization
-
-## 🛠️ Development
-
-### Backend Development
-
-```bash
-cd backend
-go mod tidy
-go run ./services/api-discovery/cmd/main.go
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        ScopeAPI Platform                        │
+├─────────────────────────────────────────────────────────────────┤
+│  Admin Console (Angular)  │  API Gateway (Kong/Envoy/Nginx)   │
+├─────────────────────────────────────────────────────────────────┤
+│                    Microservices Layer                          │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ │
+│  │API Discovery│ │Threat Detect│ │Data Protect │ │Attack Block │ │
+│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘ │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐               │
+│  │Gateway Integ│ │Data Ingest  │ │Admin Console│               │
+│  └─────────────┘ └─────────────┘ └─────────────┘               │
+├─────────────────────────────────────────────────────────────────┤
+│                    Infrastructure Layer                         │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ │
+│  │  PostgreSQL │ │    Kafka    │ │    Redis    │ │Elasticsearch│ │
+│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Admin Console Development
+## 🚀 **Quick Start**
 
+### **Prerequisites**
+- **Docker** 24.0+ with Docker Compose
+- **Go** 1.21+ (for backend development)
+- **Node.js** 18+ (for admin console)
+
+### **1. Clone the Repository**
 ```bash
-# Option 1: Full microservice (Recommended)
-cd backend/services/admin-console
-make full-build
-make run
-
-# Option 2: Angular development only
-cd adminConsole
-npm install
-ng serve
+git clone https://github.com/your-org/scopeapi.git
+cd scopeapi
 ```
 
-### Running Tests
+### **2. Complete Setup**
+```bash
+# Complete setup with validation
+./scripts/scopeapi-setup.sh --full
 
+# This will:
+# - Start infrastructure services
+# - Setup PostgreSQL database
+# - Run migrations
+# - Create test data
+# - Validate everything
+```
+
+### **3. Start Development**
+```bash
+# Start all services for development
+./scripts/scopeapi-services.sh start all
+
+# Or start specific service
+./scripts/scopeapi-services.sh start api-discovery
+```
+
+### **4. Access Services**
+- **Admin Console**: http://localhost:8086
+- **API Discovery**: http://localhost:8080
+- **Gateway Integration**: http://localhost:8081
+- **Data Ingestion**: http://localhost:8082
+- **Threat Detection**: http://localhost:8083
+- **Data Protection**: http://localhost:8084
+- **Attack Blocking**: http://localhost:8085
+
+## 🔧 **Development Workflows**
+
+### **Daily Development**
+```bash
+# Start services
+./scripts/scopeapi-services.sh start all
+
+# Make code changes
+# View logs if needed
+./scripts/scopeapi-services.sh logs api-discovery
+
+# Stop when done
+./scripts/scopeapi-services.sh stop
+```
+
+### **Debugging**
+```bash
+# Start service in debug mode
+./scripts/scopeapi-debug.sh start api-discovery
+
+# Connect IDE to localhost:2345
+# Set breakpoints and debug
+```
+
+### **Testing**
 ```bash
 # Backend tests
-cd backend
-go test ./...
+cd backend && go test ./...
 
-# Admin Console tests
-cd adminConsole
-npm test
+# Frontend tests
+cd adminConsole && ng test
+
+# Integration tests
+./scripts/setup-database.sh --validate
 ```
 
-## 🔧 Configuration
+## 📚 **Documentation**
 
-Configuration files are located in:
-- Backend services: `backend/config/`
-- Admin Console: `adminConsole/src/environments/`
+- **[📖 Documentation Index](docs/INDEX.md)** - Complete documentation navigation
+- **[🏗️ Architecture Guide](docs/ARCHITECTURE.md)** - System design and technical details
+- **[💻 Development Guide](docs/DEVELOPMENT.md)** - Development setup and workflows
+- **[🐳 Docker Setup](docs/DOCKER_SETUP.md)** - Container and deployment setup
+- **[🛠️ Scripts Usage](scripts/USAGE.md)** - Development scripts guide
 
-## 🤝 Contributing
+## 🤝 **Contributing**
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+We welcome contributions from the community! Please see our **[Contributing Guide](docs/CONTRIBUTING.md)** for details on:
 
-## 📄 License
+- **Code Standards** - Coding conventions and best practices
+- **Development Setup** - How to set up your development environment
+- **Pull Request Process** - How to submit your changes
+- **Testing Guidelines** - How to test your contributions
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+### **Quick Contribution Start**
+```bash
+# Fork and clone
+git clone https://github.com/your-username/scopeapi.git
+cd scopeapi
 
-## 🆘 Support
+# Setup development environment
+./scripts/scopeapi-setup.sh --full
 
-- **Documentation**: Check the [docs](docs/) directory
-- **Issues**: Report bugs and feature requests via [GitHub Issues](https://github.com/advaith-ai/scopeapi/issues)
-- **Discussions**: Join the conversation in [GitHub Discussions](https://github.com/advaith-ai/scopeapi/discussions)
+# Create feature branch
+git checkout -b feature/amazing-feature
 
-## 🏢 Enterprise
+# Make changes and test
+./scripts/scopeapi-services.sh start all
 
-For enterprise support, custom deployments, and professional services, please contact us at info@advaith.ai
+# Commit and push
+git commit -m "Add amazing feature"
+git push origin feature/amazing-feature
+
+# Create Pull Request
+```
+
+## 🏗️ **Project Structure**
+
+```
+scopeapi/
+├── 📁 backend/                 # Go microservices
+│   ├── 📁 services/            # Individual microservices
+│   │   ├── 📁 api-discovery/   # API discovery service
+│   │   ├── 📁 threat-detection/ # Threat detection service
+│   │   ├── 📁 data-protection/  # Data protection service
+│   │   ├── 📁 attack-blocking/  # Attack blocking service
+│   │   ├── 📁 gateway-integration/ # Gateway integration service
+│   │   ├── 📁 data-ingestion/   # Data ingestion service
+│   │   └── 📁 admin-console/    # Admin console backend
+│   └── 📁 shared/              # Shared libraries and utilities
+├── 📁 adminConsole/            # Angular frontend application
+│   ├── 🔄 scopeapi-local.sh  # Local development (process-based management)
+│   ├── 🐳 docker-infrastructure.sh # Infrastructure management
+│   ├── 🚀 scopeapi-services.sh # Container-based microservices orchestration
+│   ├── 🔧 scopeapi-setup.sh    # Complete setup and validation
+│   └── 🐛 scopeapi-debug.sh    # Debug mode management
+├── 📁 docs/                    # Comprehensive documentation
+└── 📁 README.md                # This file
+```
+
+## 🚀 **Deployment**
+
+### **Local Development**
+```bash
+./scripts/scopeapi-setup.sh --full
+./scripts/scopeapi-services.sh start all
+```
+
+### **Production**
+```bash
+# Deploy with Docker Compose
+docker-compose -f scripts/docker-compose.yml up -d
+
+# Or deploy to Kubernetes
+kubectl apply -f k8s/
+```
+
+## 📊 **Features**
+
+### **🔍 API Discovery**
+- **Automatic Endpoint Discovery** - Crawl and catalog API endpoints
+- **Change Detection** - Monitor API changes and versioning
+- **Documentation Generation** - Auto-generate API documentation
+- **Metadata Management** - Rich metadata and tagging
+
+### **🛡️ Threat Detection**
+- **Real-time Analysis** - Continuous security monitoring
+- **Machine Learning** - AI-powered threat detection
+- **Behavioral Analysis** - User and API behavior monitoring
+- **Threat Intelligence** - Integration with threat feeds
+
+### **🔒 Data Protection**
+- **PII Detection** - Automatic sensitive data identification
+- **Data Classification** - Intelligent data categorization
+- **Compliance Monitoring** - Regulatory requirement tracking
+- **Audit Logging** - Comprehensive audit trails
+
+### **⚡ Attack Blocking**
+- **Real-time Filtering** - Request validation and filtering
+- **Rate Limiting** - Adaptive rate limiting and throttling
+- **IP Blocking** - Geographic and reputation-based blocking
+- **Pattern Recognition** - Attack pattern identification
+
+### **🌐 Gateway Integration**
+- **Multi-Gateway Support** - Kong, Envoy, HAProxy, Nginx, Traefik
+- **Policy Management** - Centralized policy configuration
+- **Health Monitoring** - Gateway health and performance
+- **Configuration Sync** - Automated policy deployment
+
+## 🛠️ **Technology Stack**
+
+### **Backend**
+- **Language**: Go 1.21+
+- **Framework**: Standard library + custom middleware
+- **Database**: PostgreSQL 15+
+- **Cache**: Redis 7+
+- **Message Queue**: Apache Kafka 3.4+
+
+### **Frontend**
+- **Framework**: Angular 16+
+- **Language**: TypeScript 5+
+- **Styling**: SCSS with modern CSS features
+- **Build Tool**: Angular CLI with Webpack
+
+### **Infrastructure**
+- **Containerization**: Docker 24+
+- **Orchestration**: Docker Compose, Kubernetes
+- **Monitoring**: Prometheus, Grafana, ELK Stack
+- **CI/CD**: GitHub Actions, GitLab CI
+
+## 📈 **Performance & Scalability**
+
+- **Horizontal Scaling** - All services scale independently
+- **Event-Driven Architecture** - Asynchronous processing
+- **Caching Strategies** - Multi-layer caching for performance
+- **Load Balancing** - Intelligent request distribution
+- **99.9% Uptime** - High availability and reliability
+
+## 🔒 **Security Features**
+
+- **Zero-Trust Architecture** - No implicit trust between services
+- **Multi-Factor Authentication** - Enhanced access security
+- **Role-Based Access Control** - Granular permission management
+- **Encryption** - Data encryption at rest and in transit
+- **Audit Logging** - Comprehensive security event tracking
+
+## 🌟 **Why Choose ScopeAPI?**
+
+### **✅ Open Source**
+- **Transparent** - Full source code visibility
+- **Community Driven** - Active community contributions
+- **No Vendor Lock-in** - Complete control over your deployment
+
+### **✅ Enterprise Ready**
+- **Production Grade** - Built for enterprise environments
+- **Scalable** - Handles growth and increased load
+- **Secure** - Security-first design principles
+- **Compliant** - Built-in compliance and audit features
+
+### **✅ Developer Friendly**
+- **Easy Setup** - Simple development environment setup
+- **Comprehensive Tooling** - Scripts, debugging, and monitoring
+- **Clear Documentation** - Well-documented APIs and workflows
+- **Testing Support** - Built-in testing and validation tools
+
+## 🤝 **Community & Support**
+
+### **Getting Help**
+- **📖 Documentation**: Comprehensive guides and references
+- **🐛 Issues**: Report bugs and request features
+- **💬 Discussions**: Ask questions and share ideas
+- **📧 Email**: Contact the maintainers directly
+
+### **Contributing**
+- **Code Contributions** - Bug fixes, features, and improvements
+- **Documentation** - Help improve guides and references
+- **Testing** - Report bugs and test new features
+- **Community** - Help other users and contributors
+
+## 📄 **License**
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 **Acknowledgments**
+
+- **Go Community** - For the excellent Go ecosystem
+- **Angular Team** - For the powerful frontend framework
+- **Docker Community** - For containerization tools
+- **Open Source Contributors** - For making this project possible
 
 ---
 
-**ScopeAPI** - Securing APIs with Intelligence 
+**🎯 Ready to secure your APIs?**
+- **Star** this repository if you find it useful
+- **Fork** to contribute or customize
+- **Share** with your team and community
+- **Contribute** to make it even better
+
+**Happy coding! 🚀✨** 

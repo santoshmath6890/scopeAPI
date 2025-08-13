@@ -1,9 +1,0 @@
-go 1.22
-
-use (
-	./backend/services/data-ingestion
-	./backend/services/api-discovery
-	./backend/services/threat-detection
-	./backend/services/gateway-integration
-	./backend/shared
-)

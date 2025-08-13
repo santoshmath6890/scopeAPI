@@ -1,6 +1,8 @@
 #!/bin/bash
 
-# ScopeAPI Unified Management Script
+# ScopeAPI Local Development Script
+# Manages Go microservices for local development (direct processes)
+# Requires infrastructure to be running (use docker-infrastructure.sh first)
 # Combines start, stop, and status functionality into a single script
 
 set -e
@@ -21,18 +23,385 @@ PID_FILE="$PROJECT_ROOT/logs/scopeapi.pid"
 LOGS_DIR="$PROJECT_ROOT/logs"
 
 # Load environment variables from .env file if it exists
+    # Check infrastructure dependencies
+    check_infrastructure
+    
 load_env_vars() {
-    if [ -f ".env" ]; then
-        print_info "Loading environment variables from .env file"
-        # Use source to properly handle variables with spaces
-        set -a
-        source .env
-        set +a
-    else
-        print_error ".env file not found. Please create one based on env.example"
-        print_info "Run: ./docker-infrastructure.sh setup-env or ./scripts/generate-passwords.sh"
+
+# Function to check if infrastructure services are running
+check_infrastructure() {
+    print_info "Checking infrastructure dependencies..."
+    
+    # Check PostgreSQL
+    if ! docker ps | grep -q "scopeapi-postgres"; then
+        print_error "PostgreSQL is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
         exit 1
     fi
+    
+    # Check Kafka
+    if ! docker ps | grep -q "scopeapi-kafka"; then
+        print_error "Kafka is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Redis
+    if ! docker ps | grep -q "scopeapi-redis"; then
+        print_error "Redis is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    print_success "Infrastructure services are running"
+}
+    if [ -f ".env" ]; then
+
+# Function to check if infrastructure services are running
+check_infrastructure() {
+    print_info "Checking infrastructure dependencies..."
+    
+    # Check PostgreSQL
+    if ! docker ps | grep -q "scopeapi-postgres"; then
+        print_error "PostgreSQL is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Kafka
+    if ! docker ps | grep -q "scopeapi-kafka"; then
+        print_error "Kafka is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Redis
+    if ! docker ps | grep -q "scopeapi-redis"; then
+        print_error "Redis is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    print_success "Infrastructure services are running"
+}
+        print_info "Loading environment variables from .env file"
+
+# Function to check if infrastructure services are running
+check_infrastructure() {
+    print_info "Checking infrastructure dependencies..."
+    
+    # Check PostgreSQL
+    if ! docker ps | grep -q "scopeapi-postgres"; then
+        print_error "PostgreSQL is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Kafka
+    if ! docker ps | grep -q "scopeapi-kafka"; then
+        print_error "Kafka is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Redis
+    if ! docker ps | grep -q "scopeapi-redis"; then
+        print_error "Redis is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    print_success "Infrastructure services are running"
+}
+        # Use source to properly handle variables with spaces
+
+# Function to check if infrastructure services are running
+check_infrastructure() {
+    print_info "Checking infrastructure dependencies..."
+    
+    # Check PostgreSQL
+    if ! docker ps | grep -q "scopeapi-postgres"; then
+        print_error "PostgreSQL is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Kafka
+    if ! docker ps | grep -q "scopeapi-kafka"; then
+        print_error "Kafka is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Redis
+    if ! docker ps | grep -q "scopeapi-redis"; then
+        print_error "Redis is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    print_success "Infrastructure services are running"
+}
+        set -a
+
+# Function to check if infrastructure services are running
+check_infrastructure() {
+    print_info "Checking infrastructure dependencies..."
+    
+    # Check PostgreSQL
+    if ! docker ps | grep -q "scopeapi-postgres"; then
+        print_error "PostgreSQL is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Kafka
+    if ! docker ps | grep -q "scopeapi-kafka"; then
+        print_error "Kafka is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Redis
+    if ! docker ps | grep -q "scopeapi-redis"; then
+        print_error "Redis is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    print_success "Infrastructure services are running"
+}
+        source .env
+
+# Function to check if infrastructure services are running
+check_infrastructure() {
+    print_info "Checking infrastructure dependencies..."
+    
+    # Check PostgreSQL
+    if ! docker ps | grep -q "scopeapi-postgres"; then
+        print_error "PostgreSQL is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Kafka
+    if ! docker ps | grep -q "scopeapi-kafka"; then
+        print_error "Kafka is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Redis
+    if ! docker ps | grep -q "scopeapi-redis"; then
+        print_error "Redis is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    print_success "Infrastructure services are running"
+}
+        set +a
+
+# Function to check if infrastructure services are running
+check_infrastructure() {
+    print_info "Checking infrastructure dependencies..."
+    
+    # Check PostgreSQL
+    if ! docker ps | grep -q "scopeapi-postgres"; then
+        print_error "PostgreSQL is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Kafka
+    if ! docker ps | grep -q "scopeapi-kafka"; then
+        print_error "Kafka is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Redis
+    if ! docker ps | grep -q "scopeapi-redis"; then
+        print_error "Redis is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    print_success "Infrastructure services are running"
+}
+    else
+
+# Function to check if infrastructure services are running
+check_infrastructure() {
+    print_info "Checking infrastructure dependencies..."
+    
+    # Check PostgreSQL
+    if ! docker ps | grep -q "scopeapi-postgres"; then
+        print_error "PostgreSQL is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Kafka
+    if ! docker ps | grep -q "scopeapi-kafka"; then
+        print_error "Kafka is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Redis
+    if ! docker ps | grep -q "scopeapi-redis"; then
+        print_error "Redis is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    print_success "Infrastructure services are running"
+}
+        print_error ".env file not found. Please create one based on env.example"
+
+# Function to check if infrastructure services are running
+check_infrastructure() {
+    print_info "Checking infrastructure dependencies..."
+    
+    # Check PostgreSQL
+    if ! docker ps | grep -q "scopeapi-postgres"; then
+        print_error "PostgreSQL is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Kafka
+    if ! docker ps | grep -q "scopeapi-kafka"; then
+        print_error "Kafka is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Redis
+    if ! docker ps | grep -q "scopeapi-redis"; then
+        print_error "Redis is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    print_success "Infrastructure services are running"
+}
+        print_info "Run: ./docker-infrastructure.sh setup-env or ./scripts/generate-passwords.sh"
+
+# Function to check if infrastructure services are running
+check_infrastructure() {
+    print_info "Checking infrastructure dependencies..."
+    
+    # Check PostgreSQL
+    if ! docker ps | grep -q "scopeapi-postgres"; then
+        print_error "PostgreSQL is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Kafka
+    if ! docker ps | grep -q "scopeapi-kafka"; then
+        print_error "Kafka is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Redis
+    if ! docker ps | grep -q "scopeapi-redis"; then
+        print_error "Redis is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    print_success "Infrastructure services are running"
+}
+        exit 1
+
+# Function to check if infrastructure services are running
+check_infrastructure() {
+    print_info "Checking infrastructure dependencies..."
+    
+    # Check PostgreSQL
+    if ! docker ps | grep -q "scopeapi-postgres"; then
+        print_error "PostgreSQL is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Kafka
+    if ! docker ps | grep -q "scopeapi-kafka"; then
+        print_error "Kafka is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Redis
+    if ! docker ps | grep -q "scopeapi-redis"; then
+        print_error "Redis is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    print_success "Infrastructure services are running"
+}
+    fi
+
+# Function to check if infrastructure services are running
+check_infrastructure() {
+    print_info "Checking infrastructure dependencies..."
+    
+    # Check PostgreSQL
+    if ! docker ps | grep -q "scopeapi-postgres"; then
+        print_error "PostgreSQL is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Kafka
+    if ! docker ps | grep -q "scopeapi-kafka"; then
+        print_error "Kafka is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Redis
+    if ! docker ps | grep -q "scopeapi-redis"; then
+        print_error "Redis is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    print_success "Infrastructure services are running"
+}
+}
+
+# Function to check if infrastructure services are running
+check_infrastructure() {
+    print_info "Checking infrastructure dependencies..."
+    
+    # Check PostgreSQL
+    if ! docker ps | grep -q "scopeapi-postgres"; then
+        print_error "PostgreSQL is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Kafka
+    if ! docker ps | grep -q "scopeapi-kafka"; then
+        print_error "Kafka is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    # Check Redis
+    if ! docker ps | grep -q "scopeapi-redis"; then
+        print_error "Redis is not running. Please start infrastructure first:"
+        print_info "  ./docker-infrastructure.sh start"
+        exit 1
+    fi
+    
+    print_success "Infrastructure services are running"
 }
 
 # Service configuration
@@ -261,6 +630,9 @@ start_threat_detection() {
     print_info "Starting Threat Detection Service..."
     
     # Load environment variables if not already loaded
+    # Check infrastructure dependencies
+    check_infrastructure
+    
     if [[ -z "$DB_PASSWORD" ]]; then
         load_env_vars
     fi
@@ -426,6 +798,9 @@ start_all_services() {
     print_header "Starting ScopeAPI Services"
     
     # Load environment variables
+    # Check infrastructure dependencies
+    check_infrastructure
+    
     load_env_vars
     
     # Create logs directory if it doesn't exist
@@ -541,7 +916,7 @@ show_status() {
 
 # Function to show help
 show_help() {
-    echo "ScopeAPI Unified Management Script"
+    echo "ScopeAPI Local Development Script"
     echo ""
     echo "Usage: $0 [COMMAND]"
     echo ""
@@ -569,6 +944,10 @@ echo "  - Data Protection Service (port $DATA_PROTECTION_PORT)"
 echo "  - Admin Console (port $ADMIN_CONSOLE_PORT)"
     echo ""
     echo "Files:"
+    echo ""
+    echo "Dependencies:"
+    echo "  - Infrastructure must be running (use: ./docker-infrastructure.sh start)"
+    echo "  - PostgreSQL, Kafka, Redis, Elasticsearch, Kibana"
     echo "  PID File: $PID_FILE"
     echo "  Logs: $LOGS_DIR/"
 }

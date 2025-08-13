@@ -1,0 +1,12 @@
+go 1.22
+
+use (
+	./services/data-ingestion
+	./services/api-discovery
+	./services/threat-detection
+	./services/gateway-integration
+	./services/admin-console
+	./services/data-protection
+	./services/attack-blocking
+	./shared
+)

@@ -1,0 +1,83 @@
+# Development overrides for docker-compose.yml
+# Provides development-friendly configurations without debug features
+# Usage: docker-compose up (automatically loads this file)
+
+version: '3.8'
+
+services:
+  # API Discovery Service - Development Mode
+  api-discovery:
+    ports:
+      - "8080:8080"  # Service port
+    environment:
+      - LOG_LEVEL=info
+      - NODE_ENV=development
+    volumes:
+      - ./services/api-discovery:/app/src:ro  # Mount source code for live development
+    # Keep default command from main docker-compose.yml
+
+  # Gateway Integration Service - Development Mode
+  gateway-integration:
+    ports:
+      - "8081:8081"  # Service port
+    environment:
+      - LOG_LEVEL=info
+      - NODE_ENV=development
+    volumes:
+      - ./services/gateway-integration:/app/src:ro
+    # Keep default command from main docker-compose.yml
+
+  # Data Ingestion Service - Development Mode
+  data-ingestion:
+    ports:
+      - "8082:8082"  # Service port
+    environment:
+      - LOG_LEVEL=info
+      - NODE_ENV=development
+    volumes:
+      - ./services/data-ingestion:/app/src:ro
+    # Keep default command from main docker-compose.yml
+
+  # Threat Detection Service - Development Mode
+  threat-detection:
+    ports:
+      - "8083:8083"  # Service port
+    environment:
+      - LOG_LEVEL=info
+      - NODE_ENV=development
+    volumes:
+      - ./services/threat-detection:/app/src:ro
+    # Keep default command from main docker-compose.yml
+
+  # Data Protection Service - Development Mode
+  data-protection:
+    ports:
+      - "8084:8084"  # Service port
+    environment:
+      - LOG_LEVEL=info
+      - NODE_ENV=development
+    volumes:
+      - ./services/data-protection:/app/src:ro
+    # Keep default command from main docker-compose.yml
+
+  # Attack Blocking Service - Development Mode
+  attack-blocking:
+    ports:
+      - "8085:8085"  # Service port
+    environment:
+      - LOG_LEVEL=info
+      - NODE_ENV=development
+    volumes:
+      - ./services/attack-blocking:/app/src:ro
+    # Keep default command from main docker-compose.yml
+
+  # Admin Console Service - Development Mode
+  admin-console:
+    ports:
+      - "8086:8086"  # Service port
+    environment:
+      - LOG_LEVEL=info
+      - NODE_ENV=development
+    volumes:
+      - ./services/admin-console:/app/src:ro
+    # Keep default command from main docker-compose.yml

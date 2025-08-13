@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ScopeAPI Database Setup Script
-# This script sets up PostgreSQL database and runs migrations
+# This script sets up PostgreSQL database, runs migrations, and validates setup
 
 set -e
 
@@ -197,8 +197,115 @@ EOF
     print_status 0 "Migration runner created"
 }
 
+# Function to create test data
+create_test_data() {
+    print_info "Creating sample test data..."
+    
+    # Set password for psql
+    export PGPASSWORD="$DB_PASSWORD"
+    
+    # Insert test endpoints
+    if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "
+    INSERT INTO api_discovery.endpoints (url, method, service_name) VALUES
+    ('/api/v1/users', 'GET', 'user-service'),
+    ('/api/v1/users', 'POST', 'user-service'),
+    ('/api/v1/auth/login', 'POST', 'auth-service'),
+    ('/api/v1/health', 'GET', 'health-check')
+    ON CONFLICT (url, method) DO NOTHING;
+    " >/dev/null 2>&1; then
+        print_status 0 "Test data created successfully"
+    else
+        print_warning "Failed to create test data (may already exist)"
+    fi
+}
+
+# Function to validate database setup
+validate_database() {
+    print_info "Validating database setup..."
+    
+    # Set password for psql
+    export PGPASSWORD="$DB_PASSWORD"
+    
+    # Test basic connection
+    if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1;" >/dev/null 2>&1; then
+        print_status 0 "Basic database connection successful"
+    else
+        print_status 1 "Basic database connection failed"
+        return 1
+    fi
+    
+    # Test schema and tables
+    print_info "Testing database schema..."
+    if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT COUNT(*) FROM api_discovery.endpoints;" >/dev/null 2>&1; then
+        print_status 0 "Database schema is valid"
+    else
+        print_status 1 "Database schema validation failed"
+        return 1
+    fi
+    
+    print_status 0 "Database validation completed successfully"
+}
+
+# Function to show help
+show_help() {
+    echo "ScopeAPI Database Setup Script"
+    echo ""
+    echo "Usage: $0 [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --help, -h     Show this help message"
+    echo "  --verbose, -v  Enable verbose output"
+    echo "  --test-data    Create sample test data after setup"
+    echo "  --validate     Run validation tests after setup"
+    echo ""
+    echo "Environment Variables:"
+    echo "  DB_HOST        Database host (default: localhost)"
+    echo "  DB_PORT        Database port (default: 5432)"
+    echo "  DB_USER        Database user (default: postgres)"
+    echo "  DB_PASSWORD    Database password (default: password)"
+    echo "  DB_NAME        Database name (default: scopeapi)"
+    echo "  DB_SSL_MODE    SSL mode (default: disable)"
+    echo ""
+    echo "Examples:"
+    echo "  $0                    # Use default settings"
+    echo "  $0 --test-data        # Setup + create test data"
+    echo "  $0 --validate         # Setup + run validation tests"
+    echo "  DB_HOST=192.168.1.100 $0  # Use custom host"
+    echo "  $0 --verbose          # Enable verbose output"
+}
+
 # Main execution
 main() {
+    local create_test_data_flag=false
+    local validate_flag=false
+    
+    # Parse command line arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --test-data)
+                create_test_data_flag=true
+                shift
+                ;;
+            --validate)
+                validate_flag=true
+                shift
+                ;;
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            --verbose|-v)
+                set -x
+                shift
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
+    
     print_info "Starting database setup..."
     
     # Check prerequisites
@@ -221,6 +328,16 @@ main() {
     # Run migrations
     if ! run_migrations; then
         exit 1
+    fi
+    
+    # Create test data if requested
+    if [ "$create_test_data_flag" = true ]; then
+        create_test_data
+    fi
+    
+    # Validate setup if requested
+    if [ "$validate_flag" = true ]; then
+        validate_database
     fi
     
     print_info "Database setup completed successfully!"
