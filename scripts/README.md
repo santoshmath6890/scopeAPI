@@ -16,19 +16,20 @@ This directory contains all the scripts, Docker Compose files, and configuration
 **Usage Examples:**
 ```bash
 # Complete setup with validation (recommended for first time)
-./scripts/scopeapi-setup.sh --full
+cd scripts
+./scopeapi-setup.sh --full
 
 # Start infrastructure only
-./scripts/scopeapi-setup.sh --infrastructure
+./scopeapi-setup.sh --infrastructure
 
 # Setup database only
-./scripts/scopeapi-setup.sh --database
+./scopeapi-setup.sh --database
 
 # Create test data
-./scripts/scopeapi-setup.sh --test-data
+./scopeapi-setup.sh --test-data
 
 # Validate existing setup
-./scripts/scopeapi-setup.sh --validate
+./scopeapi-setup.sh --validate
 ```
 
 ---
@@ -46,22 +47,23 @@ This directory contains all the scripts, Docker Compose files, and configuration
 **Usage Examples:**
 ```bash
 # Start all services
-./scripts/scopeapi-services.sh start all
+cd scripts
+./scopeapi-services.sh start all
 
 # Start specific service
-./scripts/scopeapi-services.sh start api-discovery
+./scopeapi-services.sh start api-discovery
 
 # Start multiple services
-./scripts/scopeapi-services.sh start api-discovery gateway-integration
+./scopeapi-services.sh start api-discovery gateway-integration
 
 # View logs
-./scripts/scopeapi-services.sh logs api-discovery
+./scopeapi-services.sh logs api-discovery
 
 # Check status
-./scripts/scopeapi-services.sh status
+./scopeapi-services.sh status
 
 # Stop all services
-./scripts/scopeapi-services.sh stop
+./scopeapi-services.sh stop
 ```
 
 ---
@@ -78,19 +80,20 @@ This directory contains all the scripts, Docker Compose files, and configuration
 **Usage Examples:**
 ```bash
 # Start service in debug mode
-./scripts/scopeapi-debug.sh start api-discovery
+cd scripts
+./scopeapi-debug.sh start api-discovery
 
 # Start multiple services in debug mode
-./scripts/scopeapi-debug.sh start api-discovery gateway-integration
+./scopeapi-debug.sh start api-discovery gateway-integration
 
 # View debug logs
-./scripts/scopeapi-debug.sh logs api-discovery
+./scopeapi-debug.sh logs api-discovery
 
 # Check debug status
-./scripts/scopeapi-debug.sh status
+./scopeapi-debug.sh status
 
 # Stop debug services
-./scripts/scopeapi-debug.sh stop
+./scopeapi-debug.sh stop
 ```
 
 ---
@@ -100,34 +103,37 @@ This directory contains all the scripts, Docker Compose files, and configuration
 ### **First Time Setup:**
 ```bash
 # 1. Complete setup
-./scripts/scopeapi-setup.sh --full
+cd scripts
+./scopeapi-setup.sh --full
 
 # 2. Verify everything is working
-./scripts/scopeapi-setup.sh --validate
+./scopeapi-setup.sh --validate
 ```
 
 ### **Daily Development:**
 ```bash
 # 1. Start services for development
-./scripts/scopeapi-services.sh start all
+cd scripts
+./scopeapi-services.sh start all
 
 # 2. Make code changes
 # 3. View logs if needed
-./scripts/scopeapi-services.sh logs api-discovery
+./scopeapi-services.sh logs api-discovery
 
 # 4. Stop when done
-./scripts/scopeapi-services.sh stop
+./scopeapi-services.sh stop
 ```
 
 ### **When Debugging is Needed:**
 ```bash
 # 1. Start service in debug mode
-./scripts/scopeapi-debug.sh start api-discovery
+cd scripts
+./scopeapi-debug.sh start api-discovery
 
 # 2. Connect IDE to localhost:2345
 # 3. Set breakpoints and debug
 # 4. Stop debug service when done
-./scripts/scopeapi-debug.sh stop
+./scopeapi-debug.sh stop
 ```
 
 ---
@@ -173,10 +179,11 @@ chmod +x scopeapi-*.sh
 ### **Services won't start:**
 ```bash
 # Check if infrastructure is running
-./scripts/scopeapi-setup.sh --validate
+cd scripts
+./scopeapi-setup.sh --validate
 
 # Start infrastructure if needed
-./scripts/scopeapi-setup.sh --infrastructure
+./scopeapi-setup.sh --infrastructure
 ```
 
 ---

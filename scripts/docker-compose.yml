@@ -93,11 +93,11 @@ services:
     ports:
       - "9200:9200"
     environment:
-      discovery.type: single-node
-      xpack.security.enabled: false
-      ES_JAVA_OPTS: -Xms512m -Xmx512m
-      cluster.name: scopeapi-cluster
-      node.name: scopeapi-node
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - cluster.name=scopeapi-cluster
+      - node.name=scopeapi-node
     volumes:
       - scopeapi-elasticsearch-data:/usr/share/elasticsearch/data
     networks:
@@ -120,9 +120,9 @@ services:
     ports:
       - "5601:5601"
     environment:
-      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
-      ELASTICSEARCH_URL: http://elasticsearch:9200
-      KIBANA_INDEX: .kibana
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - KIBANA_INDEX=.kibana
     networks:
       - scopeapi-network
     restart: unless-stopped
@@ -186,7 +186,7 @@ services:
   # API Discovery Service
   api-discovery:
     build:
-      context: ./services/api-discovery
+      context: ../backend/services/api-discovery
       dockerfile: Dockerfile
     container_name: scopeapi-api-discovery
     hostname: api-discovery
@@ -219,7 +219,7 @@ services:
   # Gateway Integration Service
   gateway-integration:
     build:
-      context: ./services/gateway-integration
+      context: ../backend/services/gateway-integration
       dockerfile: Dockerfile
     container_name: scopeapi-gateway-integration
     hostname: gateway-integration
@@ -252,7 +252,7 @@ services:
   # Data Ingestion Service
   data-ingestion:
     build:
-      context: ./services/data-ingestion
+      context: ../backend/services/data-ingestion
       dockerfile: Dockerfile
     container_name: scopeapi-data-ingestion
     hostname: data-ingestion
@@ -285,7 +285,7 @@ services:
   # Threat Detection Service
   threat-detection:
     build:
-      context: ./services/threat-detection
+      context: ../backend/services/threat-detection
       dockerfile: Dockerfile
     container_name: scopeapi-threat-detection
     hostname: threat-detection
@@ -318,7 +318,7 @@ services:
   # Data Protection Service
   data-protection:
     build:
-      context: ./services/data-protection
+      context: ../backend/services/data-protection
       dockerfile: Dockerfile
     container_name: scopeapi-data-protection
     hostname: data-protection
@@ -351,7 +351,7 @@ services:
   # Attack Blocking Service
   attack-blocking:
     build:
-      context: ./services/attack-blocking
+      context: ../backend/services/attack-blocking
       dockerfile: Dockerfile
     container_name: scopeapi-attack-blocking
     hostname: attack-blocking
@@ -384,7 +384,7 @@ services:
   # Admin Console Service
   admin-console:
     build:
-      context: ./services/admin-console
+      context: ../backend/services/admin-console
       dockerfile: Dockerfile
     container_name: scopeapi-admin-console
     hostname: admin-console

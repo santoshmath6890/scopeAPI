@@ -65,7 +65,8 @@ cd scopeapi
 ### **2. Complete Setup**
 ```bash
 # Complete setup with validation
-./scripts/scopeapi-setup.sh --full
+cd scripts
+./scopeapi-setup.sh --full
 
 # This will:
 # - Start infrastructure services
@@ -78,10 +79,11 @@ cd scopeapi
 ### **3. Start Development**
 ```bash
 # Start all services for development
-./scripts/scopeapi-services.sh start all
+cd scripts
+./scopeapi-services.sh start all
 
 # Or start specific service
-./scripts/scopeapi-services.sh start api-discovery
+./scopeapi-services.sh start api-discovery
 ```
 
 ### **4. Access Services**
@@ -98,20 +100,22 @@ cd scopeapi
 ### **Daily Development**
 ```bash
 # Start services
-./scripts/scopeapi-services.sh start all
+cd scripts
+./scopeapi-services.sh start all
 
 # Make code changes
 # View logs if needed
-./scripts/scopeapi-services.sh logs api-discovery
+./scopeapi-services.sh logs api-discovery
 
 # Stop when done
-./scripts/scopeapi-services.sh stop
+./scopeapi-services.sh stop
 ```
 
 ### **Debugging**
 ```bash
 # Start service in debug mode
-./scripts/scopeapi-debug.sh start api-discovery
+cd scripts
+./scopeapi-debug.sh start api-discovery
 
 # Connect IDE to localhost:2345
 # Set breakpoints and debug
@@ -145,7 +149,6 @@ We welcome contributions from the community! Please see our **[Contributing Guid
 - **Development Setup** - How to set up your development environment
 - **Pull Request Process** - How to submit your changes
 - **Testing Guidelines** - How to test your contributions
-
 ### **Quick Contribution Start**
 ```bash
 # Fork and clone
@@ -153,7 +156,8 @@ git clone https://github.com/your-username/scopeapi.git
 cd scopeapi
 
 # Setup development environment
-./scripts/scopeapi-setup.sh --full
+cd scripts
+./scopeapi-setup.sh --full
 
 # Create feature branch
 git checkout -b feature/amazing-feature

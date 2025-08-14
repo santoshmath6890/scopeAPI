@@ -35,7 +35,7 @@ print_error() {
 show_help() {
     echo "ScopeAPI Debug Script"
 echo ""
-echo "Usage: $0 [COMMAND] [SERVICES...]"
+echo "Usage: ./scopeapi-debug.sh [COMMAND] [SERVICES...]"
 echo ""
 echo "Commands:"
 echo "  start [services...]  - Start services in debug & development mode"

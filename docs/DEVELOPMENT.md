@@ -46,10 +46,11 @@ git clone https://github.com/your-org/scopeapi.git
 cd scopeapi
 
 # Complete setup with validation
-./scripts/scopeapi-setup.sh --full
+cd scripts
+./scopeapi-setup.sh --full
 
 # Verify setup
-./scripts/scopeapi-setup.sh --validate
+./scopeapi-setup.sh --validate
 ```
 
 ### **2. Environment Configuration**
@@ -80,45 +81,47 @@ KAFKA_BROKER_ID=1
 ### **Daily Development Workflow**
 ```bash
 # 1. Start infrastructure
-./scripts/scopeapi-setup.sh --infrastructure
+cd scripts
+./scopeapi-setup.sh --infrastructure
 
 # 2. Start services for development
-./scripts/./scripts/scopeapi-services.sh start all
+./scopeapi-services.sh start all
 
 # 3. Make code changes
 # 4. View logs if needed
-./scripts/./scripts/scopeapi-services.sh logs api-discovery
+./scopeapi-services.sh logs api-discovery
 
 # 5. Test changes
 # 6. Stop when done
-./scripts/./scripts/scopeapi-services.sh stop
+./scopeapi-services.sh stop
 ```
 
 ### **Service-Specific Development**
 ```bash
 # Start only specific service
-./scripts/./scripts/scopeapi-services.sh start api-discovery
+./scopeapi-services.sh start api-discovery
 
 # Start multiple services
-./scripts/./scripts/scopeapi-services.sh start api-discovery gateway-integration
+./scopeapi-services.sh start api-discovery gateway-integration
 
 # View specific service logs
-./scripts/./scripts/scopeapi-services.sh logs api-discovery
+./scopeapi-services.sh logs api-discovery
 
 # Open shell in service container
-./scripts/./scripts/scopeapi-services.sh shell api-discovery
+./scopeapi-services.sh shell api-discovery
 ```
 
 ### **Debugging Workflow**
 ```bash
 # 1. Start service in debug mode
-./scripts/scopeapi-debug.sh start api-discovery
+cd scripts
+./scopeapi-debug.sh start api-discovery
 
 # 2. Connect IDE to debug port (2345 for api-discovery)
 # 3. Set breakpoints in your Go code
 # 4. Debug and step through code
 # 5. Stop debug session
-./scripts/scopeapi-debug.sh stop
+./scopeapi-debug.sh stop
 ```
 
 ## 🧪 **Testing Strategies**
@@ -161,9 +164,10 @@ ng build --prod
 ./scripts/setup-database.sh --validate
 
 # Test service communication
-./scripts/./scripts/scopeapi-services.sh start all
+cd scripts
+./scopeapi-services.sh start all
 # Verify all services are healthy
-./scripts/./scripts/scopeapi-services.sh status
+./scopeapi-services.sh status
 ```
 
 ### **Performance Testing**
@@ -268,7 +272,8 @@ export class ApiEndpointComponent implements OnInit {
 ### **Go Debugging with Delve**
 ```bash
 # Start service in debug mode
-./scripts/scopeapi-debug.sh start api-discovery
+cd scripts
+./scopeapi-debug.sh start api-discovery
 
 # VS Code launch.json configuration
 {
@@ -308,7 +313,8 @@ docker exec -it scopeapi-postgres psql -U scopeapi -d scopeapi
 docker logs scopeapi-postgres
 
 # Check service health
-./scripts/./scripts/scopeapi-services.sh status
+cd scripts
+./scopeapi-services.sh status
 ```
 
 ## ⚡ **Performance Optimization**
@@ -367,7 +373,8 @@ func getEndpoints(ctx context.Context, limit int) ([]Endpoint, error) {
 ./scripts/scopeapi-setup.sh --validate
 
 # Check service logs
-./scripts/./scripts/scopeapi-services.sh logs [service-name]
+cd scripts
+./scopeapi-services.sh logs [service-name]
 
 # Check Docker status
 docker ps
@@ -429,7 +436,7 @@ docker exec -it scopeapi-api-discovery wget -qO- http://scopeapi-postgres:5432
 docker stats
 
 # Check service health
-./scripts/./scripts/scopeapi-services.sh status
+./scopeapi-services.sh status
 
 # View performance metrics
 curl http://localhost:8080/metrics
@@ -492,8 +499,14 @@ This project provides specialized scripts for different development approaches:
 | Development Phase | Recommended Script | Alternative |
 |------------------|-------------------|-------------|
 | **Initial setup** | `scopeapi-setup.sh` | - |
-| **Local development (Go services)** | `./scripts/scopeapi-local.sh` | `./scripts/scopeapi-services.sh` |
-| **Container development** | `./scripts/scopeapi-services.sh` | - |
-| **Infrastructure issues** | `./scripts/docker-infrastructure.sh` | - |
-| **Debugging** | `scopeapi-debug.sh` | - |
-| **Production testing** | `./scripts/scopeapi-services.sh` | - |
+| **Local development (Go services)** | `cd scripts
+./scopeapi-local.sh` | `cd scripts
+./scopeapi-services.sh` |
+| **Container development** | `cd scripts
+./scopeapi-services.sh` | - |
+| **Infrastructure issues** | `cd scripts
+./docker-infrastructure.sh` | - |
+| **Debugging** | `cd scripts
+./scopeapi-debug.sh` | - |
+| **Production testing** | `cd scripts
+./scopeapi-services.sh` | - |

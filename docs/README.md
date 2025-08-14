@@ -71,10 +71,11 @@ git clone https://github.com/your-org/scopeapi.git
 cd scopeapi
 
 # Complete setup
-./scripts/scopeapi-setup.sh --full
+cd scripts
+./scopeapi-setup.sh --full
 
 # Start development
-./scripts/scopeapi-services.sh start all
+./scopeapi-services.sh start all
 ```
 
 ## 🔧 **Development Workflows**
@@ -82,20 +83,22 @@ cd scopeapi
 ### **Daily Development**
 ```bash
 # Start services
-./scripts/scopeapi-services.sh start all
+cd scripts
+./scopeapi-services.sh start all
 
 # Make changes and test
 # View logs
-./scripts/scopeapi-services.sh logs api-discovery
+./scopeapi-services.sh logs api-discovery
 
 # Stop when done
-./scripts/scopeapi-services.sh stop
+./scopeapi-services.sh stop
 ```
 
 ### **Debugging**
 ```bash
 # Start in debug mode
-./scripts/scopeapi-debug.sh start api-discovery
+cd scripts
+./scopeapi-debug.sh start api-discovery
 
 # Connect IDE to localhost:2345
 # Set breakpoints and debug
@@ -168,8 +171,13 @@ This project provides a comprehensive set of specialized scripts:
 
 ## 🎯 **Quick Script Selection:**
 
-- **First time**: `./scripts/scopeapi-setup.sh --full`
-- **Daily development (containers)**: `./scripts/scopeapi-services.sh start all`
-- **Local development (processes)**: `./scripts/scopeapi-local.sh start`
-- **Infrastructure only**: `./scripts/docker-infrastructure.sh start`
-- **Debugging**: `./scripts/scopeapi-debug.sh start [service]`
+- **First time**: `cd scripts
+./scopeapi-setup.sh --full`
+- **Daily development (containers)**: `cd scripts
+./scopeapi-services.sh start all`
+- **Local development (processes)**: `cd scripts
+./scopeapi-local.sh start`
+- **Infrastructure only**: `cd scripts
+./docker-infrastructure.sh start`
+- **Debugging**: `cd scripts
+./scopeapi-debug.sh start [service]`

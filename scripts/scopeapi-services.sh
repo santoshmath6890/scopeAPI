@@ -35,7 +35,7 @@ print_error() {
 show_help() {
     echo "ScopeAPI Services Script"
     echo ""
-    echo "Usage: $0 [COMMAND] [SERVICES...]"
+    echo "Usage: ./scopeapi-services.sh [COMMAND] [SERVICES...]"
     echo ""
     echo "Commands:"
     echo "  start [services...]  - Start infrastructure + specified services"
@@ -293,7 +293,7 @@ execute_command() {
     local command="$2"
     
     if [ -z "$service" ] || [ -z "$command" ]; then
-        print_error "Usage: $0 exec <service> <command>"
+        print_error "Usage: ./scopeapi-services.sh exec <service> <command>"
         print_error "Example: $0 exec api-discovery 'ps aux'"
         exit 1
     fi
@@ -313,26 +313,18 @@ main() {
     
     case "$command" in
         start)
+            start_services "$@"
+            ;;
         infrastructure)
             start_infrastructure_only
             ;;
         comprehensive-status)
             show_comprehensive_status
-            ;;
-
-            start_services "$@"
             ;;
         stop)
             stop_services
             ;;
         restart)
-        infrastructure)
-            start_infrastructure_only
-            ;;
-        comprehensive-status)
-            show_comprehensive_status
-            ;;
-
             restart_services "$@"
             ;;
         logs)

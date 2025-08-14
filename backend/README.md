@@ -123,13 +123,14 @@ make admin-console
 ../scripts/docker-infrastructure.sh
 
 # Start all microservices
-../scripts/scopeapi-services.sh start all
+cd ../scripts
+./scopeapi-services.sh start all
 
 # Start specific service
-../scripts/scopeapi-services.sh start api-discovery
+./scopeapi-services.sh start api-discovery
 
 # View logs
-../scripts/scopeapi-services.sh logs api-discovery
+./scopeapi-services.sh logs api-discovery
 ```
 
 ## 📊 **Service Details**
@@ -209,7 +210,8 @@ go test -cover ./...
 ### **Debugging**
 ```bash
 # Start service in debug mode
-../scripts/scopeapi-debug.sh start api-discovery
+cd ../scripts
+./scopeapi-debug.sh start api-discovery
 
 # Connect IDE to localhost:2345
 # Set breakpoints and debug

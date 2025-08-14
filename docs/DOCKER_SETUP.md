@@ -24,18 +24,20 @@ This project uses a **clean three-file approach** for Docker Compose:
 ### **Complete Setup (Recommended for First Time)**
 ```bash
 # Complete setup with validation
-./scripts/./scripts/scopeapi-setup.sh --full
+cd scripts
+./scopeapi-setup.sh --full
 
 # Or step by step:
-./scripts/./scripts/scopeapi-setup.sh --infrastructure  # Start infrastructure
-./scripts/./scripts/scopeapi-setup.sh --database        # Setup database
-./scripts/./scripts/scopeapi-setup.sh --validate        # Validate setup
+./scopeapi-setup.sh --infrastructure  # Start infrastructure
+./scopeapi-setup.sh --database        # Setup database
+./scopeapi-setup.sh --validate        # Validate setup
 ```
 
 ### **Development Mode (After Setup)**
 ```bash
 # Start infrastructure + services with development overrides
-./scripts/./scripts/scopeapi-services.sh start api-discovery
+cd scripts
+./scopeapi-services.sh start api-discovery
 
 # Or use docker-compose directly (automatically loads override)
 docker-compose -f scripts/docker-compose.yml -f scripts/docker-compose.override.yml up api-discovery
@@ -81,7 +83,8 @@ docker-compose -f scripts/docker-compose.yml up api-discovery
 ### **Workflow 1: Complete Setup (First Time)**
 ```bash
 # Complete setup with validation
-./scripts/./scripts/scopeapi-setup.sh --full
+cd scripts
+./scopeapi-setup.sh --full
 
 # This will:
 # 1. Start infrastructure services
@@ -94,7 +97,8 @@ docker-compose -f scripts/docker-compose.yml up api-discovery
 ### **Workflow 2: Services Management (Daily Work)**
 ```bash
 # Start everything with development overrides
-./scripts/./scripts/scopeapi-services.sh start all
+cd scripts
+./scopeapi-services.sh start all
 
 # Make code changes
 # Services run with development settings
@@ -103,7 +107,8 @@ docker-compose -f scripts/docker-compose.yml up api-discovery
 ### **Workflow 3: Debug Mode**
 ```bash
 # Start in debug mode
-./scripts/./scripts/scopeapi-debug.sh start api-discovery
+cd scripts
+./scopeapi-debug.sh start api-discovery
 
 # Connect IDE to localhost:2345
 # Set breakpoints and debug
@@ -120,42 +125,49 @@ docker-compose -f docker-compose.yml up api-discovery
 ### **Workflow 5: Infrastructure Management**
 ```bash
 # Start only infrastructure
-./scripts/./scripts/scopeapi-setup.sh --infrastructure
+cd scripts
+./scopeapi-setup.sh --infrastructure
 
 # Setup database separately
-./scripts/./scripts/scopeapi-setup.sh --database
+./scopeapi-setup.sh --database
 
 # Validate setup
-./scripts/./scripts/scopeapi-setup.sh --validate
+./scopeapi-setup.sh --validate
 ```
 
 ## 📋 **Available Commands**
 
-### **Setup & Infrastructure (`./scripts/./scripts/scopeapi-setup.sh`)**
+### **Setup & Infrastructure (`cd scripts
+./scopeapi-setup.sh`)**
 ```bash
-./scripts/./scripts/scopeapi-setup.sh --full               # Complete setup with validation
-./scripts/./scripts/scopeapi-setup.sh --infrastructure     # Start infrastructure only
-./scripts/./scripts/scopeapi-setup.sh --database           # Setup database only
-./scripts/./scripts/scopeapi-setup.sh --test-data          # Setup + create test data
-./scripts/./scripts/scopeapi-setup.sh --validate           # Setup + run validation tests
+cd scripts
+./scopeapi-setup.sh --full               # Complete setup with validation
+./scopeapi-setup.sh --infrastructure     # Start infrastructure only
+./scopeapi-setup.sh --database           # Setup database only
+./scopeapi-setup.sh --test-data          # Setup + create test data
+./scopeapi-setup.sh --validate           # Setup + run validation tests
 ```
 
-### **Services Management (`./scripts/./scripts/scopeapi-services.sh`)**
+### **Services Management (`cd scripts
+./scopeapi-services.sh`)**
 ```bash
-./scripts/./scripts/scopeapi-services.sh start [services...]     # Start services with dev overrides
-./scripts/./scripts/scopeapi-services.sh stop                    # Stop all services
-./scripts/./scripts/scopeapi-services.sh logs [service]          # View logs
-./scripts/./scripts/scopeapi-services.sh status                  # Check status
-./scripts/./scripts/scopeapi-services.sh build [services...]     # Build services
+cd scripts
+./scopeapi-services.sh start [services...]     # Start services with dev overrides
+./scopeapi-services.sh stop                    # Stop all services
+./scopeapi-services.sh logs [service]          # View logs
+./scopeapi-services.sh status                  # Check status
+./scopeapi-services.sh build [services...]     # Build services
 ```
 
-### **Debug Mode (`./scripts/./scripts/scopeapi-debug.sh`)**
+### **Debug Mode (`cd scripts
+./scopeapi-debug.sh`)**
 ```bash
-./scripts/./scripts/scopeapi-debug.sh start [services...]   # Start in debug mode
-./scripts/./scripts/scopeapi-debug.sh stop                  # Stop debug services
-./scripts/./scripts/scopeapi-debug.sh logs [service]        # View debug logs
-./scripts/./scripts/scopeapi-debug.sh status                # Check debug status
-./scripts/./scripts/scopeapi-debug.sh build [services...]   # Build debug images
+cd scripts
+./scopeapi-debug.sh start [services...]   # Start in debug mode
+./scopeapi-debug.sh stop                  # Stop debug services
+./scopeapi-debug.sh logs [service]        # View debug logs
+./scopeapi-debug.sh status                # Check debug status
+./scopeapi-debug.sh build [services...]   # Build debug images
 ```
 
 ## 🔧 **Service Ports**
@@ -214,11 +226,12 @@ docker-compose -f docker-compose.yml up api-discovery
 | Admin Console | 2351 | localhost:2351 |
 
 ### **Debug Workflow:**
-1. **Start debug mode**: `./scripts/./scripts/scopeapi-debug.sh start [service]`
+1. **Start debug mode**: `cd scripts
+./scopeapi-debug.sh start [service]`
 2. **Connect IDE**: Use appropriate debug port
 3. **Set breakpoints**: In your Go code
 4. **Debug**: Step through, inspect variables
-5. **Stop debug**: `./scripts/./scripts/scopeapi-debug.sh stop`
+5. **Stop debug**: `./scopeapi-debug.sh stop`
 
 ### **Common Debug Issues:**
 - **Port already in use**: Check if another debug session is running
@@ -299,9 +312,16 @@ This project provides three specialized scripts for different use cases:
 
 | Use Case | Primary Script | Secondary Script |
 |----------|----------------|------------------|
-| **First-time setup** | `./scripts/scopeapi-setup.sh` | - |
-| **Daily development (containers)** | `./scripts/scopeapi-services.sh` | - |
-| **Local development (processes)** | `./scripts/scopeapi-local.sh` | `./scripts/docker-infrastructure.sh` |
-| **Infrastructure troubleshooting** | `./scripts/docker-infrastructure.sh` | - |
-| **Debugging** | `./scripts/scopeapi-debug.sh` | - |
-| **Production deployment** | `./scripts/scopeapi-services.sh` | - |
+| **First-time setup** | `cd scripts
+./scopeapi-setup.sh` | - |
+| **Daily development (containers)** | `cd scripts
+./scopeapi-services.sh` | - |
+| **Local development (processes)** | `cd scripts
+./scopeapi-local.sh` | `cd scripts
+./docker-infrastructure.sh` |
+| **Infrastructure troubleshooting** | `cd scripts
+./docker-infrastructure.sh` | - |
+| **Debugging** | `cd scripts
+./scopeapi-debug.sh` | - |
+| **Production deployment** | `cd scripts
+./scopeapi-services.sh` | - |

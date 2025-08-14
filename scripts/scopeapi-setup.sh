@@ -7,6 +7,14 @@
 
 set -e
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get the project root directory (parent of scripts directory)
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Change to project root directory
+cd "$PROJECT_ROOT"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -41,7 +49,7 @@ print_header() {
 show_help() {
     echo "ScopeAPI Setup Script"
     echo ""
-    echo "Usage: $0 [OPTIONS]"
+    echo "Usage: ./scopeapi-setup.sh [OPTIONS]"
     echo ""
     echo "Options:"
     echo "  --help, -h           Show this help message"
@@ -53,11 +61,11 @@ show_help() {
     echo "  --full               Complete setup (infrastructure + database + validation)"
     echo ""
     echo "Examples:"
-    echo "  $0 --full            # Complete setup with validation"
-    echo "  $0 --infrastructure  # Start infrastructure only"
-    echo "  $0 --database        # Setup database only"
-    echo "  $0 --test-data       # Setup + create test data"
-    echo "  $0 --validate        # Setup + run validation tests"
+    echo "  ./scopeapi-setup.sh --full            # Complete setup with validation"
+echo "  ./scopeapi-setup.sh --infrastructure  # Start infrastructure only"
+echo "  ./scopeapi-setup.sh --database        # Setup database only"
+echo "  ./scopeapi-setup.sh --test-data       # Setup + create test data"
+echo "  ./scopeapi-setup.sh --validate        # Setup + run validation tests"
     echo ""
     echo "This script will:"
     echo "  1. Start infrastructure services (ZooKeeper, Kafka, PostgreSQL, Redis, Elasticsearch, Kibana)"
@@ -88,15 +96,15 @@ check_prerequisites() {
     if [ ! -f ".env" ]; then
         print_warning ".env file not found"
         print_status "Creating .env file from template..."
-        if [ -f "env.example" ]; then
-            cp env.example .env
+        if [ -f "$SCRIPT_DIR/env.example" ]; then
+            cp "$SCRIPT_DIR/env.example" .env
             print_success "Created .env file from env.example"
             print_warning "Please edit .env file and set your secure passwords"
             print_warning "Then run this script again"
             exit 1
         else
             print_error "env.example file not found"
-            print_info "Please create a .env file manually with required environment variables"
+            print_status "Please create a .env file manually with required environment variables"
             exit 1
         fi
     fi
@@ -110,7 +118,7 @@ start_infrastructure() {
     print_status "Starting infrastructure services..."
     
     # Start infrastructure using docker-compose
-    if docker-compose up -d zookeeper kafka postgres redis elasticsearch kibana; then
+    if docker-compose -f "$SCRIPT_DIR/docker-compose.yml" up -d zookeeper kafka postgres redis elasticsearch kibana; then
         print_success "Infrastructure services started successfully"
         
         # Wait for services to be ready
@@ -118,7 +126,7 @@ start_infrastructure() {
         sleep 15
         
         # Check service status
-        if docker-compose ps | grep -q "Up"; then
+        if docker-compose -f "$SCRIPT_DIR/docker-compose.yml" ps | grep -q "Up"; then
             print_success "All infrastructure services are running"
         else
             print_warning "Some services may not be fully ready yet"
@@ -136,7 +144,7 @@ setup_database() {
     print_status "Setting up PostgreSQL database..."
     
     # Run the database setup script
-    if ./scripts/setup-database.sh; then
+    if "$SCRIPT_DIR/setup-database.sh"; then
         print_success "Database setup completed successfully"
     else
         print_error "Database setup failed"
@@ -151,7 +159,7 @@ create_test_data() {
     print_status "Creating sample test data..."
     
     # Run database setup with test data flag
-    if ./scripts/setup-database.sh --test-data; then
+    if "$SCRIPT_DIR/setup-database.sh" --test-data; then
         print_success "Test data created successfully"
     else
         print_warning "Test data creation failed (may already exist)"
@@ -165,7 +173,7 @@ validate_setup() {
     print_status "Running validation tests..."
     
     # Run database setup with validation flag
-    if ./scripts/setup-database.sh --validate; then
+    if "$SCRIPT_DIR/setup-database.sh" --validate; then
         print_success "Validation completed successfully"
     else
         print_error "Validation failed"
@@ -174,7 +182,7 @@ validate_setup() {
     
     # Check if all services are running
     print_status "Checking service status..."
-    if docker-compose ps | grep -q "Up"; then
+    if docker-compose -f scripts/docker-compose.yml ps | grep -q "Up"; then
         print_success "All services are running"
     else
         print_warning "Some services may not be running"
