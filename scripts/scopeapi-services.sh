@@ -7,6 +7,12 @@
 
 set -e
 
+# Script configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
+ENV_FILE="$PROJECT_ROOT/.env"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -96,13 +102,35 @@ check_docker_compose() {
     fi
 }
 
+# Function to check configuration and load environment
+check_configuration() {
+    # Check if compose file exists
+    if [ ! -f "$COMPOSE_FILE" ]; then
+        print_error "Docker Compose file not found: $COMPOSE_FILE"
+        exit 1
+    fi
+    
+    # Check if .env file exists
+    if [ ! -f "$ENV_FILE" ]; then
+        print_error "Environment file not found: $ENV_FILE"
+        exit 1
+    fi
+    
+    # Load environment variables
+    print_status "Loading environment variables from $ENV_FILE"
+    set -a  # automatically export all variables
+    source "$ENV_FILE"
+    set +a  # stop automatically exporting
+    print_success "Environment variables loaded"
+}
+
 # Function to start services
 # Function to start infrastructure only
 start_infrastructure_only() {
     print_status "Starting infrastructure services only..."
     
     # Start core infrastructure
-    docker-compose up -d zookeeper kafka postgres redis elasticsearch kibana
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d zookeeper kafka postgres redis elasticsearch kibana
     
     print_status "Waiting for infrastructure to be ready..."
     sleep 15
@@ -111,21 +139,21 @@ start_infrastructure_only() {
     print_status "Verifying infrastructure health..."
     
     # Check PostgreSQL
-    if docker-compose exec -T postgres pg_isready -U scopeapi > /dev/null 2>&1; then
+    if docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T postgres pg_isready -U scopeapi > /dev/null 2>&1; then
         print_success "PostgreSQL is ready"
     else
         print_warning "PostgreSQL may still be starting up..."
     fi
     
     # Check Kafka
-    if docker-compose exec -T kafka kafka-topics --bootstrap-server localhost:9092 --list > /dev/null 2>&1; then
+    if docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T kafka kafka-topics --bootstrap-server localhost:9092 --list > /dev/null 2>&1; then
         print_success "Kafka is ready"
     else
         print_warning "Kafka may still be starting up..."
     fi
     
     # Check Redis
-    if docker-compose exec -T redis redis-cli ping > /dev/null 2>&1; then
+    if docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T redis redis-cli ping > /dev/null 2>&1; then
         print_success "Redis is ready"
     else
         print_warning "Redis may still be starting up..."
@@ -147,7 +175,7 @@ start_services() {
     
     # Always start infrastructure first
     print_status "Starting infrastructure services..."
-    docker-compose up -d zookeeper kafka postgres redis elasticsearch kibana
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d zookeeper kafka postgres redis elasticsearch kibana
     
     # Wait for infrastructure to be ready
     print_status "Waiting for infrastructure to be ready..."
@@ -162,12 +190,12 @@ start_services() {
         
         if [ "$service" = "all" ]; then
             print_status "Starting all microservices..."
-            docker-compose up -d api-discovery gateway-integration data-ingestion threat-detection data-protection attack-blocking admin-console
+            docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d api-discovery gateway-integration data-ingestion threat-detection data-protection attack-blocking admin-console
             break
         fi
         
         print_status "Starting $service..."
-        docker-compose up -d "$service"
+        docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d "$service"
     done
     
     print_success "Services started successfully!"
@@ -178,7 +206,7 @@ start_services() {
 # Function to stop services
 stop_services() {
     print_status "Stopping all services..."
-    docker-compose down
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down
     print_success "All services stopped"
 }
 
@@ -195,7 +223,7 @@ restart_services() {
     
     for service in "${services[@]}"; do
         print_status "Restarting $service..."
-        docker-compose restart "$service"
+        docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" restart "$service"
     done
     
     print_success "Services restarted successfully!"
@@ -207,10 +235,10 @@ show_logs() {
     
     if [ -z "$service" ]; then
         print_status "Showing logs for all services..."
-        docker-compose logs -f
+        docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" logs -f
     else
         print_status "Showing logs for $service..."
-        docker-compose logs -f "$service"
+        docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" logs -f "$service"
     fi
 }
 
@@ -218,11 +246,11 @@ show_logs() {
 # Function to show comprehensive status
 show_comprehensive_status() {
     print_status "=== INFRASTRUCTURE STATUS ==="
-    docker-compose ps zookeeper kafka postgres redis elasticsearch kibana
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" ps zookeeper kafka postgres redis elasticsearch kibana
     
     echo ""
     print_status "=== MICROSERVICES STATUS ==="
-    docker-compose ps api-discovery gateway-integration data-ingestion threat-detection data-protection attack-blocking admin-console
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" ps api-discovery gateway-integration data-ingestion threat-detection data-protection attack-blocking admin-console
     
     echo ""
     print_status "=== SYSTEM RESOURCES ==="
@@ -235,7 +263,7 @@ show_comprehensive_status() {
 
 show_status() {
     print_status "Service status:"
-    docker-compose ps
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" ps
 }
 
 # Function to build services
@@ -251,7 +279,7 @@ build_services() {
     
     for service in "${services[@]}"; do
         print_status "Building $service..."
-        docker-compose build "$service"
+        docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build "$service"
     done
     
     print_success "Services built successfully!"
@@ -264,7 +292,7 @@ clean_all() {
     
     if [[ "$response" =~ ^[Yy]$ ]]; then
         print_status "Cleaning all containers, volumes, and images..."
-        docker-compose down -v --rmi all
+        docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down -v --rmi all
         docker system prune -af
         print_success "Cleanup completed!"
     else
@@ -284,7 +312,7 @@ open_shell() {
     fi
     
     print_status "Opening shell in $service container..."
-    docker-compose exec "$service" sh
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec "$service" sh
 }
 
 # Function to execute command in service container
@@ -299,7 +327,7 @@ execute_command() {
     fi
     
     print_status "Executing '$command' in $service container..."
-    docker-compose exec "$service" sh -c "$command"
+    docker-compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec "$service" sh -c "$command"
 }
 
 # Main script logic
@@ -310,6 +338,7 @@ main() {
     # Check prerequisites
     check_docker
     check_docker_compose
+    check_configuration
     
     case "$command" in
         start)

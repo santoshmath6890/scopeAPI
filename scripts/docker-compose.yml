@@ -186,9 +186,10 @@ services:
   # API Discovery Service
   api-discovery:
     build:
-      context: ../backend/services/api-discovery
-      dockerfile: Dockerfile
-    container_name: scopeapi-api-discovery
+      context: ../backend
+      dockerfile: services/api-discovery/Dockerfile
+      dockerfile: services/gateway-integration/Dockerfile
+      dockerfile: services/api-discovery/Dockerfile
     hostname: api-discovery
     ports:
       - "8080:8080"
@@ -219,8 +220,10 @@ services:
   # Gateway Integration Service
   gateway-integration:
     build:
-      context: ../backend/services/gateway-integration
-      dockerfile: Dockerfile
+      context: ../backend
+      dockerfile: services/api-discovery/Dockerfile
+      dockerfile: services/gateway-integration/Dockerfile
+      dockerfile: services/api-discovery/Dockerfile
     container_name: scopeapi-gateway-integration
     hostname: gateway-integration
     ports:
@@ -252,8 +255,10 @@ services:
   # Data Ingestion Service
   data-ingestion:
     build:
-      context: ../backend/services/data-ingestion
-      dockerfile: Dockerfile
+      context: ../backend
+      dockerfile: services/api-discovery/Dockerfile
+      dockerfile: services/gateway-integration/Dockerfile
+      dockerfile: services/api-discovery/Dockerfile
     container_name: scopeapi-data-ingestion
     hostname: data-ingestion
     ports:
@@ -285,8 +290,10 @@ services:
   # Threat Detection Service
   threat-detection:
     build:
-      context: ../backend/services/threat-detection
-      dockerfile: Dockerfile
+      context: ../backend
+      dockerfile: services/api-discovery/Dockerfile
+      dockerfile: services/gateway-integration/Dockerfile
+      dockerfile: services/api-discovery/Dockerfile
     container_name: scopeapi-threat-detection
     hostname: threat-detection
     ports:
@@ -318,8 +325,10 @@ services:
   # Data Protection Service
   data-protection:
     build:
-      context: ../backend/services/data-protection
-      dockerfile: Dockerfile
+      context: ../backend
+      dockerfile: services/api-discovery/Dockerfile
+      dockerfile: services/gateway-integration/Dockerfile
+      dockerfile: services/api-discovery/Dockerfile
     container_name: scopeapi-data-protection
     hostname: data-protection
     ports:
@@ -351,8 +360,10 @@ services:
   # Attack Blocking Service
   attack-blocking:
     build:
-      context: ../backend/services/attack-blocking
-      dockerfile: Dockerfile
+      context: ../backend
+      dockerfile: services/api-discovery/Dockerfile
+      dockerfile: services/gateway-integration/Dockerfile
+      dockerfile: services/api-discovery/Dockerfile
     container_name: scopeapi-attack-blocking
     hostname: attack-blocking
     ports:
@@ -384,8 +395,10 @@ services:
   # Admin Console Service
   admin-console:
     build:
-      context: ../backend/services/admin-console
-      dockerfile: Dockerfile
+      context: ../backend
+      dockerfile: services/api-discovery/Dockerfile
+      dockerfile: services/gateway-integration/Dockerfile
+      dockerfile: services/api-discovery/Dockerfile
     container_name: scopeapi-admin-console
     hostname: admin-console
     ports:

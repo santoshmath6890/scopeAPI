@@ -8,13 +8,15 @@ RUN apk add --no-cache git ca-certificates tzdata
 WORKDIR /app
 
 # Copy go mod files
-COPY go.mod go.sum ./
+# Copy shared modules
+COPY shared/ ./shared/
+COPY services/gateway-integration/go.mod services/gateway-integration/go.sum ./
 
 # Download dependencies
 RUN go mod download
 
 # Copy source code
-COPY . .
+COPY services/gateway-integration/ .
 
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o gateway-integration ./cmd/main.go

@@ -8,13 +8,15 @@ RUN apk add --no-cache git ca-certificates tzdata
 WORKDIR /app
 
 # Copy go mod files
-COPY go.mod go.sum ./
+# Copy shared modules
+COPY shared/ ./shared/
+COPY services/api-discovery/go.mod services/api-discovery/go.sum ./
 
 # Download dependencies
 RUN go mod download
 
 # Copy source code
-COPY . .
+COPY services/api-discovery/ .
 
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o api-discovery cmd/main.go

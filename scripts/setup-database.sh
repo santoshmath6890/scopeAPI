@@ -204,7 +204,13 @@ create_test_data() {
     # Set password for psql
     export PGPASSWORD="$DB_PASSWORD"
     
-    # Insert test endpoints
+    if [ "$basic_flag" = true ]; then
+        print_info "Basic mode: Skipping test data creation (requires database schema)"
+        print_status 0 "Test data creation skipped in basic mode"
+        return 0
+    fi
+    
+    # Insert test endpoints (only if not in basic mode)
     if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "
     INSERT INTO api_discovery.endpoints (url, method, service_name) VALUES
     ('/api/v1/users', 'GET', 'user-service'),
@@ -234,7 +240,13 @@ validate_database() {
         return 1
     fi
     
-    # Test schema and tables
+    if [ "$basic_flag" = true ]; then
+        print_info "Basic mode: Skipping schema validation (requires database schema)"
+        print_status 0 "Basic validation completed successfully"
+        return 0
+    fi
+    
+    # Test schema and tables (only if not in basic mode)
     print_info "Testing database schema..."
     if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT COUNT(*) FROM api_discovery.endpoints;" >/dev/null 2>&1; then
         print_status 0 "Database schema is valid"
@@ -255,6 +267,7 @@ show_help() {
     echo "Options:"
     echo "  --help, -h     Show this help message"
     echo "  --verbose, -v  Enable verbose output"
+    echo "  --basic        Basic setup only (skip migrations)"
     echo "  --test-data    Create sample test data after setup"
     echo "  --validate     Run validation tests after setup"
     echo ""
@@ -278,10 +291,15 @@ show_help() {
 main() {
     local create_test_data_flag=false
     local validate_flag=false
+    local basic_flag=false
     
     # Parse command line arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
+            --basic)
+                basic_flag=true
+                shift
+                ;;
             --test-data)
                 create_test_data_flag=true
                 shift
@@ -322,12 +340,16 @@ main() {
         exit 1
     fi
     
-    # Create migration runner
-    create_migration_runner
-    
-    # Run migrations
-    if ! run_migrations; then
-        exit 1
+    # Create migration runner and run migrations (skip if basic mode)
+    if [ "$basic_flag" = false ]; then
+        create_migration_runner
+        
+        # Run migrations
+        if ! run_migrations; then
+            exit 1
+        fi
+    else
+        print_info "Skipping migrations in basic mode"
     fi
     
     # Create test data if requested

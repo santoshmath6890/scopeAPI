@@ -59,13 +59,17 @@ show_help() {
     echo "  --test-data          Create sample test data"
     echo "  --validate           Run validation tests"
     echo "  --full               Complete setup (infrastructure + database + validation)"
+    echo "  --cleanup            Stop and remove all infrastructure services"
+    echo "  --cleanup-full       Stop services, remove containers, volumes, and networks"
     echo ""
-    echo "Examples:"
+        echo "Examples:"
     echo "  ./scopeapi-setup.sh --full            # Complete setup with validation"
-echo "  ./scopeapi-setup.sh --infrastructure  # Start infrastructure only"
-echo "  ./scopeapi-setup.sh --database        # Setup database only"
-echo "  ./scopeapi-setup.sh --test-data       # Setup + create test data"
-echo "  ./scopeapi-setup.sh --validate        # Setup + run validation tests"
+    echo "  ./scopeapi-setup.sh --infrastructure  # Start infrastructure only"
+    echo "  ./scopeapi-setup.sh --database        # Setup database only"
+    echo "  ./scopeapi-setup.sh --test-data       # Setup + create test data"
+    echo "  ./scopeapi-setup.sh --validate        # Setup + run validation tests"
+    echo "  ./scopeapi-setup.sh --cleanup         # Stop and remove services"
+    echo "  ./scopeapi-setup.sh --cleanup-full    # Remove everything (containers, volumes, networks)"
     echo ""
     echo "This script will:"
     echo "  1. Start infrastructure services (ZooKeeper, Kafka, PostgreSQL, Redis, Elasticsearch, Kibana)"
@@ -109,6 +113,13 @@ check_prerequisites() {
         fi
     fi
     print_success ".env file found"
+    
+    # Load environment variables
+    print_status "Loading environment variables..."
+    set -a  # automatically export all variables
+    source .env
+    set +a  # stop automatically exporting
+    print_success "Environment variables loaded"
 }
 
 # Function to start infrastructure
@@ -118,7 +129,7 @@ start_infrastructure() {
     print_status "Starting infrastructure services..."
     
     # Start infrastructure using docker-compose
-    if docker-compose -f "$SCRIPT_DIR/docker-compose.yml" up -d zookeeper kafka postgres redis elasticsearch kibana; then
+    if docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/.env" up -d zookeeper kafka postgres redis elasticsearch kibana; then
         print_success "Infrastructure services started successfully"
         
         # Wait for services to be ready
@@ -126,7 +137,7 @@ start_infrastructure() {
         sleep 15
         
         # Check service status
-        if docker-compose -f "$SCRIPT_DIR/docker-compose.yml" ps | grep -q "Up"; then
+        if docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/.env" ps | grep -q "Up"; then
             print_success "All infrastructure services are running"
         else
             print_warning "Some services may not be fully ready yet"
@@ -143,8 +154,8 @@ setup_database() {
     
     print_status "Setting up PostgreSQL database..."
     
-    # Run the database setup script
-    if "$SCRIPT_DIR/setup-database.sh"; then
+    # Run the database setup script with environment variables (basic setup only)
+    if DB_HOST="$DB_HOST" DB_PORT="$DB_PORT" DB_USER="$DB_USER" DB_PASSWORD="$DB_PASSWORD" DB_NAME="$DB_NAME" DB_SSL_MODE="$DB_SSL_MODE" "$SCRIPT_DIR/setup-database.sh" --basic; then
         print_success "Database setup completed successfully"
     else
         print_error "Database setup failed"
@@ -158,8 +169,8 @@ create_test_data() {
     
     print_status "Creating sample test data..."
     
-    # Run database setup with test data flag
-    if "$SCRIPT_DIR/setup-database.sh" --test-data; then
+    # Run database setup with test data flag (basic mode)
+    if "$SCRIPT_DIR/setup-database.sh" --basic --test-data; then
         print_success "Test data created successfully"
     else
         print_warning "Test data creation failed (may already exist)"
@@ -172,8 +183,8 @@ validate_setup() {
     
     print_status "Running validation tests..."
     
-    # Run database setup with validation flag
-    if "$SCRIPT_DIR/setup-database.sh" --validate; then
+    # Run database setup with validation flag (basic mode)
+    if "$SCRIPT_DIR/setup-database.sh" --basic --validate; then
         print_success "Validation completed successfully"
     else
         print_error "Validation failed"
@@ -182,7 +193,7 @@ validate_setup() {
     
     # Check if all services are running
     print_status "Checking service status..."
-    if docker-compose -f scripts/docker-compose.yml ps | grep -q "Up"; then
+    if docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/.env" ps | grep -q "Up"; then
         print_success "All services are running"
     else
         print_warning "Some services may not be running"
@@ -196,9 +207,9 @@ show_final_status() {
     print_success "ScopeAPI setup has been completed successfully!"
     echo ""
     print_status "Next steps:"
-    echo "  1. Start microservices: ./scripts/dev.sh start all"
-    echo "  2. Or start specific service: ./scripts/dev.sh start api-discovery"
-    echo "  3. For debugging: ./scripts/debug.sh start api-discovery"
+    echo "  1. Start microservices: ./scripts/scopeapi-local.sh start all"
+    echo "  2. Or start specific service: ./scripts/scopeapi-local.sh start api-discovery"
+    echo "  3. For debugging: ./scripts/scopeapi-debug.sh start api-discovery"
     echo ""
     print_status "Service URLs:"
     echo "  - PostgreSQL: localhost:5432"
@@ -208,9 +219,58 @@ show_final_status() {
     echo "  - Kibana: localhost:5601"
     echo ""
     print_status "Useful commands:"
-    echo "  - View logs: ./scripts/dev.sh logs [service]"
-    echo "  - Check status: ./scripts/dev.sh status"
-    echo "  - Stop services: ./scripts/dev.sh stop"
+    echo "  - View logs: ./scripts/scopeapi-local.sh logs [service]"
+    echo "  - Check status: ./scripts/scopeapi-local.sh status"
+    echo "  - Stop services: ./scripts/scopeapi-local.sh stop"
+}
+
+# Function to cleanup infrastructure services
+cleanup_infrastructure() {
+    print_header "Cleaning Up Infrastructure Services"
+    
+    print_status "Stopping and removing infrastructure services..."
+    
+    # Stop and remove services
+    if docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/.env" down; then
+        print_success "Infrastructure services stopped and removed successfully"
+    else
+        print_error "Failed to stop infrastructure services"
+        return 1
+    fi
+}
+
+# Function to cleanup everything (containers, volumes, networks)
+cleanup_full() {
+    print_header "Full Cleanup - Removing Everything"
+    
+    print_warning "This will remove ALL containers, volumes, and networks!"
+    print_warning "This action cannot be undone."
+    echo ""
+    print_status "Are you sure you want to continue? (y/N)"
+    read -r response
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        print_status "Performing full cleanup..."
+        
+        # Stop and remove everything
+        if docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/.env" down -v --remove-orphans; then
+            print_success "All containers, volumes, and networks removed successfully"
+        else
+            print_error "Failed to perform full cleanup"
+            return 1
+        fi
+        
+        # Remove any orphaned containers
+        print_status "Removing orphaned containers..."
+        docker container prune -f >/dev/null 2>&1
+        
+        # Remove any orphaned networks
+        print_status "Removing orphaned networks..."
+        docker network prune -f >/dev/null 2>&1
+        
+        print_success "Full cleanup completed successfully"
+    else
+        print_info "Cleanup cancelled"
+    fi
 }
 
 # Main execution
@@ -220,6 +280,8 @@ main() {
     local test_data_flag=false
     local validate_flag=false
     local full_flag=false
+    local cleanup_flag=false
+    local cleanup_full_flag=false
     
     # Parse command line arguments
     while [[ $# -gt 0 ]]; do
@@ -242,6 +304,14 @@ main() {
                 ;;
             --full)
                 full_flag=true
+                shift
+                ;;
+            --cleanup)
+                cleanup_flag=true
+                shift
+                ;;
+            --cleanup-full)
+                cleanup_full_flag=true
                 shift
                 ;;
             --help|-h)
@@ -267,6 +337,17 @@ main() {
     
     print_header "ScopeAPI Setup"
     print_status "Starting setup process..."
+    
+    # Handle cleanup operations first
+    if [ "$cleanup_flag" = true ]; then
+        cleanup_infrastructure
+        exit 0
+    fi
+    
+    if [ "$cleanup_full_flag" = true ]; then
+        cleanup_full
+        exit 0
+    fi
     
     # Check prerequisites
     check_prerequisites
