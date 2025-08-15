@@ -330,9 +330,6 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ## 🙏 **Acknowledgments**
 
-- **Go Community** - For the excellent Go ecosystem
-- **Angular Team** - For the powerful frontend framework
-- **Docker Community** - For containerization tools
 - **Open Source Contributors** - For making this project possible
 
 ---
