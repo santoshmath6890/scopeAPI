@@ -52,9 +52,14 @@ ScopeAPI follows a **microservices architecture** with:
 ## 🚀 **Quick Start**
 
 ### **Prerequisites**
-- **Docker** 24.0+ with Docker Compose
+- **Docker** 24.0+ with Docker Compose (for local development)
+- **Kubernetes** cluster (for staging/production)
 - **Go** 1.21+ (for backend development)
 - **Node.js** 18+ (for admin console)
+
+### **Environment Strategy**
+- **Local Development**: Use `.env.local` file (your machine only)
+- **Staging/Production**: Use Kubernetes Secrets (secure, encrypted)
 
 ### **1. Clone the Repository**
 ```bash
@@ -66,7 +71,7 @@ cd scopeapi
 ```bash
 # Complete setup with validation
 cd scripts
-./scopeapi-setup.sh --full
+./scopeapi.sh setup --full
 
 # This will:
 # - Start infrastructure services
@@ -80,10 +85,10 @@ cd scripts
 ```bash
 # Start all services for development
 cd scripts
-./scopeapi-services.sh start all
+./dev.sh start all
 
 # Or start specific service
-./scopeapi-services.sh start api-discovery
+./dev.sh start api-discovery
 ```
 
 ### **4. Access Services**
@@ -97,80 +102,22 @@ cd scripts
 
 ## 🔧 **Development Workflows**
 
-### **Daily Development**
-```bash
-# Start services
-cd scripts
-./scopeapi-services.sh start all
-
-# Make code changes
-# View logs if needed
-./scopeapi-services.sh logs api-discovery
-
-# Stop when done
-./scopeapi-services.sh stop
-```
-
-### **Debugging**
-```bash
-# Start service in debug mode
-cd scripts
-./scopeapi-debug.sh start api-discovery
-
-# Connect IDE to localhost:2345
-# Set breakpoints and debug
-```
-
-### **Testing**
-```bash
-# Backend tests
-cd backend && go test ./...
-
-# Frontend tests
-cd adminConsole && ng test
-
-# Integration tests
-./scripts/setup-database.sh --validate
-```
+For detailed development workflows, debugging, and testing instructions, see:
+- **[💻 Development Guide](docs/DEVELOPMENT.md)** - Complete development setup and workflows
+- **[🛠️ Scripts Usage](scripts/README.md)** - Development script commands and examples
 
 ## 📚 **Documentation**
 
 - **[📖 Documentation Index](docs/README.md)** - Complete documentation navigation
 - **[🏗️ Architecture Guide](docs/ARCHITECTURE.md)** - System design and technical details
 - **[💻 Development Guide](docs/DEVELOPMENT.md)** - Development setup and workflows
-- **[🐳 Docker Setup](docs/DOCKER_SETUP.md)** - Container and deployment setup
+- **[🚀 Deployment Guide](docs/DEPLOYMENT.md)** - Environment strategy, security, and deployment
 - **[🛠️ Scripts Usage](scripts/README.md)** - Development scripts guide
+- **[☸️ Kubernetes Config](k8s/README.md)** - Kubernetes deployment configurations
 
 ## 🤝 **Contributing**
 
-We welcome contributions from the community! Please see our **[Contributing Guide](docs/CONTRIBUTING.md)** for details on:
-
-- **Code Standards** - Coding conventions and best practices
-- **Development Setup** - How to set up your development environment
-- **Pull Request Process** - How to submit your changes
-- **Testing Guidelines** - How to test your contributions
-### **Quick Contribution Start**
-```bash
-# Fork and clone
-git clone https://github.com/your-username/scopeapi.git
-cd scopeapi
-
-# Setup development environment
-cd scripts
-./scopeapi-setup.sh --full
-
-# Create feature branch
-git checkout -b feature/amazing-feature
-
-# Make changes and test
-./scripts/scopeapi-services.sh start all
-
-# Commit and push
-git commit -m "Add amazing feature"
-git push origin feature/amazing-feature
-
-# Create Pull Request
-```
+We welcome contributions from the community! Please see our **[Contributing Guide](docs/CONTRIBUTING.md)** for complete details on contributing to ScopeAPI.
 
 ## 🏗️ **Project Structure**
 
@@ -188,31 +135,33 @@ scopeapi/
 │   └── 📁 shared/                  # Shared libraries and utilities
 ├── 📁 adminConsole/                # Angular frontend application
 ├── 📁 scripts/                     # Project automation and management scripts
-│   ├── 🔄 scopeapi-local.sh        # Local development (process-based management)
-│   ├── 🐳 docker-infrastructure.sh # Infrastructure management
-│   ├── 🚀 scopeapi-services.sh     # Container-based microservices orchestration
-│   ├── 🔧 scopeapi-setup.sh        # Complete setup and validation
-│   └── 🐛 scopeapi-debug.sh        # Debug mode management
+│   ├── 🎯 scopeapi.sh              # Main orchestrator (setup, services, status)
+│   ├── 🏗️ infrastructure.sh        # Infrastructure management
+│   ├── 🚀 deploy.sh                # Deployment (Docker + K8s)
+│   ├── 💻 dev.sh                   # Development workflows
+│   └── 🔧 setup-database.sh        # Database setup utilities
+├── 📁 k8s/                         # Kubernetes deployment configurations
+│   ├── 📁 deployments/             # All microservices + admin console
+│   ├── 📁 services/                # Network services configuration
+│   ├── 📁 ingress/                 # Traffic routing and load balancing
+│   ├── 📁 secrets/                 # Environment variables and secrets
+│   └── 📁 configmaps/              # Application configuration
 ├── 📁 docs/                        # Comprehensive documentation
 └── 📄 README.md                    # This file
 ```
 
 ## 🚀 **Deployment**
 
-### **Local Development**
-```bash
-./scripts/scopeapi-setup.sh --full
-./scripts/scopeapi-services.sh start all
-```
+For comprehensive deployment instructions, environment strategy, and security guidelines, see:
+- **[🚀 Deployment Guide](docs/DEPLOYMENT.md)** - Complete deployment guide with environment strategy
 
-### **Production**
-```bash
-# Deploy with Docker Compose
-docker-compose -f scripts/docker-compose.yml up -d
-
-# Or deploy to Kubernetes
-kubectl apply -f k8s/
-```
+### **Kubernetes Configuration**
+The `k8s/` directory contains all Kubernetes deployment configurations for staging and production environments, including:
+- **Deployments** for all microservices and the admin console
+- **Services** for network communication
+- **Ingress** for traffic routing and load balancing
+- **Secrets** for secure environment variable management
+- **ConfigMaps** for application configuration
 
 ## 📊 **Features**
 
@@ -246,23 +195,6 @@ kubectl apply -f k8s/
 - **Health Monitoring** - Gateway health and performance
 - **Configuration Sync** - Automated policy deployment
 
-## 🛠️ **Technology Stack**
-
-### **Backend**
-- **Language**: Go 1.21+
-- **Framework**: Standard library + custom middleware
-- **Database**: PostgreSQL 15+
-- **Cache**: Redis 7+
-- **Message Queue**: Apache Kafka 3.4+
-
-### **Frontend**
-- **Framework**: Angular 16.2+
-- **Language**: TypeScript 5.1+
-- **Styling**: SCSS with modern CSS features
-- **Build Tool**: Angular CLI with Webpack
-
-### **Infrastructure**
-
 ## 🖥️ **Admin Console (Frontend)**
 
 **Modern Angular 16+ web application** providing a comprehensive interface for managing all ScopeAPI services. Features responsive design, lazy-loaded modules, real-time updates, and role-based access control.
@@ -271,27 +203,13 @@ kubectl apply -f k8s/
 
 **🚀 Quick Start**: `cd adminConsole && npm install && npm start`
 
-**📚 [Detailed Documentation →](docs/ADMIN_CONSOLE.md)**
-- **Containerization**: Docker 24+
-- **Orchestration**: Docker Compose, Kubernetes
-- **Monitoring**: Prometheus, Grafana, ELK Stack
-- **CI/CD**: GitHub Actions, GitLab CI
+**📚 [Detailed Documentation →](docs/README.md#admin-console)**
+
+For complete technology stack details, see **[🏗️ Architecture Guide](docs/ARCHITECTURE.md)**
 
 ## 📈 **Performance & Scalability**
 
-- **Horizontal Scaling** - All services scale independently
-- **Event-Driven Architecture** - Asynchronous processing
-- **Caching Strategies** - Multi-layer caching for performance
-- **Load Balancing** - Intelligent request distribution
-- **99.9% Uptime** - High availability and reliability
-
-## 🔒 **Security Features**
-
-- **Zero-Trust Architecture** - No implicit trust between services
-- **Multi-Factor Authentication** - Enhanced access security
-- **Role-Based Access Control** - Granular permission management
-- **Encryption** - Data encryption at rest and in transit
-- **Audit Logging** - Comprehensive security event tracking
+For detailed performance characteristics, scalability features, and security architecture, see **[🏗️ Architecture Guide](docs/ARCHITECTURE.md)**
 
 ## 🌟 **Why Choose ScopeAPI?**
 
@@ -314,15 +232,7 @@ kubectl apply -f k8s/
 
 ## 🤝 **Community & Support**
 
-**We welcome contributions from the community!** Here's how you can get involved:
-
-- **📖 Documentation**: Comprehensive guides and references
-- **🐛 Issues**: Report bugs and request features  
-- **💬 Discussions**: Ask questions and share ideas
-- **🔧 Contributing**: Bug fixes, new features, documentation improvements
-- **📧 Contact**: Reach out to maintainers directly
-
-**Getting Started**: Fork the repo, create a feature branch, make changes, test thoroughly, and submit a pull request. Follow Go best practices for backend and Angular style guide for frontend.
+**We welcome contributions from the community!** For complete information on getting involved, see our **[Contributing Guide](docs/CONTRIBUTING.md)**.
 
 ## 📄 **License**
 

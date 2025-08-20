@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-integration-service
+  namespace: scopeapi
+  labels:
+    app: gateway-integration
+    type: service
+spec:
+  selector:
+    app: gateway-integration
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8081
+    name: http
+  - protocol: TCP
+    port: 9091
+    targetPort: 9091
+    name: metrics
+  type: ClusterIP

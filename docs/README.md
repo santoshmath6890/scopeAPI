@@ -2,11 +2,13 @@
 
 Welcome to the ScopeAPI documentation! This is a comprehensive guide to understanding, developing, and contributing to the ScopeAPI project.
 
+> **📝 Note**: Documentation has been consolidated for better organization. The [Deployment Guide](DEPLOYMENT.md) now includes environment strategy, security best practices, and Kubernetes migration in one comprehensive file.
+
 ## 🚀 **Quick Start**
 
-- **[Project Overview](README.md)** - What is ScopeAPI and why it matters
-- **[Docker Setup](DOCKER_SETUP.md)** - Get up and running quickly
-- **[Development Guide](DEVELOPMENT.md)** - Start developing with ScopeAPI
+- **[Project Overview](../README.md)** - What is ScopeAPI and why it matters
+- **[Development Guide](DEVELOPMENT.md)** - Complete development workflow
+- **[Deployment Guide](DEPLOYMENT.md)** - Production deployment and operations
 
 ## 📋 **Documentation Sections**
 
@@ -16,19 +18,17 @@ Welcome to the ScopeAPI documentation! This is a comprehensive guide to understa
 - **[Data Flow](ARCHITECTURE.md#data-flow)** - How data moves through the system
 
 ### **💻 Development**
+- **[Development Guide](DEVELOPMENT.md)** - Complete development setup, workflows, and script usage
+- **[API Documentation](API.md)** - Service APIs and endpoints
+- **[Testing Guide](DEVELOPMENT.md#testing)** - How to test your changes
 
 ### **🖥️ Frontend & UI**
 - **[Admin Console](ADMIN_CONSOLE.md)** - Angular frontend application guide
 - **[UI Components](ADMIN_CONSOLE.md#key-features)** - Available UI components and features
 - **[Frontend Development](ADMIN_CONSOLE.md#development-commands)** - Frontend development workflow
-- **[Development Setup](DEVELOPMENT.md)** - Local development environment
-- **[Scripts Guide](../scripts/README.md)** - Available development scripts
-- **[API Documentation](API.md)** - Service APIs and endpoints
-- **[Testing Guide](DEVELOPMENT.md#testing)** - How to test your changes
 
 ### **🚀 Deployment & Operations**
-- **[Production Deployment](DEPLOYMENT.md)** - Deploy to production
-- **[Docker Orchestration](DOCKER_SETUP.md)** - Container management
+- **[Production Deployment](DEPLOYMENT.md)** - Deploy to production (includes environment strategy, security, and Kubernetes migration)
 - **[Monitoring & Logging](DEPLOYMENT.md#monitoring)** - Observability
 
 ### **🤝 Contributing**
@@ -54,13 +54,14 @@ ScopeAPI follows a **microservices architecture** with:
 - **7 Core Microservices** - Each handling a specific security domain
 - **Event-Driven Communication** - Kafka-based message queuing
 - **Polyglot Persistence** - PostgreSQL, Redis, Elasticsearch
-- **Containerized Deployment** - Docker and Docker Compose
+- **Containerized Deployment** - Docker and Kubernetes
 - **RESTful APIs** - Standard HTTP interfaces for all services
 
 ## 🚀 **Getting Started**
 
 ### **Prerequisites**
-- Docker and Docker Compose
+- Docker and Docker Compose (for local development)
+- Kubernetes cluster (for staging/production)
 - Go 1.21+ (for backend development)
 - Node.js 18+ (for admin console)
 
@@ -72,10 +73,10 @@ cd scopeapi
 
 # Complete setup
 cd scripts
-./scopeapi-setup.sh --full
+./scopeapi.sh setup --full
 
 # Start development
-./scopeapi-services.sh start all
+./dev.sh start all
 ```
 
 ## 🔧 **Development Workflows**
@@ -84,21 +85,21 @@ cd scripts
 ```bash
 # Start services
 cd scripts
-./scopeapi-services.sh start all
+./dev.sh start all
 
 # Make changes and test
 # View logs
-./scopeapi-services.sh logs api-discovery
+./dev.sh logs api-discovery
 
 # Stop when done
-./scopeapi-services.sh stop
+./dev.sh stop
 ```
 
 ### **Debugging**
 ```bash
 # Start in debug mode
 cd scripts
-./scopeapi-debug.sh start api-discovery
+./dev.sh debug api-discovery
 
 # Connect IDE to localhost:2345
 # Set breakpoints and debug
@@ -112,8 +113,7 @@ cd scripts
 - **[Testing Guide](DEVELOPMENT.md#testing)** - Testing strategies
 
 ### **For DevOps/Operations**
-- **[Deployment Guide](DEPLOYMENT.md)** - Production deployment
-- **[Docker Setup](DOCKER_SETUP.md)** - Container orchestration
+- **[Deployment Guide](DEPLOYMENT.md)** - Production deployment (includes environment strategy, security, and Kubernetes migration)
 - **[Monitoring](DEPLOYMENT.md#monitoring)** - Observability and alerting
 
 ### **For Contributors**
@@ -132,13 +132,21 @@ cd scripts
 
 ```
 docs/
-├── README.md               # This file - Documentation index
-├── ARCHITECTURE.md        # Technical architecture and design
-├── DEVELOPMENT.md         # Development setup and workflows
-├── API.md                 # API documentation and examples
-├── CONTRIBUTING.md        # Contribution guidelines
-├── DEPLOYMENT.md          # Production deployment
-# All documentation is now consolidated into focused, comprehensive guides
+├── README.md                    # This file - Documentation index
+├── ARCHITECTURE.md             # Technical architecture and design
+├── DEVELOPMENT.md              # Development setup, workflows, and Docker setup
+├── DEPLOYMENT.md               # Production deployment, environment strategy, security, and Kubernetes migration
+├── API.md                      # API documentation and examples
+├── ADMIN_CONSOLE.md            # Frontend application guide
+└── CONTRIBUTING.md             # Contribution guidelines
+
+k8s/
+├── README.md                   # Kubernetes deployment configurations
+├── deployments/                # All microservices + admin console
+├── services/                   # Network services configuration
+├── ingress/                    # Traffic routing and load balancing
+├── secrets/                    # Environment variables and secrets
+└── configmaps/                 # Application configuration
 ```
 
 ---
@@ -150,34 +158,3 @@ docs/
 - **Contribute** to the open-source project
 
 **Happy coding! 🚀✨**
-
-## 🏗️ **Script Architecture Overview**
-
-This project provides a comprehensive set of specialized scripts:
-
-### **🔄 Local Development Management**
-- **`scopeapi-local.sh`** - Local development (process-based management)
-- **`docker-infrastructure.sh`** - Infrastructure services only
-
-### **🚀 Container-Based Management**
-- **`scopeapi-services.sh`** - Complete microservices orchestration
-- **`scopeapi-debug.sh`** - Debug mode management
-
-### **🔧 Setup & Validation**
-- **`scopeapi-setup.sh`** - Complete project setup
-
-### **📖 Usage Guide**
-- **`README.md`** - Comprehensive script documentation
-
-## 🎯 **Quick Script Selection:**
-
-- **First time**: `cd scripts
-./scopeapi-setup.sh --full`
-- **Daily development (containers)**: `cd scripts
-./scopeapi-services.sh start all`
-- **Local development (processes)**: `cd scripts
-./scopeapi-local.sh start`
-- **Infrastructure only**: `cd scripts
-./docker-infrastructure.sh start`
-- **Debugging**: `cd scripts
-./scopeapi-debug.sh start [service]`

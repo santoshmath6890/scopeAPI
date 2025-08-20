@@ -1,12 +1,18 @@
 #!/bin/bash
 
-# ScopeAPI Infrastructure Management Script (Infrastructure Only)
-# This script manages ONLY infrastructure services (PostgreSQL, Kafka, Redis, etc.)
-# Note: For microservices management, use scopeapi-services.sh instead
-# This script is focused on infrastructure setup and troubleshooting
-
+# ScopeAPI Infrastructure Management Script
+# Purpose: Manage infrastructure services (PostgreSQL, Kafka, Redis, etc.)
+# Usage: ./infrastructure.sh [COMMAND] [OPTIONS]
+# Features: Infrastructure startup, monitoring, troubleshooting
 
 set -e
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Change to project root directory
+cd "$PROJECT_ROOT"
 
 # Colors for output
 RED='\033[0;31m'
@@ -18,32 +24,6 @@ NC='\033[0m' # No Color
 # Project configuration
 PROJECT_NAME="scopeapi"
 NETWORK_NAME="${PROJECT_NAME}-network"
-
-# Load environment variables from .env file if it exists
-load_env_vars() {
-    if [ -f ".env" ]; then
-        print_info "Loading environment variables from .env file"
-        # Use source to properly handle variables with spaces
-        set -a
-        source .env
-        set +a
-    else
-        print_warning ".env file not found. Please create one based on env.example"
-        print_info "Some services may fail to start without required environment variables"
-    fi
-}
-
-# Service configurations
-ZOOKEEPER_PORT=2181
-KAFKA_PORT=9092
-POSTGRES_PORT=5432
-POSTGRES_DB="${POSTGRES_DB:-scopeapi}"
-POSTGRES_USER="${POSTGRES_USER:-scopeapi}"
-POSTGRES_PASSWORD="${POSTGRES_PASSWORD}"
-REDIS_PORT=6379
-REDIS_PASSWORD="${REDIS_PASSWORD}"
-ELASTICSEARCH_PORT=9200
-KIBANA_PORT=5601
 
 # Function to print colored output
 print_info() {
@@ -67,6 +47,37 @@ print_header() {
     echo -e "${BLUE}$1${NC}"
     echo -e "${BLUE}==========================================${NC}"
 }
+
+# Load environment variables from .env.local file (local development only)
+load_env_vars() {
+    if [ -f ".env.local" ]; then
+        print_info "Loading environment variables from .env.local file (LOCAL DEVELOPMENT)"
+        # Use source to properly handle variables with spaces
+        set -a
+        source .env.local
+        set +a
+        print_success "Environment variables loaded from .env.local"
+        print_info "⚠️  Remember: .env.local is for your local machine only!"
+    else
+        print_error "No .env.local file found!"
+        print_warning "Please create .env.local file based on env.example for LOCAL DEVELOPMENT"
+        print_info "For staging/production, use Kubernetes Secrets: ./deploy.sh -e staging -p k8s"
+        print_info "Some services may fail to start without required environment variables"
+        exit 1
+    fi
+}
+
+# Service configurations
+ZOOKEEPER_PORT=2181
+KAFKA_PORT=9092
+POSTGRES_PORT=5432
+POSTGRES_DB="${POSTGRES_DB:-scopeapi}"
+POSTGRES_USER="${POSTGRES_USER:-scopeapi}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD}"
+REDIS_PORT=6379
+REDIS_PASSWORD="${REDIS_PASSWORD}"
+ELASTICSEARCH_PORT=9200
+KIBANA_PORT=5601
 
 # Function to check if Docker is running
 check_docker() {
@@ -145,7 +156,7 @@ start_postgres() {
     print_info "Starting PostgreSQL..."
     
     if [ -z "$POSTGRES_PASSWORD" ]; then
-        print_error "POSTGRES_PASSWORD environment variable is not set. Please set it in your .env file."
+        print_error "POSTGRES_PASSWORD environment variable is not set. Please set it in your .env.local file."
         exit 1
     fi
     
@@ -186,7 +197,7 @@ start_redis() {
     fi
     
     if [ -z "$REDIS_PASSWORD" ]; then
-        print_error "REDIS_PASSWORD environment variable is not set. Please set it in your .env file."
+        print_error "REDIS_PASSWORD environment variable is not set. Please set it in your .env.local file."
         exit 1
     fi
     
@@ -447,31 +458,6 @@ fix_docker_permissions() {
     print_success "Docker permissions fix completed!"
 }
 
-# Function to setup environment file
-setup_env() {
-    print_header "Setting up Environment Configuration"
-    
-    if [ -f ".env" ]; then
-        print_warning ".env file already exists"
-        read -p "Do you want to overwrite it? (y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            print_info "Environment setup cancelled"
-            return
-        fi
-    fi
-    
-    if [ -f "env.example" ]; then
-        cp env.example .env
-        print_success "Created .env file from env.example"
-        print_info "Please edit .env file and set your secure passwords"
-        print_info "Then run: $0 start"
-    else
-        print_error "env.example file not found"
-        print_info "Please create a .env file manually with the required environment variables"
-    fi
-}
-
 # Function to show help
 show_help() {
     echo "ScopeAPI Infrastructure Management Script"
@@ -486,7 +472,6 @@ show_help() {
     echo "  logs <service>  Show logs for a specific service"
     echo "  cleanup         Remove all containers and volumes"
     echo "  fix-permissions Fix Docker permission issues"
-    echo "  setup-env       Set up environment file from template"
     echo "  help            Show this help message"
     echo ""
     echo "Services:"
@@ -502,7 +487,6 @@ show_help() {
     echo "  $0 logs kafka              # Show Kafka logs"
     echo "  $0 status                  # Show service status"
     echo "  $0 fix-permissions         # Fix Docker permissions"
-    echo "  $0 setup-env               # Set up environment file"
     echo "  $0 cleanup                 # Remove everything"
 }
 
@@ -519,6 +503,7 @@ main() {
             restart_all
             ;;
         status)
+            load_env_vars
             show_status
             ;;
         logs)
@@ -529,9 +514,6 @@ main() {
             ;;
         fix-permissions)
             fix_docker_permissions
-            ;;
-        setup-env)
-            setup_env
             ;;
         help|--help|-h)
             show_help
@@ -544,4 +526,4 @@ main() {
 }
 
 # Run main function with all arguments
-main "$@" 
+main "$@"

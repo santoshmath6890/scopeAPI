@@ -5,15 +5,20 @@ This guide covers production deployment, monitoring, and operations for the Scop
 ## 📋 **Table of Contents**
 
 - [Deployment Overview](#deployment-overview)
+- [Environment Strategy & Security](#environment-strategy--security)
+- [Local Development Setup](#local-development-setup)
+- [Secrets Management](#secrets-management)
+- [Deployment Commands](#deployment-commands)
+- [Validation and Checks](#validation-and-checks)
+- [Troubleshooting](#troubleshooting)
+- [Kubernetes Migration](#kubernetes-migration)
 - [Prerequisites](#prerequisites)
-- [Environment Configuration](#environment-configuration)
 - [Production Deployment](#production-deployment)
 - [Kubernetes Deployment](#kubernetes-deployment)
 - [Monitoring and Observability](#monitoring-and-observability)
 - [Security Configuration](#security-configuration)
 - [Backup and Recovery](#backup-and-recovery)
 - [Scaling and Performance](#scaling-and-performance)
-- [Troubleshooting](#troubleshooting)
 - [Maintenance](#maintenance)
 
 ## 🎯 **Deployment Overview**
@@ -24,6 +29,260 @@ ScopeAPI supports multiple deployment strategies:
 - **Kubernetes** - Production-grade, scalable deployment
 - **Hybrid Cloud** - Multi-environment deployment
 - **On-Premise** - Self-hosted deployment
+
+## 🔒 **Environment Strategy & Security**
+
+### **Local Development**
+- **File**: `.env.local` (your machine only)
+- **Purpose**: Local development and testing
+- **Security**: Never commit to version control
+- **Usage**: `./scripts/deploy.sh -e dev -p docker`
+
+### **Staging Environment**
+- **Method**: Kubernetes Secrets
+- **Purpose**: Team testing and integration
+- **Security**: Encrypted, RBAC controlled
+- **Usage**: `./scripts/deploy.sh -e staging -p k8s`
+
+### **Production Environment**
+- **Method**: Kubernetes Secrets + External Secrets Manager
+- **Purpose**: Live production deployment
+- **Security**: Enterprise-grade encryption and access control
+- **Usage**: `./scripts/deploy.sh -e prod -p k8s`
+
+### **🚨 Security Rules**
+
+#### **❌ NEVER DO:**
+- Commit `.env.local` files to version control
+- Use `.env` files for staging or production
+- Store real passwords in plain text files
+- Share environment files between team members
+
+#### **✅ ALWAYS DO:**
+- Use `.env.local` only for local development
+- Use Kubernetes Secrets for staging/production
+- Keep `.env.local` files local to your machine
+- Use `env.example` as a template only
+
+### **📁 File Usage Matrix**
+
+| **File** | **Local Dev** | **Staging** | **Production** | **Commit?** |
+|----------|---------------|-------------|----------------|-------------|
+| `env.example` | ✅ Template | ✅ Template | ✅ Template | ✅ Yes |
+| `.env.local` | ✅ Use | ❌ Never | ❌ Never | ❌ Never |
+| `.env` | ❌ Deprecated | ❌ Never | ❌ Never | ❌ Never |
+| `k8s/secrets.yaml` | ❌ Not used | ✅ Use | ✅ Use | ❌ Never |
+
+## 🏠 **Local Development Setup**
+
+### **1. Environment Configuration**
+```bash
+# Copy the template
+cp env.example .env.local
+
+# Edit with your local values
+nano .env.local
+
+# Key environment variables:
+POSTGRES_PASSWORD=your_secure_password
+REDIS_PASSWORD=your_secure_password
+KAFKA_BROKER_ID=1
+```
+
+### **2. Deploy Locally**
+```bash
+# Deploy to Docker (local development)
+./scripts/deploy.sh -e dev -p docker
+
+# This will:
+# 1. Use .env.local file
+# 2. Deploy to Docker Compose
+# 3. Only work on your local machine
+```
+
+### **3. Local Development Commands**
+```bash
+# Start local development environment
+./scripts/dev.sh start all
+
+# Check status
+./scripts/scopeapi.sh status
+
+# View logs
+./scripts/dev.sh logs api-discovery
+
+# Stop when done
+./scripts/dev.sh stop
+```
+
+## 🔐 **Secrets Management**
+
+### **Local Development (.env.local)**
+```bash
+# Example .env.local content
+POSTGRES_PASSWORD=my_local_password_123
+REDIS_PASSWORD=my_local_redis_456
+JWT_SECRET=my_local_jwt_secret_789
+```
+
+### **Staging/Production (Kubernetes Secrets)**
+```yaml
+# k8s/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: scopeapi-secrets
+  namespace: scopeapi
+type: Opaque
+data:
+  POSTGRES_PASSWORD: <base64-encoded-staging-password>
+  REDIS_PASSWORD: <base64-encoded-staging-redis-password>
+  JWT_SECRET: <base64-encoded-staging-jwt-secret>
+```
+
+### **Generate Base64 Encoded Secrets**
+```bash
+# Run the secret generation script
+./scripts/generate-secrets.sh
+
+# This will output base64 encoded values like:
+# POSTGRES_PASSWORD: eW91cl9zZWN1cmVfcG9zdGdyZXNfcGFzc3dvcmQ=
+# REDIS_PASSWORD: eW91cl9zZWN1cmVfcmVkaXNfcGFzc3dvcmQ=
+# JWT_SECRET: eW91cl9zZWN1cmVfand0X3NlY3JldA==
+
+# Copy these values to your k8s/secrets.yaml file
+```
+
+## 🚀 **Deployment Commands**
+
+### **Local Development**
+```bash
+# Start local development environment
+./scripts/deploy.sh -e dev -p docker
+
+# This will:
+# 1. Use .env.local file
+# 2. Deploy to Docker Compose
+# 3. Only work on your local machine
+```
+
+### **Staging Environment**
+```bash
+# Deploy to staging
+./scripts/deploy.sh -e staging -p k8s
+
+# This will:
+# 1. Use Kubernetes Secrets
+# 2. Deploy to staging cluster
+# 3. Use encrypted secrets
+```
+
+### **Production Environment**
+```bash
+# Deploy to production
+./scripts/deploy.sh -e prod -p k8s
+
+# This will:
+# 1. Use Kubernetes Secrets
+# 2. Deploy to production cluster
+# 3. Use enterprise-grade security
+```
+
+### **Quick Deployment Reference**
+```bash
+# Local development
+./scripts/deploy.sh                    # Default: dev + docker
+
+# Staging deployment
+./scripts/deploy.sh -e staging -p k8s  # Deploy to staging
+
+# Production deployment
+./scripts/deploy.sh -e prod -p k8s     # Deploy to production
+```
+
+## 🔍 **Validation and Checks**
+
+### **Check Current Environment**
+```bash
+# See which environment files exist
+ls -la | grep "\.env"
+
+# Should only show:
+# .env.local (for local development)
+# env.example (template)
+```
+
+### **Validate Security**
+```bash
+# Check if .env.local is tracked by git
+git status .env.local
+
+# Should show: "Untracked files" or nothing
+# If it shows as tracked, remove it:
+git rm --cached .env.local
+```
+
+### **Check Service Health**
+```bash
+# Local development
+./scripts/scopeapi.sh status
+
+# Kubernetes deployment
+kubectl get pods -n scopeapi
+kubectl get services -n scopeapi
+kubectl get secrets -n scopeapi
+```
+
+## 🆘 **Troubleshooting**
+
+### **Common Issues**
+
+#### **1. Script Refuses to Use .env File**
+```bash
+# Error: "Docker deployment is only allowed for LOCAL DEVELOPMENT"
+# Solution: Use .env.local instead of .env
+mv .env .env.local
+```
+
+#### **2. Script Refuses Docker for Staging/Production**
+```bash
+# Error: "Docker deployment is only allowed for LOCAL DEVELOPMENT"
+# Solution: Use Kubernetes for staging/production
+./scripts/deploy.sh -e staging -p k8s
+./scripts/deploy.sh -e prod -p k8s
+```
+
+#### **3. Missing Environment File**
+```bash
+# Error: "No .env.local file found"
+# Solution: Create from template
+cp env.example .env.local
+nano .env.local
+```
+
+#### **4. Kubernetes Secrets Not Loading**
+```bash
+# Check if secrets exist
+kubectl get secrets -n scopeapi
+
+# Check secret contents (base64 encoded)
+kubectl get secret scopeapi-secrets -n scopeapi -o yaml
+
+# Verify secret is mounted in pod
+kubectl describe pod <pod-name> -n scopeapi
+```
+
+#### **5. Services Not Starting**
+```bash
+# Check pod status
+kubectl get pods -n scopeapi
+
+# Check pod events
+kubectl describe pod <pod-name> -n scopeapi
+
+# Check pod logs
+kubectl logs <pod-name> -n scopeapi
+```
 
 ### **Deployment Architecture**
 
@@ -111,104 +370,7 @@ sudo ufw allow 6379/tcp
 
 ## ⚙️ **Environment Configuration**
 
-### **Environment Variables**
-
-Create a comprehensive `.env` file for production:
-
-```bash
-# Database Configuration
-POSTGRES_HOST=postgres-primary
-POSTGRES_PORT=5432
-POSTGRES_USER=scopeapi
-POSTGRES_PASSWORD=your_secure_password_here
-POSTGRES_DB=scopeapi
-POSTGRES_SSL_MODE=require
-
-# Redis Configuration
-REDIS_HOST=redis-primary
-REDIS_PORT=6379
-REDIS_PASSWORD=your_secure_redis_password
-REDIS_DB=0
-
-# Kafka Configuration
-KAFKA_BROKERS=kafka-1:9092,kafka-2:9092,kafka-3:9092
-KAFKA_TOPIC_PREFIX=scopeapi
-KAFKA_CONSUMER_GROUP=scopeapi-consumer
-
-# Security Configuration
-JWT_SECRET=your_very_long_jwt_secret_key_here
-JWT_EXPIRY=24h
-ENCRYPTION_KEY=your_32_character_encryption_key
-
-# Service Configuration
-LOG_LEVEL=info
-ENVIRONMENT=production
-API_VERSION=v1
-CORS_ORIGINS=https://yourdomain.com,https://admin.yourdomain.com
-
-# Monitoring Configuration
-PROMETHEUS_ENABLED=true
-PROMETHEUS_PORT=9090
-GRAFANA_PORT=3000
-JAEGER_ENABLED=true
-JAEGER_ENDPOINT=http://jaeger:14268/api/traces
-
-# External Services
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=alerts@yourdomain.com
-SMTP_PASSWORD=your_smtp_password
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/your/webhook/url
-```
-
-### **Configuration Files**
-
-#### **Production Docker Compose**
-
-Create `docker-compose.prod.yml`:
-
-```yaml
-version: '3.8'
-
-services:
-  # Infrastructure Services
-  postgres-primary:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
-    ports:
-      - "5432:5432"
-    networks:
-      - scopeapi-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  postgres-replica:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_MASTER_HOST: postgres-primary
-      POSTGRES_MASTER_PORT: 5432
-    volumes:
-      - postgres_replica_data:/var/lib/postgresql/data
-    networks:
-      - scopeapi-network
-    restart: unless-stopped
-    depends_on:
-      postgres-primary:
-        condition: service_healthy
+> **📝 Note**: This section has been consolidated into the [Environment Strategy & Security](#environment-strategy--security) and [Local Development Setup](#local-development-setup) sections above. For local development, use `.env.local`. For staging/production, use Kubernetes Secrets.
 
   redis-primary:
     image: redis:7-alpine
@@ -571,6 +733,232 @@ networks:
     driver: bridge
 ```
 
+## 🔄 **Kubernetes Migration**
+
+### **Migration Overview**
+
+#### **What We're Migrating From:**
+- **Docker Compose** with `.env` files for configuration
+- **Plain text passwords** stored in environment files
+- **Single-server deployment** with limited scalability
+
+#### **What We're Migrating To:**
+- **Kubernetes** with proper secrets management
+- **Encrypted secrets** stored securely in Kubernetes
+- **Production-ready deployment** with auto-scaling and high availability
+
+### **Phase 1: Prepare Your Environment**
+
+#### **1.1 Install Kubernetes Tools**
+```bash
+# Install kubectl
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+chmod +x kubectl
+sudo mv kubectl /usr/local/bin/
+
+# Install Docker Desktop with Kubernetes (Windows/macOS)
+# Or use Minikube for local development
+minikube start --driver=docker
+```
+
+#### **1.2 Backup Current Configuration**
+```bash
+# Backup your current .env file
+cp .env .env.backup
+
+# Backup Docker Compose configuration
+cp scripts/docker-compose.yml scripts/docker-compose.yml.backup
+```
+
+### **Phase 2: Generate Kubernetes Secrets**
+
+#### **2.1 Generate Base64 Encoded Secrets**
+```bash
+# Run the secret generation script
+./scripts/generate-secrets.sh
+
+# This will output base64 encoded values like:
+# POSTGRES_PASSWORD: eW91cl9zZWN1cmVfcG9zdGdyZXNfcGFzc3dvcmQ=
+# REDIS_PASSWORD: eW91cl9zZWN1cmVfcmVkaXNfcGFzc3dvcmQ=
+```
+
+#### **2.2 Update Kubernetes Secrets File**
+```bash
+# Edit the secrets file with your actual values
+nano k8s/secrets.yaml
+
+# Replace the placeholder values:
+# POSTGRES_PASSWORD: <base64-encoded-postgres-password>
+# With your actual base64 encoded values:
+# POSTGRES_PASSWORD: eW91cl9zZWN1cmVfcG9zdGdyZXNfcGFzc3dvcmQ=
+```
+
+### **Phase 3: Deploy to Kubernetes**
+
+#### **3.1 Deploy Infrastructure**
+```bash
+# Deploy to Kubernetes
+./scripts/deploy.sh -e staging -p k8s
+
+# Or use the comprehensive deployment script
+./scripts/deploy.sh -e prod -p k8s
+```
+
+#### **3.2 Verify Deployment**
+```bash
+# Check namespace
+kubectl get namespace scopeapi
+
+# Check pods
+kubectl get pods -n scopeapi
+
+# Check services
+kubectl get services -n scopeapi
+
+# Check secrets
+kubectl get secrets -n scopeapi
+```
+
+### **Phase 4: Test and Validate**
+
+#### **4.1 Test Services**
+```bash
+# Test API Discovery service
+kubectl port-forward service/api-discovery-service 8080:80 -n scopeapi
+curl http://localhost:8080/health
+
+# Test Gateway Integration service
+kubectl port-forward service/gateway-integration-service 8081:80 -n scopeapi
+curl http://localhost:8081/health
+```
+
+#### **4.2 Check Logs**
+```bash
+# View service logs
+kubectl logs -f deployment/api-discovery -n scopeapi
+kubectl logs -f deployment/gateway-integration -n scopeapi
+```
+
+### **Secrets Management Migration**
+
+#### **Before (Docker Compose):**
+```yaml
+# docker-compose.yml
+services:
+  postgres:
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}  # From .env file
+```
+
+```bash
+# .env file
+POSTGRES_PASSWORD=your_plain_text_password  # ⚠️ UNSAFE!
+```
+
+#### **After (Kubernetes):**
+```yaml
+# k8s/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: scopeapi-secrets
+  namespace: scopeapi
+type: Opaque
+data:
+  POSTGRES_PASSWORD: eW91cl9zZWN1cmVfcG9zdGdyZXNfcGFzc3dvcmQ=  # Base64 encoded
+```
+
+```yaml
+# k8s/deployments/api-discovery-deployment.yaml
+spec:
+  template:
+    spec:
+      containers:
+      - name: api-discovery
+        envFrom:
+        - secretRef:
+            name: scopeapi-secrets  # Secrets injected automatically
+```
+
+### **Configuration Updates**
+
+#### **Update Your Application Code**
+
+##### **Go Services:**
+```go
+// Before: Direct environment variable access
+dbPassword := os.Getenv("POSTGRES_PASSWORD")
+
+// After: Same code works, but secrets are injected by Kubernetes
+dbPassword := os.Getenv("POSTGRES_PASSWORD")
+```
+
+##### **Angular Frontend:**
+```typescript
+// Before: Environment variables in Angular
+export const environment = {
+  production: false,
+  apiUrl: 'http://localhost:8080'
+};
+
+// After: Same configuration, but deployed via Kubernetes
+export const environment = {
+  production: true,
+  apiUrl: 'https://api.yourdomain.com'
+};
+```
+
+### **Security Improvements**
+
+#### **What's More Secure Now:**
+
+1. **Secrets Encryption**: Kubernetes encrypts secrets at rest
+2. **RBAC**: Role-based access control for secrets
+3. **Network Policies**: Pod-to-pod communication rules
+4. **Security Contexts**: Non-root containers
+5. **TLS Everywhere**: HTTPS for all external communication
+
+#### **Access Control:**
+```yaml
+# k8s/rbac/service-account.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: scopeapi-role
+  namespace: scopeapi
+rules:
+- apiGroups: [""]
+  resources: ["secrets", "configmaps"]
+  verbs: ["get", "list", "watch"]
+```
+
+### **Migration Checklist**
+
+- [ ] **Environment Setup**
+  - [ ] Install kubectl
+  - [ ] Set up Kubernetes cluster
+  - [ ] Backup current configuration
+
+- [ ] **Secrets Migration**
+  - [ ] Generate base64 encoded secrets
+  - [ ] Update k8s/secrets.yaml
+  - [ ] Verify secrets are properly formatted
+
+- [ ] **Deployment**
+  - [ ] Deploy to Kubernetes
+  - [ ] Verify all services are running
+  - [ ] Test service communication
+
+- [ ] **Validation**
+  - [ ] Run all tests
+  - [ ] Verify functionality
+  - [ ] Check performance
+
+- [ ] **Cleanup**
+  - [ ] Remove old Docker Compose deployment
+  - [ ] Update documentation
+  - [ ] Train team on new deployment process
+
 ## 🚀 **Production Deployment**
 
 ### **1. Prepare Production Environment**
@@ -584,9 +972,10 @@ cd /opt/scopeapi
 git clone https://github.com/your-org/scopeapi.git .
 git checkout production
 
-# Create production environment file
-cp env.example .env.production
-nano .env.production  # Edit with production values
+# For production, use Kubernetes Secrets (see k8s/secrets.yaml)
+# For development/staging, create environment file:
+cp env.example .env.local
+nano .env.local  # Edit with development values
 
 # Create production compose file
 cp docker-compose.prod.yml docker-compose.yml
@@ -758,7 +1147,9 @@ metadata:
     name: scopeapi
 ```
 
-### **2. Create ConfigMap**
+### **2. Create ConfigMap and Secrets**
+
+**ConfigMap** (non-sensitive configuration):
 
 ```yaml
 # k8s/configmap.yaml

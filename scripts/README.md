@@ -4,97 +4,154 @@ This directory contains all the scripts, Docker Compose files, and configuration
 
 ## 📋 **Script Overview**
 
-### **1. `scopeapi-setup.sh` - Complete Setup Orchestrator**
-- **Purpose**: Orchestrates the complete ScopeAPI setup process
-- **When to use**: First time setup, infrastructure management, database setup
+### **1. `scopeapi.sh` - Main Orchestrator Script**
+- **Purpose**: Unified script for all ScopeAPI operations
+- **When to use**: Setup, main operations, service management
 - **Features**: 
-  - Infrastructure startup (ZooKeeper, Kafka, PostgreSQL, Redis, Elasticsearch, Kibana)
-  - Database setup and migrations
-  - Test data creation
-  - Setup validation
+  - Complete setup orchestration (infrastructure + database + validation)
+  - Service lifecycle management (start/stop/restart/logs/status)
+  - Comprehensive status reporting
+  - Cleanup operations
 
 **Usage Examples:**
 ```bash
 # Complete setup with validation (recommended for first time)
 cd scripts
-./scopeapi-setup.sh --full
+./scopeapi.sh setup --full
 
 # Start infrastructure only
-./scopeapi-setup.sh --infrastructure
+./scopeapi.sh setup --infrastructure
 
 # Setup database only
-./scopeapi-setup.sh --database
+./scopeapi.sh setup --database
 
 # Create test data
-./scopeapi-setup.sh --test-data
+./scopeapi.sh setup --test-data
 
 # Validate existing setup
-./scopeapi-setup.sh --validate
+./scopeapi.sh setup --validate
+
+# Start all services
+./scopeapi.sh start all
+
+# Check comprehensive status
+./scopeapi.sh comprehensive-status
+
+# Cleanup services
+./scopeapi.sh setup --cleanup
 ```
 
 ---
 
-### **2. `scopeapi-services.sh` - Services Lifecycle Manager**
-- **Purpose**: Manages microservices lifecycle and orchestration
-- **When to use**: Daily development work, starting/stopping services, service management
+### **2. `dev.sh` - Development Workflow Script**
+- **Purpose**: Daily development tasks, debugging, testing, and development utilities
+- **When to use**: Daily development work, debugging, testing, code quality
 - **Features**:
-  - Development ports (8080-8086)
-  - Source code mounting for live development
-  - Development environment variables
-  - Service management (start/stop/restart/logs/status)
-  - Container access (shell, exec commands)
+  - Development environment management
+  - Debug mode with Delve debugger
+  - Testing (backend/frontend)
+  - Code quality (linting, formatting)
+  - Development utilities
 
 **Usage Examples:**
 ```bash
-# Start all services
+# Start development environment
 cd scripts
-./scopeapi-services.sh start all
+./dev.sh start all
 
 # Start specific service
-./scopeapi-services.sh start api-discovery
+./dev.sh start api-discovery
 
-# Start multiple services
-./scopeapi-services.sh start api-discovery gateway-integration
+# Debug service
+./dev.sh debug api-discovery
 
-# View logs
-./scopeapi-services.sh logs api-discovery
+# Run tests
+./dev.sh test
 
-# Check status
-./scopeapi-services.sh status
+# Lint code
+./dev.sh lint
 
-# Stop all services
-./scopeapi-services.sh stop
+# Format code
+./dev.sh format
 ```
 
 ---
 
-### **3. `scopeapi-debug.sh` - Debug Mode Manager**
-- **Purpose**: Manages microservices in debug mode with Delve debugger
-- **When to use**: When you need to debug services, set breakpoints
+### **3. `infrastructure.sh` - Infrastructure Management Script**
+- **Purpose**: Manage infrastructure services (PostgreSQL, Kafka, Redis, etc.)
+- **When to use**: Infrastructure setup, monitoring, troubleshooting
 - **Features**:
-  - Debug ports (2345-2351) for Delve debugger
-  - Debug Dockerfiles with Delve included
-  - Interactive debugging support
-  - Debug environment variables
+  - Infrastructure service management
+  - Health monitoring
+  - Troubleshooting utilities
+  - Resource management
 
 **Usage Examples:**
 ```bash
-# Start service in debug mode
+# Start infrastructure services
 cd scripts
-./scopeapi-debug.sh start api-discovery
+./infrastructure.sh start
 
-# Start multiple services in debug mode
-./scopeapi-debug.sh start api-discovery gateway-integration
+# Check infrastructure health
+./infrastructure.sh health
 
-# View debug logs
-./scopeapi-debug.sh logs api-discovery
+# View infrastructure logs
+./infrastructure.sh logs
 
-# Check debug status
-./scopeapi-debug.sh status
-
-# Stop debug services
-./scopeapi-debug.sh stop
+# Stop infrastructure
+./infrastructure.sh stop
 ```
+
+---
+
+### **4. `deploy.sh` - Deployment Script**
+- **Purpose**: Unified deployment for Docker (local) and Kubernetes (staging/production)
+- **When to use**: Environment deployment, secrets management
+- **Features**:
+  - Environment-specific deployment
+  - Platform selection (Docker/Kubernetes)
+  - Secrets management
+  - Validation and checks
+
+**Usage Examples:**
+```bash
+# Deploy to Docker (local development)
+cd scripts
+./deploy.sh -e dev -p docker
+
+# Deploy to Kubernetes (staging)
+./deploy.sh -e staging -p k8s
+
+# Deploy to Kubernetes (production)
+./deploy.sh -e prod -p k8s
+```
+
+---
+
+## 🔄 **Migration from Old Scripts**
+
+The following table shows how to migrate from the old scripts to the new consolidated ones:
+
+| **Old Script** | **New Command** | **Notes** |
+|----------------|-----------------|-----------|
+| `./scopeapi-setup.sh --full` | `./scopeapi.sh setup --full` | Complete setup with validation |
+| `./scopeapi-setup.sh --infrastructure` | `./scopeapi.sh setup --infrastructure` | Infrastructure only |
+| `./scopeapi-setup.sh --database` | `./scopeapi.sh setup --database` | Database setup only |
+| `./scopeapi-setup.sh --test-data` | `./scopeapi.sh setup --test-data` | Setup with test data |
+| `./scopeapi-setup.sh --validate` | `./scopeapi.sh setup --validate` | Validate setup |
+| `./scopeapi-setup.sh --cleanup` | `./scopeapi.sh setup --cleanup` | Cleanup services |
+| `./scopeapi-setup.sh --cleanup-full` | `./scopeapi.sh setup --cleanup-full` | Full cleanup |
+| `./scopeapi-services.sh start all` | `./scopeapi.sh start all` | Start all services |
+| `./scopeapi-services.sh start [service]` | `./scopeapi.sh start [service]` | Start specific service |
+| `./scopeapi-services.sh stop` | `./scopeapi.sh stop` | Stop all services |
+| `./scopeapi-services.sh status` | `./scopeapi.sh status` | Show status |
+| `./scopeapi-services.sh comprehensive-status` | `./scopeapi.sh comprehensive-status` | Detailed status |
+| `./scopeapi-services.sh logs [service]` | `./scopeapi.sh logs [service]` | Show logs |
+| `./scopeapi-debug.sh start [service]` | `./dev.sh debug [service]` | Debug mode |
+| `./scopeapi-local.sh start [service]` | `./dev.sh start [service]` | Local development |
+| `./docker-infrastructure.sh start` | `./infrastructure.sh start` | Infrastructure |
+| `./deploy-all.sh -e dev -p docker` | `./deploy.sh -e dev -p docker` | Local deployment |
+| `./deploy-k8s.sh` | `./deploy.sh -e staging -p k8s` | Kubernetes deployment |
 
 ---
 
@@ -104,91 +161,39 @@ cd scripts
 ```bash
 # 1. Complete setup
 cd scripts
-./scopeapi-setup.sh --full
+./scopeapi.sh setup --full
 
 # 2. Verify everything is working
-./scopeapi-setup.sh --validate
+./scopeapi.sh setup --validate
 ```
 
 ### **Daily Development:**
 ```bash
 # 1. Start services for development
 cd scripts
-./scopeapi-services.sh start all
+./scopeapi.sh start all
 
 # 2. Make code changes
 # 3. View logs if needed
-./scopeapi-services.sh logs api-discovery
+./scopeapi.sh logs api-discovery
 
 # 4. Stop when done
-./scopeapi-services.sh stop
+./scopeapi.sh stop
 ```
 
 ### **When Debugging is Needed:**
 ```bash
 # 1. Start service in debug mode
 cd scripts
-./scopeapi-debug.sh start api-discovery
+./dev.sh debug api-discovery
 
 # 2. Connect IDE to localhost:2345
 # 3. Set breakpoints and debug
 # 4. Stop debug service when done
-./scopeapi-debug.sh stop
+./dev.sh stop
 ```
 
 ---
-
-## 🎯 **Script Naming Convention**
-
-All scripts follow the `scopeapi-{purpose}.sh` naming convention:
-
-- **`scopeapi-setup.sh`** - Setup and infrastructure management
-- **`scopeapi-services.sh`** - Services lifecycle management  
-- **`scopeapi-debug.sh`** - Debug mode management
-
-This makes it clear that these are ScopeAPI-specific scripts and what each one does.
-
----
-
-## 🚨 **Important Notes**
-
-1. **Always run setup first**: Use `scopeapi-setup.sh` before using other scripts
-2. **Development vs Debug**: Use `scopeapi-dev.sh` for normal development, `scopeapi-debug.sh` only when debugging
-3. **Infrastructure dependency**: Development and debug scripts require infrastructure to be running
-4. **Port conflicts**: Development and debug scripts use different ports, so they won't conflict
-
----
-
-## 🔧 **Troubleshooting**
-
-### **Script not found:**
-```bash
-# Make sure you're in the scripts directory
-cd scripts
-
-# Make scripts executable
-chmod +x scopeapi-*.sh
-```
-
-### **Permission denied:**
-```bash
-# Fix permissions
-chmod +x scopeapi-*.sh
-```
-
-### **Services won't start:**
-```bash
-# Check if infrastructure is running
-cd scripts
-./scopeapi-setup.sh --validate
-
-# Start infrastructure if needed
-./scopeapi-setup.sh --infrastructure
-```
-
----
-
-**These scripts provide a complete toolkit for ScopeAPI development!** 🛠️✨
 
 ## 🐳 **Docker Compose Files**
 
@@ -209,184 +214,17 @@ This directory also contains all the Docker Compose configuration files:
 - **Content**: Debug ports, Delve debugger, debug Dockerfiles
 - **Usage**: `docker-compose -f scripts/docker-compose.yml -f scripts/docker-compose.debug.yml up`
 
-## 🔧 **Other Configuration Files**
+---
 
-### **`docker-infrastructure.sh`**
-- **Purpose**: Infrastructure management script
-- **Content**: Docker container management utilities
-- **Usage**: `./scripts/docker-infrastructure.sh [command]`
+## ☸️ **Kubernetes Configuration**
 
-### **`scopeapi-local.sh`**
-- **Purpose**: Legacy service management script
-- **Content**: Alternative service management approach
-- **Usage**: `./scripts/scopeapi-local.sh [command]`
+For Kubernetes deployment configurations, see the **[k8s/](../k8s/README.md)** directory at the project root, which contains:
+- **Deployments** for all microservices and admin console
+- **Services** for network communication
+- **Ingress** for traffic routing and load balancing
+- **Secrets** for secure environment variable management
+- **ConfigMaps** for application configuration
 
+---
 
-## 🏗️ **New Architecture: Clear Separation of Concerns**
-
-This directory now provides a clean separation of responsibilities:
-
-### **🔄 Local Development Management (`scopeapi-local.sh`)**
-- **Purpose**: Manages Go microservices as direct processes
-- **Use Case**: Development with direct binary execution
-- **Dependencies**: Requires infrastructure to be running
-- **Command**: `./scripts/scopeapi-local.sh [start|stop|status|build]`
-
-### **🐳 Infrastructure Management ()**
-- **Purpose**: Manages infrastructure services only
-- **Use Case**: Infrastructure setup, troubleshooting, environment management
-- **Services**: PostgreSQL, Kafka, Redis, Elasticsearch, Kibana
-- **Command**: `./scripts/docker-infrastructure.sh [start|stop|status|logs|setup-env]`
-
-### **🚀 Complete Microservices Orchestration ()**
-- **Purpose**: Complete container-based microservices management
-- **Use Case**: Production deployment, container-based development
-- **Features**: Infrastructure + microservices, container management, debugging
-- **Command**: `./scripts/scopeapi-services.sh [start|stop|infrastructure|comprehensive-status]`
-
-### **🔧 Setup & Validation ()**
-- **Purpose**: Complete project setup and validation
-- **Use Case**: First-time setup, environment validation
-- **Features**: Infrastructure startup, database setup, test data, validation
-- **Command**: `./scripts/scopeapi-setup.sh [--full|--infrastructure|--database|--validate]`
-
-### **🐛 Debug Management ()**
-- **Purpose**: Debug mode for microservices
-- **Use Case**: Development debugging with Delve
-- **Features**: Debug ports, container debugging, IDE integration
-- **Command**: `./scripts/scopeapi-debug.sh [start|stop|logs|status]`
-
-
-## 🔄 **Workflow Examples**
-
-### **Option 1: Local Development (Process-Based)**
-```bash
-# 1. Start infrastructure
-./scripts/docker-infrastructure.sh start
-
-# 2. Start microservices as processes
-./scripts/scopeapi-local.sh start
-
-# 3. Check status
-./scripts/scopeapi-local.sh status
-```
-
-### **Option 2: Container-Based Development**
-```bash
-# 1. Start everything with containers
-./scripts/scopeapi-services.sh start all
-
-# 2. Check comprehensive status
-./scripts/scopeapi-services.sh comprehensive-status
-
-# 3. Access container shell
-./scripts/scopeapi-services.sh shell api-discovery
-```
-
-### **Option 3: Infrastructure Only**
-```bash
-# 1. Start only infrastructure
-./scripts/docker-infrastructure.sh start
-
-# 2. Or use the integrated approach
-./scripts/scopeapi-services.sh infrastructure
-
-# 3. Check infrastructure status
-./scripts/docker-infrastructure.sh status
-```
-
-### **Option 4: Complete Setup**
-```bash
-# 1. Complete setup with validation
-./scripts/scopeapi-setup.sh --full
-
-# 2. Start services as needed
-./scripts/scopeapi-services.sh start api-discovery
-
-# 3. Debug if needed
-./scripts/scopeapi-debug.sh start api-discovery
-```
-
-## 🏗️ **New Architecture: Clear Separation of Concerns**
-
-This directory now provides a clean separation of responsibilities:
-
-### **🔄 Local Development Management (`scopeapi-local.sh`)**
-- **Purpose**: Manages Go microservices as direct processes
-- **Use Case**: Development with direct binary execution
-- **Dependencies**: Requires infrastructure to be running
-- **Command**: `./scripts/scopeapi-local.sh [start|stop|status|build]`
-
-### **🐳 Infrastructure Management ()**
-- **Purpose**: Manages infrastructure services only
-- **Use Case**: Infrastructure setup, troubleshooting, environment management
-- **Services**: PostgreSQL, Kafka, Redis, Elasticsearch, Kibana
-- **Command**: `./scripts/docker-infrastructure.sh [start|stop|status|logs|setup-env]`
-
-### **🚀 Complete Microservices Orchestration ()**
-- **Purpose**: Complete container-based microservices management
-- **Use Case**: Production deployment, container-based development
-- **Features**: Infrastructure + microservices, container management, debugging
-- **Command**: `./scripts/scopeapi-services.sh [start|stop|infrastructure|comprehensive-status]`
-
-### **🔧 Setup & Validation ()**
-- **Purpose**: Complete project setup and validation
-- **Use Case**: First-time setup, environment validation
-- **Features**: Infrastructure startup, database setup, test data, validation
-- **Command**: `./scripts/scopeapi-setup.sh [--full|--infrastructure|--database|--validate]`
-
-### **🐛 Debug Management ()**
-- **Purpose**: Debug mode for microservices
-- **Use Case**: Development debugging with Delve
-- **Features**: Debug ports, container debugging, IDE integration
-- **Command**: `./scripts/scopeapi-debug.sh [start|stop|logs|status]`
-
-## 🔄 **Workflow Examples**
-
-### **Option 1: Local Development (Process-Based)**
-```bash
-# 1. Start infrastructure
-./scripts/docker-infrastructure.sh start
-
-# 2. Start microservices as processes
-./scripts/scopeapi-local.sh start
-
-# 3. Check status
-./scripts/scopeapi-local.sh status
-```
-
-### **Option 2: Container-Based Development**
-```bash
-# 1. Start everything with containers
-./scripts/scopeapi-services.sh start all
-
-# 2. Check comprehensive status
-./scripts/scopeapi-services.sh comprehensive-status
-
-# 3. Access container shell
-./scripts/scopeapi-services.sh shell api-discovery
-```
-
-### **Option 3: Infrastructure Only**
-```bash
-# 1. Start only infrastructure
-./scripts/docker-infrastructure.sh start
-
-# 2. Or use the integrated approach
-./scripts/scopeapi-services.sh infrastructure
-
-# 3. Check infrastructure status
-./scripts/docker-infrastructure.sh status
-```
-
-### **Option 4: Complete Setup**
-```bash
-# 1. Complete setup with validation
-./scripts/scopeapi-setup.sh --full
-
-# 2. Start services as needed
-./scripts/scopeapi-services.sh start api-discovery
-
-# 3. Debug if needed
-./scripts/scopeapi-debug.sh start api-discovery
-```
+**These scripts provide a complete toolkit for ScopeAPI development!** 🛠️✨

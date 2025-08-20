@@ -47,24 +47,37 @@ cd scopeapi
 
 # Complete setup with validation
 cd scripts
-./scopeapi-setup.sh --full
+./scopeapi.sh setup --full
 
 # Verify setup
-./scopeapi-setup.sh --validate
+./scopeapi.sh setup --validate
 ```
 
 ### **2. Environment Configuration**
+
+**⚠️ IMPORTANT: For production, use Kubernetes Secrets instead of .env files!**
+
+**Development/Staging**: Create a `.env.local` file for local development:
 ```bash
 # Copy environment template
-cp env.example .env
+cp env.example .env.local
 
 # Edit with your configuration
-nano .env
+nano .env.local
 
 # Key environment variables:
 POSTGRES_PASSWORD=your_secure_password
 REDIS_PASSWORD=your_secure_password
 KAFKA_BROKER_ID=1
+```
+
+**Production**: Use Kubernetes Secrets (see `k8s/secrets.yaml`):
+```bash
+# Generate base64 encoded secrets
+./scripts/generate-secrets.sh
+
+# Deploy to Kubernetes
+./scripts/deploy.sh -e staging -p k8s
 ```
 
 ### **3. Database Setup**
@@ -76,52 +89,392 @@ KAFKA_BROKER_ID=1
 ./scripts/setup-database.sh --validate
 ```
 
+## 🐳 **Docker Setup**
+
+### **Three-File Architecture**
+
+This project uses a **clean three-file approach** for Docker Compose:
+
+#### **1. `scripts/docker-compose.yml` (Main)**
+- **Purpose**: Production-ready orchestration
+- **Content**: Infrastructure + microservices with basic settings
+- **Usage**: `docker-compose -f scripts/docker-compose.yml up` (production-like)
+
+#### **2. `scripts/docker-compose.override.yml` (Development)**
+- **Purpose**: Development environment enhancements
+- **Content**: Service ports, development environment variables, source mounting
+- **Usage**: Automatically loaded for development
+
+#### **3. `scripts/docker-compose.debug.yml` (Debug)**
+- **Purpose**: Debugging capabilities only
+- **Content**: Debug ports, Delve debugger, debug Dockerfiles
+- **Usage**: `docker-compose -f scripts/docker-compose.yml -f scripts/docker-compose.debug.yml up`
+
+### **Docker Workflows**
+
+#### **Complete Setup (Recommended for First Time)**
+```bash
+# Complete setup with validation
+cd scripts
+./scopeapi.sh setup --full
+
+# Or step by step:
+./scopeapi.sh setup --infrastructure  # Start infrastructure
+./scopeapi.sh setup --database        # Setup database
+./scopeapi.sh setup --validate        # Validate setup
+```
+
+#### **Development Mode (After Setup)**
+```bash
+# Start infrastructure + services with development overrides
+cd scripts
+./dev.sh start api-discovery
+
+# Or use docker-compose directly (automatically loads override)
+docker-compose -f scripts/docker-compose.yml -f scripts/docker-compose.override.yml up api-discovery
+```
+
+#### **Debug Mode**
+```bash
+# Start services in debug mode
+./dev.sh debug api-discovery
+
+# Or use docker-compose with debug config
+docker-compose -f scripts/docker-compose.yml -f scripts/docker-compose.debug.yml up api-discovery
+```
+
+#### **Production Mode**
+```bash
+# Start services without development overrides
+docker-compose -f scripts/docker-compose.yml up api-discovery
+```
+
+### **Docker Compose File Structure**
+
+#### **`scripts/docker-compose.yml` (Main Configuration)**
+```yaml
+# Infrastructure services
+zookeeper:
+  image: confluentinc/cp-zookeeper:7.4.0
+  environment:
+    ZOOKEEPER_CLIENT_PORT: 2181
+    ZOOKEEPER_TICK_TIME: 2000
+
+kafka:
+  image: confluentinc/cp-kafka:7.4.0
+  depends_on:
+    - zookeeper
+  environment:
+    KAFKA_BROKER_ID: 1
+    KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+    KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+    KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9092
+    KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+    KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+
+postgres:
+  image: postgres:15
+  environment:
+    POSTGRES_DB: scopeapi
+    POSTGRES_USER: scopeapi
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  volumes:
+    - postgres_data:/var/lib/postgresql/data
+
+redis:
+  image: redis:7-alpine
+  command: redis-server --requirepass ${REDIS_PASSWORD}
+  volumes:
+    - redis_data:/data
+
+# Microservices
+api-discovery:
+  build:
+    context: ../backend/services/api-discovery
+    dockerfile: Dockerfile
+  depends_on:
+    - postgres
+    - redis
+    - kafka
+  environment:
+    - POSTGRES_HOST=postgres
+    - REDIS_HOST=redis
+    - KAFKA_BROKERS=kafka:9092
+  env_file:
+    - .env.local
+
+gateway-integration:
+  build:
+    context: ../backend/services/gateway-integration
+    dockerfile: Dockerfile
+  depends_on:
+    - postgres
+    - redis
+    - kafka
+  environment:
+    - POSTGRES_HOST=postgres
+    - REDIS_HOST=redis
+    - KAFKA_BROKERS=kafka:9092
+  env_file:
+    - .env.local
+
+# Volumes
+volumes:
+  postgres_data:
+  redis_data:
+```
+
+#### **`scripts/docker-compose.override.yml` (Development Overrides)**
+```yaml
+# Development-specific overrides
+services:
+  api-discovery:
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../backend/services/api-discovery:/app
+      - /app/vendor
+    environment:
+      - GO_ENV=development
+      - DEBUG=true
+
+  gateway-integration:
+    ports:
+      - "8081:8081"
+    volumes:
+      - ../backend/services/api-discovery:/app
+      - /app/vendor
+    environment:
+      - GO_ENV=development
+      - DEBUG=true
+
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  kafka:
+    ports:
+      - "9092:9092"
+```
+
+#### **`scripts/docker-compose.debug.yml` (Debug Configuration)**
+```yaml
+# Debug-specific overrides
+services:
+  api-discovery:
+    build:
+      context: ../backend/services/api-discovery
+      dockerfile: Dockerfile.debug
+    ports:
+      - "2345:2345"  # Delve debugger
+    environment:
+      - DEBUG=true
+      - DELVE=true
+    command: ["dlv", "exec", "--listen=:2345", "--headless=true", "--continue", "--accept-multiclient", "/app/api-discovery"]
+
+  gateway-integration:
+    build:
+      context: ../backend/services/gateway-integration
+      dockerfile: Dockerfile.debug
+    ports:
+      - "2346:2345"  # Delve debugger
+    environment:
+      - DEBUG=true
+      - DELVE=true
+    command: ["dlv", "exec", "--listen=:2345", "--headless=true", "--continue", "--accept-multiclient", "/app/gateway-integration"]
+```
+
+### **Docker Compose File Structure**
+
+#### **`scripts/docker-compose.yml` (Main Configuration)**
+```yaml
+# Infrastructure services
+zookeeper:
+  image: confluentinc/cp-zookeeper:7.4.0
+  environment:
+    ZOOKEEPER_CLIENT_PORT: 2181
+    ZOOKEEPER_TICK_TIME: 2000
+
+kafka:
+  image: confluentinc/cp-kafka:7.4.0
+  depends_on:
+    - zookeeper
+  environment:
+    KAFKA_BROKER_ID: 1
+    KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+    KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+    KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9092
+    KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+    KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+
+postgres:
+  image: postgres:15
+  environment:
+    POSTGRES_DB: scopeapi
+    POSTGRES_USER: scopeapi
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  volumes:
+    - postgres_data:/var/lib/postgresql/data
+
+redis:
+  image: redis:7-alpine
+  command: redis-server --requirepass ${REDIS_PASSWORD}
+  volumes:
+    - redis_data:/data
+
+# Microservices
+api-discovery:
+  build:
+    context: ../backend/services/api-discovery
+    dockerfile: Dockerfile
+  depends_on:
+    - postgres
+    - redis
+    - kafka
+  environment:
+    - POSTGRES_HOST=postgres
+    - REDIS_HOST=redis
+    - KAFKA_BROKERS=kafka:9092
+  env_file:
+    - .env.local
+
+gateway-integration:
+  build:
+    context: ../backend/services/gateway-integration
+    dockerfile: Dockerfile
+  depends_on:
+    - postgres
+    - redis
+    - kafka
+  environment:
+    - POSTGRES_HOST=postgres
+    - REDIS_HOST=redis
+    - KAFKA_BROKERS=kafka:9092
+  env_file:
+    - .env.local
+
+# Volumes
+volumes:
+  postgres_data:
+  redis_data:
+```
+
+#### **`scripts/docker-compose.override.yml` (Development Overrides)**
+```yaml
+# Development-specific overrides
+services:
+  api-discovery:
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../backend/services/api-discovery:/app
+      - /app/vendor
+    environment:
+      - GO_ENV=development
+      - DEBUG=true
+
+  gateway-integration:
+    ports:
+      - "8081:8081"
+    volumes:
+      - ../backend/services/gateway-integration:/app
+      - /app/vendor
+    environment:
+      - GO_ENV=development
+      - DEBUG=true
+
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  kafka:
+    ports:
+      - "9092:9092"
+```
+
+#### **`scripts/docker-compose.debug.yml` (Debug Configuration)**
+```yaml
+# Debug-specific overrides
+services:
+  api-discovery:
+    build:
+      context: ../backend/services/api-discovery
+      dockerfile: Dockerfile.debug
+    ports:
+      - "2345:2345"  # Delve debugger
+    environment:
+      - DEBUG=true
+      - DELVE=true
+    command: ["dlv", "exec", "--listen=:2345", "--headless=true", "--continue", "--accept-multiclient", "/app/api-discovery"]
+
+  gateway-integration:
+    build:
+      context: ../backend/services/gateway-integration
+      dockerfile: Dockerfile.debug
+    ports:
+      - "2346:2345"  # Delve debugger
+    environment:
+      - DEBUG=true
+      - DELVE=true
+    command: ["dlv", "exec", "--listen=:2345", "--headless=true", "--continue", "--accept-multiclient", "/app/gateway-integration"]
+```
+
 ## 🔧 **Development Workflows**
 
 ### **Daily Development Workflow**
 ```bash
 # 1. Start infrastructure
 cd scripts
-./scopeapi-setup.sh --infrastructure
+./scopeapi.sh setup --infrastructure
 
 # 2. Start services for development
-./scopeapi-services.sh start all
+./dev.sh start all
 
 # 3. Make code changes
 # 4. View logs if needed
-./scopeapi-services.sh logs api-discovery
+./dev.sh logs api-discovery
 
 # 5. Test changes
 # 6. Stop when done
-./scopeapi-services.sh stop
+./dev.sh stop
 ```
 
 ### **Service-Specific Development**
 ```bash
 # Start only specific service
-./scopeapi-services.sh start api-discovery
+./dev.sh start api-discovery
 
 # Start multiple services
-./scopeapi-services.sh start api-discovery gateway-integration
+./dev.sh start api-discovery gateway-integration
 
 # View specific service logs
-./scopeapi-services.sh logs api-discovery
+./dev.sh logs api-discovery
 
 # Open shell in service container
-./scopeapi-services.sh shell api-discovery
+./dev.sh shell api-discovery
 ```
 
 ### **Debugging Workflow**
 ```bash
 # 1. Start service in debug mode
 cd scripts
-./scopeapi-debug.sh start api-discovery
+./dev.sh debug api-discovery
 
 # 2. Connect IDE to debug port (2345 for api-discovery)
 # 3. Set breakpoints in your Go code
 # 4. Debug and step through code
 # 5. Stop debug session
-./scopeapi-debug.sh stop
+./dev.sh stop
 ```
 
 ## 🧪 **Testing Strategies**
@@ -165,9 +518,9 @@ ng build --prod
 
 # Test service communication
 cd scripts
-./scopeapi-services.sh start all
+./dev.sh start all
 # Verify all services are healthy
-./scopeapi-services.sh status
+./scopeapi.sh status
 ```
 
 ### **Performance Testing**
@@ -273,7 +626,7 @@ export class ApiEndpointComponent implements OnInit {
 ```bash
 # Start service in debug mode
 cd scripts
-./scopeapi-debug.sh start api-discovery
+./dev.sh debug api-discovery
 
 # VS Code launch.json configuration
 {
@@ -314,7 +667,7 @@ docker logs scopeapi-postgres
 
 # Check service health
 cd scripts
-./scopeapi-services.sh status
+./scopeapi.sh status
 ```
 
 ## ⚡ **Performance Optimization**
@@ -370,11 +723,11 @@ func getEndpoints(ctx context.Context, limit int) ([]Endpoint, error) {
 #### **Service Won't Start**
 ```bash
 # Check if infrastructure is running
-./scripts/scopeapi-setup.sh --validate
+./scripts/scopeapi.sh setup --validate
 
 # Check service logs
 cd scripts
-./scopeapi-services.sh logs [service-name]
+./dev.sh logs [service-name]
 
 # Check Docker status
 docker ps
@@ -436,7 +789,7 @@ docker exec -it scopeapi-api-discovery wget -qO- http://scopeapi-postgres:5432
 docker stats
 
 # Check service health
-./scopeapi-services.sh status
+./scopeapi.sh status
 
 # View performance metrics
 curl http://localhost:8080/metrics
@@ -498,15 +851,9 @@ This project provides specialized scripts for different development approaches:
 
 | Development Phase | Recommended Script | Alternative |
 |------------------|-------------------|-------------|
-| **Initial setup** | `scopeapi-setup.sh` | - |
-| **Local development (Go services)** | `cd scripts
-./scopeapi-local.sh` | `cd scripts
-./scopeapi-services.sh` |
-| **Container development** | `cd scripts
-./scopeapi-services.sh` | - |
-| **Infrastructure issues** | `cd scripts
-./docker-infrastructure.sh` | - |
-| **Debugging** | `cd scripts
-./scopeapi-debug.sh` | - |
-| **Production testing** | `cd scripts
-./scopeapi-services.sh` | - |
+| **Initial setup** | `./scopeapi.sh setup --full` | - |
+| **Local development (Go services)** | `./dev.sh start all` | `./scopeapi.sh start all` |
+| **Container development** | `./dev.sh start all` | - |
+| **Infrastructure issues** | `./infrastructure.sh start` | - |
+| **Debugging** | `./dev.sh debug [service]` | - |
+| **Production testing** | `./deploy.sh -e staging -p k8s` | - |

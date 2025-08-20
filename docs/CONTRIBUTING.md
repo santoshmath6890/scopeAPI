@@ -61,10 +61,10 @@ git remote add upstream https://github.com/original-org/scopeapi.git
 ### **2. Setup Development Environment**
 ```bash
 # Complete setup with validation
-./scripts/scopeapi-setup.sh --full
+./scripts/scopeapi.sh setup --full
 
 # Verify everything is working
-./scripts/scopeapi-setup.sh --validate
+./scripts/scopeapi.sh setup --validate
 ```
 
 ### **3. Create Feature Branch**
@@ -83,14 +83,14 @@ git checkout -b fix/bug-description
 ### **4. Verify Setup**
 ```bash
 # Start services to verify everything works
-./scripts/scopeapi-services.sh start all
+./scripts/dev.sh start all
 
 # Run tests to ensure nothing is broken
 cd backend && go test ./...
 cd ../adminConsole && npm test
 
 # Stop services
-./scripts/scopeapi-services.sh stop
+./scripts/dev.sh stop
 ```
 
 ## 📝 **Code Standards**
@@ -368,9 +368,9 @@ ng test --code-coverage
 ./scripts/setup-database.sh --validate
 
 # Test service communication
-./scripts/scopeapi-services.sh start all
-./scripts/scopeapi-services.sh status
-./scripts/scopeapi-services.sh stop
+./scripts/dev.sh start all
+./scripts/scopeapi.sh status
+./scripts/dev.sh stop
 ```
 
 ### **Performance Testing**
@@ -572,6 +572,6 @@ As a contributor, you have multiple development approaches:
 
 
 ### **🎯 Recommended for Contributors:**
-- **Go service development**: Use `scopeapi-local.sh` for faster iteration
-- **Full-stack testing**: Use `scopeapi-services.sh` for integration testing
-- **Environment issues**: Use `docker-infrastructure.sh` for troubleshooting
+- **Go service development**: Use `./dev.sh start [service]` for faster iteration
+- **Full-stack testing**: Use `./dev.sh start all` for integration testing
+- **Environment issues**: Use `./infrastructure.sh start` for troubleshooting
