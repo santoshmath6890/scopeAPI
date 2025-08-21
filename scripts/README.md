@@ -128,32 +128,7 @@ cd scripts
 
 ---
 
-## 🔄 **Migration from Old Scripts**
 
-The following table shows how to migrate from the old scripts to the new consolidated ones:
-
-| **Old Script** | **New Command** | **Notes** |
-|----------------|-----------------|-----------|
-| `./scopeapi-setup.sh --full` | `./scopeapi.sh setup --full` | Complete setup with validation |
-| `./scopeapi-setup.sh --infrastructure` | `./scopeapi.sh setup --infrastructure` | Infrastructure only |
-| `./scopeapi-setup.sh --database` | `./scopeapi.sh setup --database` | Database setup only |
-| `./scopeapi-setup.sh --test-data` | `./scopeapi.sh setup --test-data` | Setup with test data |
-| `./scopeapi-setup.sh --validate` | `./scopeapi.sh setup --validate` | Validate setup |
-| `./scopeapi-setup.sh --cleanup` | `./scopeapi.sh setup --cleanup` | Cleanup services |
-| `./scopeapi-setup.sh --cleanup-full` | `./scopeapi.sh setup --cleanup-full` | Full cleanup |
-| `./scopeapi-services.sh start all` | `./scopeapi.sh start all` | Start all services |
-| `./scopeapi-services.sh start [service]` | `./scopeapi.sh start [service]` | Start specific service |
-| `./scopeapi-services.sh stop` | `./scopeapi.sh stop` | Stop all services |
-| `./scopeapi-services.sh status` | `./scopeapi.sh status` | Show status |
-| `./scopeapi-services.sh comprehensive-status` | `./scopeapi.sh comprehensive-status` | Detailed status |
-| `./scopeapi-services.sh logs [service]` | `./scopeapi.sh logs [service]` | Show logs |
-| `./scopeapi-debug.sh start [service]` | `./dev.sh debug [service]` | Debug mode |
-| `./scopeapi-local.sh start [service]` | `./dev.sh start [service]` | Local development |
-| `./docker-infrastructure.sh start` | `./infrastructure.sh start` | Infrastructure |
-| `./deploy-all.sh -e dev -p docker` | `./deploy.sh -e dev -p docker` | Local deployment |
-| `./deploy-k8s.sh` | `./deploy.sh -e staging -p k8s` | Kubernetes deployment |
-
----
 
 ## 🔄 **Workflow Progression**
 
