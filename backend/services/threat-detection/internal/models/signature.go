@@ -15,6 +15,13 @@ type SignatureDetectionRequest struct {
 	EndpointID  string                 `json:"endpoint_id"`
 }
 
+type SignatureTestRequest struct {
+	SignatureID string                   `json:"signature_id"`
+	TestData    []map[string]interface{} `json:"test_data"`
+	Description string                   `json:"description,omitempty"`
+	Tags        []string                 `json:"tags,omitempty"`
+}
+
 type SignatureDetectionResult struct {
 	ResultID    string    `json:"result_id"`
 	SignatureID string    `json:"signature_id"`
@@ -43,6 +50,8 @@ type ThreatSignature struct {
 
 type SignatureFilter struct {
 	SignatureID  string    `json:"signature_id,omitempty"`
+	Type         string    `json:"type,omitempty"`
+	Category     string    `json:"category,omitempty"`
 	Severity     string    `json:"severity,omitempty"`
 	Pattern      string    `json:"pattern,omitempty"`
 	SignatureSet string    `json:"signature_set,omitempty"`
@@ -140,4 +149,4 @@ const (
 	SignatureTypeCustom    = "custom"
 	SignatureTypeBuiltIn   = "builtin"
 	SignatureTypeCommunity = "community"
-) 
+)

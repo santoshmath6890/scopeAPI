@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -136,13 +137,154 @@ func (s *SignatureDetectionService) extractDetectionTargets(requestData map[stri
 }
 
 func (s *SignatureDetectionService) checkSignature(signature *models.ThreatSignature, targets map[string]string, request *models.SignatureDetectionRequest) (*models.SignatureMatch, error) {
-	// TODO: SignatureRule logic skipped due to missing 'Rules' field in ThreatSignature
-	return nil, nil
+	// Check if signature has rules
+	if len(signature.Rules) == 0 {
+		return nil, fmt.Errorf("signature %s has no rules", signature.ID)
+	}
+
+	// Check each rule against the targets
+	for _, rule := range signature.Rules {
+		match, err := s.checkRule(rule, targets, signature, request)
+		if err != nil {
+			s.logger.Warn("Rule check failed", "signature_id", signature.ID, "rule_id", rule.ID, "error", err)
+			continue
+		}
+		
+		if match != nil && match.Matched {
+			// Found a matching rule, return the match
+			return match, nil
+		}
+	}
+
+	// No rules matched
+	return &models.SignatureMatch{
+		SignatureID:   signature.ID,
+		SignatureName: signature.Name,
+		SignatureType: signature.Type,
+		Category:      signature.Category,
+		Severity:      signature.Severity,
+		RiskScore:     signature.RiskScore,
+		Confidence:    signature.Confidence,
+		Description:   signature.Description,
+		Matched:       false,
+		MatchedAt:     time.Now(),
+		Metadata:      make(map[string]interface{}),
+	}, nil
 }
 
 func (s *SignatureDetectionService) checkRule(rule models.SignatureRule, targets map[string]string, signature *models.ThreatSignature, request *models.SignatureDetectionRequest) (*models.SignatureMatch, error) {
-	// TODO: Rule logic skipped due to missing 'Field', 'Operator', 'Value' fields in SignatureRule
-	return nil, nil
+	// Get the target value based on the rule field
+	targetValue, exists := targets[rule.Field]
+	if !exists {
+		return nil, fmt.Errorf("field %s not found in targets", rule.Field)
+	}
+
+	var matched bool
+	var matchedValue string
+	var details string
+
+	// Apply the rule operator
+	switch rule.Operator {
+	case "equals":
+		matched = targetValue == rule.Value
+		matchedValue = targetValue
+		details = fmt.Sprintf("Field '%s' equals '%s'", rule.Field, rule.Value)
+		
+	case "contains":
+		matched = strings.Contains(strings.ToLower(targetValue), strings.ToLower(rule.Value))
+		matchedValue = targetValue
+		details = fmt.Sprintf("Field '%s' contains '%s'", rule.Field, rule.Value)
+		
+	case "regex":
+		// Use compiled regex if available
+		ruleKey := fmt.Sprintf("%s_%s", signature.ID, rule.ID)
+		if regex, ok := s.compiledRules[ruleKey]; ok {
+			matched = regex.MatchString(targetValue)
+			matchedValue = targetValue
+			details = fmt.Sprintf("Field '%s' matches regex pattern '%s'", rule.Field, rule.Value)
+		} else {
+			// Compile regex on the fly if not pre-compiled
+			if regex, err := regexp.Compile(rule.Value); err == nil {
+				matched = regex.MatchString(targetValue)
+				matchedValue = targetValue
+				details = fmt.Sprintf("Field '%s' matches regex pattern '%s'", rule.Field, rule.Value)
+			} else {
+				return nil, fmt.Errorf("invalid regex pattern '%s': %w", rule.Value, err)
+			}
+		}
+		
+	case "starts_with":
+		matched = strings.HasPrefix(strings.ToLower(targetValue), strings.ToLower(rule.Value))
+		matchedValue = targetValue
+		details = fmt.Sprintf("Field '%s' starts with '%s'", rule.Field, rule.Value)
+		
+	case "ends_with":
+		matched = strings.HasSuffix(strings.ToLower(targetValue), strings.ToLower(rule.Value))
+		matchedValue = targetValue
+		details = fmt.Sprintf("Field '%s' ends with '%s'", rule.Field, rule.Value)
+		
+	case "greater_than":
+		if rule.IntValue > 0 {
+			if intVal, err := strconv.Atoi(targetValue); err == nil {
+				matched = intVal > rule.IntValue
+				matchedValue = targetValue
+				details = fmt.Sprintf("Field '%s' value %d is greater than %d", rule.Field, intVal, rule.IntValue)
+			}
+		}
+		
+	case "less_than":
+		if rule.IntValue > 0 {
+			if intVal, err := strconv.Atoi(targetValue); err == nil {
+				matched = intVal < rule.IntValue
+				matchedValue = targetValue
+				details = fmt.Sprintf("Field '%s' value %d is less than %d", rule.Field, intVal, rule.IntValue)
+			}
+		}
+		
+	case "length_greater":
+		if rule.IntValue > 0 {
+			matched = len(targetValue) > rule.IntValue
+			matchedValue = targetValue
+			details = fmt.Sprintf("Field '%s' length %d is greater than %d", rule.Field, len(targetValue), rule.IntValue)
+		}
+		
+	case "length_less":
+		if rule.IntValue > 0 {
+			matched = len(targetValue) < rule.IntValue
+			matchedValue = targetValue
+			details = fmt.Sprintf("Field '%s' length %d is less than %d", rule.Field, len(targetValue), rule.IntValue)
+		}
+		
+	default:
+		return nil, fmt.Errorf("unsupported operator: %s", rule.Operator)
+	}
+
+	// Create signature match result
+	match := &models.SignatureMatch{
+		SignatureID:   signature.ID,
+		SignatureName: signature.Name,
+		SignatureType: signature.Type,
+		Category:      signature.Category,
+		Severity:      signature.Severity,
+		RiskScore:     signature.RiskScore * rule.Weight,
+		Confidence:    signature.Confidence,
+		Description:   signature.Description,
+		MatchedField:  rule.Field,
+		MatchedValue:  matchedValue,
+		RuleMatched:   rule.ID,
+		RuleOperator:  rule.Operator,
+		RuleValue:     rule.Value,
+		Matched:       matched,
+		MatchedAt:     time.Now(),
+		Details:       details,
+		Metadata: map[string]interface{}{
+			"rule_name": rule.Name,
+			"rule_pattern": rule.Pattern,
+			"rule_weight": rule.Weight,
+		},
+	}
+
+	return match, nil
 }
 
 func (s *SignatureDetectionService) LoadSignatures(ctx context.Context, signatureSet string) error {

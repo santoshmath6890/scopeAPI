@@ -172,6 +172,15 @@ type BehaviorAnalysisRequest struct {
 	Timestamp      time.Time              `json:"timestamp"`
 }
 
+type BaselineCreationRequest struct {
+	EntityID      string                   `json:"entity_id"`
+	EntityType    string                   `json:"entity_type"`
+	TrainingData  []map[string]interface{} `json:"training_data,omitempty"`
+	Configuration map[string]interface{}   `json:"configuration,omitempty"`
+	Description   string                   `json:"description,omitempty"`
+	Tags          []string                 `json:"tags,omitempty"`
+}
+
 type BehaviorAnalysisResult struct {
 	RequestID          string                 `json:"request_id"`
 	PatternsDetected   []BehaviorPattern      `json:"patterns_detected"`

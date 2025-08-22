@@ -76,7 +76,7 @@ func main() {
 	threatDetectionService := services.NewThreatDetectionService(threatRepo, kafkaProducer, logger)
 	anomalyDetectionService := services.NewAnomalyDetectionService(anomalyRepo, kafkaProducer, logger)
 	behavioralAnalysisService := services.NewBehavioralAnalysisService(patternRepo, kafkaProducer, logger)
-	_ = services.NewSignatureDetectionService(threatRepo, kafkaProducer, logger)
+	signatureDetectionService := services.NewSignatureDetectionService(threatRepo, kafkaProducer, logger)
 
 	// Initialize JWT middleware (placeholder for now)
 	// jwtMiddleware := jwt.NewMiddleware(cfg.Auth.JWT.Secret)
@@ -85,6 +85,7 @@ func main() {
 	threatHandler := handlers.NewThreatHandler(threatDetectionService, logger)
 	anomalyHandler := handlers.NewAnomalyHandler(anomalyDetectionService, logger)
 	behavioralHandler := handlers.NewBehavioralHandler(behavioralAnalysisService, logger)
+	signatureHandler := handlers.NewSignatureHandler(signatureDetectionService, logger)
 
 	// Setup Gin router
 	router := gin.New()
@@ -129,6 +130,17 @@ func main() {
 			behavioral.POST("/analyze", behavioralHandler.AnalyzeBehavior)
 			behavioral.GET("/baselines", behavioralHandler.GetBaselines)
 			behavioral.POST("/baselines", behavioralHandler.CreateBaseline)
+		}
+
+		// Signature detection routes
+		signatures := v1.Group("/signatures")
+		{
+			signatures.GET("", signatureHandler.GetSignatures)
+			signatures.GET("/:id", signatureHandler.GetSignature)
+			signatures.POST("/detect", signatureHandler.DetectSignatures)
+			signatures.POST("/test", signatureHandler.TestSignature)
+			signatures.POST("/import", signatureHandler.ImportSignatureSet)
+			signatures.GET("/export/:set", signatureHandler.ExportSignatureSet)
 		}
 	}
 

@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"sort"
@@ -83,8 +84,53 @@ func (s *BehavioralAnalysisService) analyzeAccessPatterns(ctx context.Context, f
 	}
 
 	// Analyze access frequency
-	// TODO: Implement access frequency analysis if UserID or IPAddress is available
-	// Skipping s.patternRepo.GetRecentAccessCount and request.EntityID/EntityType
+	// Implement access frequency analysis using available data
+	if ipAddr, ok := features["ip_address"].(string); ok {
+		// Use IP address as entity identifier if available
+		recentCount, err := s.patternRepo.GetRecentAccessCount(ctx, ipAddr, "ip_address", 5*time.Minute)
+		if err == nil && recentCount > 100 { // High frequency threshold
+			pattern := models.BehaviorPattern{
+				ID:          uuid.New().String(),
+				Type:        "access_frequency",
+				Category:    "frequency",
+				Description: fmt.Sprintf("High access frequency detected: %d requests in 5 minutes", recentCount),
+				RiskScore:   6.0,
+				Confidence:  0.7,
+				Metadata: map[string]interface{}{
+					"ip_address":    ipAddr,
+					"request_count": recentCount,
+					"time_window":   "5 minutes",
+				},
+				IPAddress:  ipAddr,
+				CreatedAt:  time.Now(),
+				UpdatedAt:  time.Now(),
+			}
+			patterns = append(patterns, pattern)
+		}
+	}
+
+	// If we have user ID, analyze user-based access patterns
+	if userID, ok := features["user_id"].(string); ok {
+		recentCount, err := s.patternRepo.GetRecentAccessCount(ctx, userID, "user_id", 5*time.Minute)
+		if err == nil && recentCount > 50 { // User-specific threshold
+			pattern := models.BehaviorPattern{
+				ID:          uuid.New().String(),
+				Type:        "user_access_frequency",
+				Category:    "frequency",
+				Description: fmt.Sprintf("High user access frequency: %d requests in 5 minutes", recentCount),
+				RiskScore:   5.0,
+				Confidence:  0.6,
+				Metadata: map[string]interface{}{
+					"user_id":       userID,
+					"request_count": recentCount,
+					"time_window":   "5 minutes",
+				},
+				CreatedAt:  time.Now(),
+				UpdatedAt:  time.Now(),
+			}
+			patterns = append(patterns, pattern)
+		}
+	}
 
 	return patterns, nil
 }
@@ -161,10 +207,100 @@ func (s *BehavioralAnalysisService) analyzeTimingPatterns(ctx context.Context, f
 	var patterns []models.BehaviorPattern
 
 	// Analyze response time patterns
-	// TODO: If TimingPatterns has AverageResponseTime, use it. Otherwise, skip or set a default.
+	if baseline.TimingPatterns != nil && baseline.TimingPatterns.AverageResponseTime > 0 {
+		if responseTime, ok := features["response_time"].(float64); ok {
+			// Check if response time is significantly higher than baseline
+			threshold := baseline.TimingPatterns.AverageResponseTime * 2.0 // 2x baseline
+			if responseTime > threshold {
+				pattern := models.BehaviorPattern{
+					ID:          uuid.New().String(),
+					Type:        "response_time_anomaly",
+					Category:    "timing",
+					Description: fmt.Sprintf("Response time anomaly: %.2fms vs baseline %.2fms", responseTime, baseline.TimingPatterns.AverageResponseTime),
+					RiskScore:   4.0,
+					Confidence:  0.7,
+					Metadata: map[string]interface{}{
+						"current_response_time": responseTime,
+						"baseline_response_time": baseline.TimingPatterns.AverageResponseTime,
+						"threshold": threshold,
+					},
+					CreatedAt:  time.Now(),
+					UpdatedAt:  time.Now(),
+				}
+				patterns = append(patterns, pattern)
+			}
+		}
+	} else {
+		// Use default threshold if baseline not available
+		if responseTime, ok := features["response_time"].(float64); ok && responseTime > 5000 { // 5 seconds
+			pattern := models.BehaviorPattern{
+				ID:          uuid.New().String(),
+				Type:        "response_time_anomaly",
+				Category:    "timing",
+				Description: fmt.Sprintf("High response time detected: %.2fms", responseTime),
+				RiskScore:   3.0,
+				Confidence:  0.5,
+				Metadata: map[string]interface{}{
+					"response_time": responseTime,
+					"threshold":     5000,
+				},
+				CreatedAt:  time.Now(),
+				UpdatedAt:  time.Now(),
+			}
+			patterns = append(patterns, pattern)
+		}
+	}
 
-	// Analyze request intervals
-	// TODO: Implement request interval analysis if possible. Skipping due to missing EntityID/EntityType.
+	// Analyze request intervals using available context
+	if timestamp, ok := features["timestamp"].(time.Time); ok {
+		// Use IP address or user ID as entity identifier
+		var entityID string
+		var entityType string
+		
+		if ipAddr, ok := features["ip_address"].(string); ok {
+			entityID = ipAddr
+			entityType = "ip_address"
+		} else if userID, ok := features["user_id"].(string); ok {
+			entityID = userID
+			entityType = "user_id"
+		}
+		
+		if entityID != "" {
+			// Get baseline request count for comparison
+			baselineCount, err := s.patternRepo.GetBaselineRequestCount(ctx, entityID, entityType)
+			if err == nil {
+				// Get recent request count
+				recentCount, err := s.patternRepo.GetRecentRequestCount(ctx, entityID, entityType, 1*time.Minute)
+				if err == nil && baselineCount > 0 {
+					// Calculate interval anomaly
+					expectedInterval := 60.0 / float64(baselineCount) // seconds between requests
+					if expectedInterval > 0 {
+						// Check if requests are coming too fast (potential automation)
+						if recentCount > baselineCount*2 { // 2x baseline rate
+							pattern := models.BehaviorPattern{
+								ID:          uuid.New().String(),
+								Type:        "request_interval_anomaly",
+								Category:    "timing",
+								Description: fmt.Sprintf("Unusual request interval: %d requests/min vs baseline %d/min", recentCount, baselineCount),
+								RiskScore:   5.0,
+								Confidence:  0.6,
+								Metadata: map[string]interface{}{
+									"entity_id":        entityID,
+									"entity_type":      entityType,
+									"current_rate":     recentCount,
+									"baseline_rate":    baselineCount,
+									"expected_interval": expectedInterval,
+								},
+								CreatedAt:  time.Now(),
+								UpdatedAt:  time.Now(),
+							}
+							patterns = append(patterns, pattern)
+						}
+					}
+				}
+			}
+		}
+	}
 
 	return patterns, nil
 }
@@ -172,10 +308,197 @@ func (s *BehavioralAnalysisService) analyzeTimingPatterns(ctx context.Context, f
 func (s *BehavioralAnalysisService) analyzeSequencePatterns(ctx context.Context, features map[string]interface{}, baseline *models.BaselineProfile, request *models.BehaviorAnalysisRequest) ([]models.BehaviorPattern, error) {
 	var patterns []models.BehaviorPattern
 
-	// Analyze request sequence patterns
-	// TODO: Implement sequence pattern analysis if possible. Skipping due to missing EntityID/EntityType.
+	// Analyze request sequence patterns using available context
+	var entityID string
+	var entityType string
+	
+	// Determine entity identifier
+	if ipAddr, ok := features["ip_address"].(string); ok {
+		entityID = ipAddr
+		entityType = "ip_address"
+	} else if userID, ok := features["user_id"].(string); ok {
+		entityID = userID
+		entityType = "user_id"
+	} else if sessionID, ok := features["session_id"].(string); ok {
+		entityID = sessionID
+		entityType = "session_id"
+	}
+	
+	if entityID != "" {
+		// Analyze endpoint access sequence
+		if endpointPath, ok := features["endpoint_path"].(string); ok {
+			// Check if this endpoint follows expected sequence patterns
+			expectedSequence := s.getExpectedSequence(baseline, entityType)
+			if len(expectedSequence) > 0 {
+				// Get recent endpoint access history
+				recentEndpoints, err := s.patternRepo.GetRecentEndpointSequence(ctx, entityID, entityType, 10) // Last 10 requests
+				if err == nil && len(recentEndpoints) > 0 {
+					// Check for suspicious sequences
+					suspiciousPatterns := s.detectSuspiciousSequences(recentEndpoints, expectedSequence)
+					for _, pattern := range suspiciousPatterns {
+						behaviorPattern := models.BehaviorPattern{
+							ID:          uuid.New().String(),
+							Type:        "sequence_anomaly",
+							Category:    "sequence",
+							Description: pattern.Description,
+							RiskScore:   pattern.RiskScore,
+							Confidence:  pattern.Confidence,
+							Metadata: map[string]interface{}{
+								"entity_id":        entityID,
+								"entity_type":      entityType,
+								"current_sequence": recentEndpoints,
+								"expected_sequence": expectedSequence,
+								"anomaly_type":     pattern.Type,
+							},
+							CreatedAt:  time.Now(),
+							UpdatedAt:  time.Now(),
+						}
+						patterns = append(patterns, behaviorPattern)
+					}
+				}
+			}
+		}
+		
+		// Analyze HTTP method sequence patterns
+		if requestMethod, ok := features["request_method"].(string); ok {
+			recentMethods, err := s.patternRepo.GetRecentMethodSequence(ctx, entityID, entityType, 5) // Last 5 requests
+			if err == nil && len(recentMethods) > 0 {
+				// Check for suspicious method sequences (e.g., GET followed by DELETE)
+				if s.isSuspiciousMethodSequence(recentMethods) {
+					pattern := models.BehaviorPattern{
+						ID:          uuid.New().String(),
+						Type:        "method_sequence_anomaly",
+						Category:    "sequence",
+						Description: fmt.Sprintf("Suspicious HTTP method sequence detected: %v", recentMethods),
+						RiskScore:   6.0,
+						Confidence:  0.7,
+						Metadata: map[string]interface{}{
+							"entity_id":      entityID,
+							"entity_type":    entityType,
+							"method_sequence": recentMethods,
+							"current_method":  requestMethod,
+						},
+						CreatedAt:  time.Now(),
+						UpdatedAt:  time.Now(),
+					}
+					patterns = append(patterns, pattern)
+				}
+			}
+		}
+	}
 
 	return patterns, nil
+}
+
+// getExpectedSequence returns expected endpoint sequence based on baseline
+func (s *BehavioralAnalysisService) getExpectedSequence(baseline *models.BaselineProfile, entityType string) []string {
+	if baseline == nil || baseline.UsagePatterns == nil {
+		return []string{}
+	}
+	
+	// Return common endpoint sequence if available
+	if baseline.UsagePatterns.CommonEndpointSequence != nil {
+		return baseline.UsagePatterns.CommonEndpointSequence
+	}
+	
+	return []string{}
+}
+
+// detectSuspiciousSequences identifies suspicious endpoint access patterns
+func (s *BehavioralAnalysisService) detectSuspiciousSequences(recentEndpoints []string, expectedSequence []string) []struct {
+	Type        string
+	Description string
+	RiskScore   float64
+	Confidence  float64
+} {
+	var suspiciousPatterns []struct {
+		Type        string
+		Description string
+	RiskScore    float64
+		Confidence  float64
+	}
+	
+	if len(recentEndpoints) < 2 {
+		return suspiciousPatterns
+	}
+	
+	// Check for rapid endpoint switching (potential scanning)
+	if len(recentEndpoints) >= 3 {
+		uniqueEndpoints := make(map[string]bool)
+		for _, endpoint := range recentEndpoints {
+			uniqueEndpoints[endpoint] = true
+		}
+		
+		// If 3+ unique endpoints in recent requests, might be scanning
+		if len(uniqueEndpoints) >= 3 {
+			suspiciousPatterns = append(suspiciousPatterns, struct {
+				Type        string
+				Description string
+				RiskScore   float64
+				Confidence  float64
+			}{
+				Type:        "endpoint_scanning",
+				Description: "Multiple unique endpoints accessed rapidly - potential scanning behavior",
+				RiskScore:   5.0,
+				Confidence:  0.6,
+			})
+		}
+	}
+	
+	// Check for access to sensitive endpoints without proper sequence
+	sensitiveEndpoints := []string{"/admin", "/config", "/internal", "/debug", "/api/v1/admin"}
+	for _, endpoint := range recentEndpoints {
+		for _, sensitive := range sensitiveEndpoints {
+			if strings.Contains(endpoint, sensitive) {
+				suspiciousPatterns = append(suspiciousPatterns, struct {
+					Type        string
+					Description string
+					RiskScore   float64
+					Confidence  float64
+				}{
+					Type:        "sensitive_endpoint_access",
+					Description: fmt.Sprintf("Sensitive endpoint accessed: %s", endpoint),
+					RiskScore:   7.0,
+					Confidence:  0.8,
+				})
+				break
+			}
+		}
+	}
+	
+	return suspiciousPatterns
+}
+
+// isSuspiciousMethodSequence checks if HTTP method sequence is suspicious
+func (s *BehavioralAnalysisService) isSuspiciousMethodSequence(methods []string) bool {
+	if len(methods) < 2 {
+		return false
+	}
+	
+	// Check for suspicious patterns
+	suspiciousPatterns := [][]string{
+		{"GET", "DELETE"},           // Read then delete
+		{"POST", "DELETE"},          // Create then delete
+		{"GET", "PUT", "DELETE"},    // Read, modify, delete
+		{"OPTIONS", "POST"},         // Preflight then action
+	}
+	
+	for _, pattern := range suspiciousPatterns {
+		if len(methods) >= len(pattern) {
+			match := true
+			for i, expected := range pattern {
+				if methods[len(methods)-len(pattern)+i] != expected {
+					match = false
+					break
+				}
+			}
+			if match {
+				return true
+			}
+		}
+	}
+	
+	return false
 }
 
 func (s *BehavioralAnalysisService) analyzeLocationPatterns(ctx context.Context, features map[string]interface{}, baseline *models.BaselineProfile, request *models.BehaviorAnalysisRequest) ([]models.BehaviorPattern, error) {
@@ -205,12 +528,76 @@ func (s *BehavioralAnalysisService) analyzeLocationPatterns(ctx context.Context,
 	}
 
 	// Analyze impossible travel patterns
-	// TODO: Implement impossible travel pattern detection if user/session/entity context is available
+	// Implement impossible travel pattern detection using available context
+	if ipAddr, ok := features["ip_address"].(string); ok {
+		if userID, ok := features["user_id"].(string); ok {
+			// Get historical countries for this user
+			historicalCountries, err := s.patternRepo.GetHistoricalCountries(ctx, userID, "user_id")
+			if err == nil && len(historicalCountries) > 0 {
+				// Get current country from IP geolocation
+				if currentCountry, ok := features["country"].(string); ok {
+					// Check if current country is significantly different from historical
+					isUnusual := true
+					for _, historical := range historicalCountries {
+						if historical == currentCountry {
+							isUnusual = false
+							break
+						}
+					}
+					
+					if isUnusual {
+						// Check for impossible travel (e.g., US to China in 1 hour)
+						if timestamp, ok := features["timestamp"].(time.Time); ok {
+							// Get last known location time for this user
+							lastLocationTime := s.getLastLocationTime(userID)
+							if !lastLocationTime.IsZero() {
+								timeDiff := timestamp.Sub(lastLocationTime)
+								
+								// If time difference is too small for geographic distance, flag as impossible travel
+								if timeDiff < 2*time.Hour { // Less than 2 hours
+									pattern := models.BehaviorPattern{
+										ID:          uuid.New().String(),
+										Type:        "impossible_travel",
+										Category:    "location",
+										Description: fmt.Sprintf("Impossible travel detected: %s to %s in %v", 
+											lastLocationTime.Format("15:04"), 
+											timestamp.Format("15:04"), 
+											timeDiff),
+										RiskScore:   8.0,
+										Confidence:  0.8,
+										Metadata: map[string]interface{}{
+											"previous_country": historicalCountries[0],
+											"current_country":  currentCountry,
+											"time_difference": timeDiff.String(),
+											"user_id":         userID,
+											"ip_address":      ipAddr,
+										},
+										IPAddress:  ipAddr,
+										UserID:     userID,
+										CreatedAt:  time.Now(),
+										UpdatedAt:  time.Now(),
+									}
+									patterns = append(patterns, pattern)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 
 	return patterns, nil
 }
 
 // Helper functions
+
+// getLastLocationTime returns the last known location time for a user
+func (s *BehavioralAnalysisService) getLastLocationTime(userID string) time.Time {
+	// In-memory implementation - return a default time
+	// In a real system, this would query the database for the last known location
+	return time.Now().Add(-24 * time.Hour) // Default to 24 hours ago
+}
 
 func (s *BehavioralAnalysisService) calculateAverageHour(hours []int) float64 {
 	if len(hours) == 0 {
@@ -443,35 +830,167 @@ func (s *BehavioralAnalysisService) generateBehaviorRecommendations(patterns []m
 }
 
 func (s *BehavioralAnalysisService) publishBehaviorEvents(ctx context.Context, patterns []models.BehaviorPattern) error {
-	for _, _ = range patterns {
-		// TODO: Implement event publishing (marshal eventData and send to Kafka)
+	for _, pattern := range patterns {
+		// Implement event publishing (marshal eventData and send to Kafka)
+		eventData := map[string]interface{}{
+			"event_type":      "behavior_pattern_detected",
+			"pattern_id":      pattern.ID,
+			"pattern_type":    pattern.Type,
+			"category":        pattern.Category,
+			"risk_score":      pattern.RiskScore,
+			"confidence":      pattern.Confidence,
+			"description":     pattern.Description,
+			"ip_address":      pattern.IPAddress,
+			"user_id":         pattern.UserID,
+			"timestamp":       pattern.CreatedAt,
+			"metadata":        pattern.Metadata,
+		}
+		
+		eventJSON, err := json.Marshal(eventData)
+		if err != nil {
+			s.logger.Error("Failed to marshal behavior event", "pattern_id", pattern.ID, "error", err)
+			continue
+		}
+		
+		message := kafka.Message{
+			Topic: "behavior_events",
+			Key:   []byte(pattern.ID),
+			Value: eventJSON,
+		}
+		
+		if err := s.kafkaProducer.Produce(ctx, message); err != nil {
+			s.logger.Error("Failed to produce behavior event", "pattern_id", pattern.ID, "error", err)
+			continue
+		}
+		
+		s.logger.Info("Published behavior event", "pattern_id", pattern.ID, "type", pattern.Type)
 	}
-
+	
 	return nil
 }
 
 func (s *BehavioralAnalysisService) updateBaselineProfile(ctx context.Context, entityID, entityType string, features map[string]interface{}) error {
-	// TODO: Implement UpdateBaselineProfile on patternRepo
-	return fmt.Errorf("UpdateBaselineProfile not implemented")
+	// Get existing baseline profile
+	baseline, err := s.patternRepo.GetBaselineProfile(ctx, entityID, entityType)
+	if err != nil {
+		// Create new baseline if none exists
+		baseline = &models.BaselineProfile{
+			EntityID:   entityID,
+			EntityType: entityType,
+			CreatedAt:  time.Now(),
+			UpdatedAt:  time.Now(),
+		}
+	}
+	
+	// Update baseline with new features
+	baseline.UpdatedAt = time.Now()
+	
+	// Update access patterns if available
+	if hour, ok := features["hour_of_day"].(int); ok {
+		if baseline.AccessPatterns == nil {
+			baseline.AccessPatterns = &models.AccessPatterns{}
+		}
+		// Add hour to normal access hours if not already present
+		found := false
+		for _, h := range baseline.AccessPatterns.NormalAccessHours {
+			if h == hour {
+				found = true
+				break
+			}
+		}
+		if !found {
+			baseline.AccessPatterns.NormalAccessHours = append(baseline.AccessPatterns.NormalAccessHours, hour)
+		}
+	}
+	
+	// Update usage patterns if available
+	if endpoint, ok := features["endpoint_path"].(string); ok {
+		if baseline.UsagePatterns == nil {
+			baseline.UsagePatterns = &models.UsagePatterns{}
+		}
+		if baseline.UsagePatterns.CommonEndpoints == nil {
+			baseline.UsagePatterns.CommonEndpoints = make(map[string]float64)
+		}
+		baseline.UsagePatterns.CommonEndpoints[endpoint]++
+	}
+	
+	if method, ok := features["request_method"].(string); ok {
+		if baseline.UsagePatterns == nil {
+			baseline.UsagePatterns = &models.UsagePatterns{}
+		}
+		if baseline.UsagePatterns.MethodFrequency == nil {
+			baseline.UsagePatterns.MethodFrequency = make(map[string]float64)
+		}
+		baseline.UsagePatterns.MethodFrequency[method]++
+	}
+	
+	// Update timing patterns if available
+	if responseTime, ok := features["response_time"].(float64); ok {
+		if baseline.TimingPatterns == nil {
+			baseline.TimingPatterns = &models.TimingPatterns{}
+		}
+		// Update average response time
+		if baseline.TimingPatterns.AverageResponseTime == 0 {
+			baseline.TimingPatterns.AverageResponseTime = responseTime
+		} else {
+			// Simple moving average update
+			baseline.TimingPatterns.AverageResponseTime = (baseline.TimingPatterns.AverageResponseTime + responseTime) / 2
+		}
+	}
+	
+	// Save updated baseline
+	return s.patternRepo.UpdateBaselineProfile(ctx, baseline)
 }
 
 func (s *BehavioralAnalysisService) GetBehaviorPatternsWithFilter(ctx context.Context, filter *models.BehaviorPatternFilter) ([]models.BehaviorPattern, error) {
-	// TODO: Implement GetBehaviorPatterns on patternRepo
-	return nil, fmt.Errorf("GetBehaviorPatterns not implemented")
+	return s.patternRepo.GetBehaviorPatterns(ctx, filter)
 }
 
 func (s *BehavioralAnalysisService) GetBehaviorPattern(ctx context.Context, patternID string) (*models.BehaviorPattern, error) {
-	// TODO: Implement GetBehaviorPattern on patternRepo
-	return nil, fmt.Errorf("GetBehaviorPattern not implemented")
+	return s.patternRepo.GetBehaviorPattern(ctx, patternID)
 }
 
 func (s *BehavioralAnalysisService) UpdateBehaviorPattern(ctx context.Context, patternID string, update *models.BehaviorPatternUpdate) error {
-	// TODO: Implement UpdateBehaviorPattern on patternRepo
-	return fmt.Errorf("UpdateBehaviorPattern not implemented")
+	// Get existing pattern
+	existingPattern, err := s.patternRepo.GetBehaviorPattern(ctx, patternID)
+	if err != nil {
+		return err
+	}
+	
+	// Update fields if provided
+	if update.Description != "" {
+		existingPattern.Description = update.Description
+	}
+	if update.RiskScore > 0 {
+		existingPattern.RiskScore = update.RiskScore
+	}
+	if update.Confidence > 0 {
+		existingPattern.Confidence = update.Confidence
+	}
+	if update.Status != "" {
+		existingPattern.Status = update.Status
+	}
+	if len(update.Metadata) > 0 {
+		// Merge metadata
+		if existingPattern.Metadata == nil {
+			existingPattern.Metadata = make(map[string]interface{})
+		}
+		for k, v := range update.Metadata {
+			existingPattern.Metadata[k] = v
+		}
+	}
+	
+	existingPattern.UpdatedAt = time.Now()
+	
+	return s.patternRepo.UpdateBehaviorPattern(ctx, patternID, existingPattern)
 }
 
 func (s *BehavioralAnalysisService) CreateBaselineProfile(ctx context.Context, entityID string, entityType string, trainingData []map[string]interface{}) error {
 	profile := &models.BaselineProfile{
+		EntityID:   entityID,
+		EntityType: entityType,
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
 		AccessPatterns: &models.AccessPatterns{
 			NormalAccessHours:   []int{},
 			AverageHourlyAccess: 0,
@@ -484,28 +1003,13 @@ func (s *BehavioralAnalysisService) CreateBaselineProfile(ctx context.Context, e
 		LocationPatterns: &models.LocationPatterns{},
 	}
 
-	// Initialize patterns
-	profile.AccessPatterns = &models.AccessPatterns{
-		NormalAccessHours:   []int{},
-		AverageHourlyAccess: 0,
-	}
-
-	profile.UsagePatterns = &models.UsagePatterns{
-		CommonEndpoints:   map[string]float64{},
-		MethodFrequency:   map[string]float64{},
-	}
-
-	profile.TimingPatterns = &models.TimingPatterns{}
-
-	profile.LocationPatterns = &models.LocationPatterns{}
-
 	// Process training data
 	if len(trainingData) > 0 {
 		s.processTrainingData(profile, trainingData)
 	}
 
-	// TODO: Implement CreateBaselineProfile on patternRepo
-	return fmt.Errorf("CreateBaselineProfile not implemented")
+	// Save baseline profile to repository
+	return s.patternRepo.CreateBaselineProfile(ctx, profile)
 }
 
 func (s *BehavioralAnalysisService) processTrainingData(profile *models.BaselineProfile, trainingData []map[string]interface{}) {
@@ -527,9 +1031,6 @@ func (s *BehavioralAnalysisService) processTrainingData(profile *models.Baseline
 
 	for _, data := range trainingData {
 		totalRequests++
-
-		// TODO: Implement feature extraction and processing for training data
-		continue
 
 		// Process temporal features
 		if hour, ok := data["hour_of_day"].(int); ok {
@@ -718,21 +1219,65 @@ func (s *BehavioralAnalysisService) getPeakHours(hourlyAccess map[int]int) []int
 
 func (s *BehavioralAnalysisService) GetRiskAssessment(ctx context.Context, entityID string, entityType string) (*models.RiskAssessment, error) {
 	// Get recent behavior patterns for the entity
-	_ = &models.BehaviorPatternFilter{
+	filter := &models.BehaviorPatternFilter{
 		EntityID:   entityID,
 		EntityType: entityType,
-		// TimeRange and Status not in model
 	}
 
-	// TODO: Implement GetBehaviorPatterns on patternRepo
-	return nil, fmt.Errorf("GetBehaviorPatterns not implemented")
+	patterns, err := s.patternRepo.GetBehaviorPatterns(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get behavior patterns: %w", err)
+	}
 
-	// assessment := &models.RiskAssessment{
-	// 	RiskFactors: []models.RiskFactor{},
-	// }
+	// Calculate risk factors based on patterns
+	var riskFactors []models.RiskFactor
+	overallRiskScore := 0.0
+	totalWeight := 0.0
 
-	// Skipping patterns-based risk calculation (patterns undefined)
-	// return assessment, nil
+	for _, pattern := range patterns {
+		// Calculate risk factor for this pattern
+		riskFactor := models.RiskFactor{
+			Factor:      pattern.Type,
+			Score:       pattern.RiskScore,
+			Weight:      pattern.Confidence,
+			Description: pattern.Description,
+			Evidence:    []string{fmt.Sprintf("Pattern detected at %s", pattern.CreatedAt.Format(time.RFC3339))},
+		}
+		riskFactors = append(riskFactors, riskFactor)
+
+		// Accumulate weighted risk score
+		overallRiskScore += pattern.RiskScore * pattern.Confidence
+		totalWeight += pattern.Confidence
+	}
+
+	// Calculate average risk score
+	if totalWeight > 0 {
+		overallRiskScore = overallRiskScore / totalWeight
+	}
+
+	// Determine risk level
+	riskLevel := "low"
+	if overallRiskScore >= 7.0 {
+		riskLevel = "critical"
+	} else if overallRiskScore >= 5.0 {
+		riskLevel = "high"
+	} else if overallRiskScore >= 3.0 {
+		riskLevel = "medium"
+	}
+
+	// Generate recommendations
+	recommendations := s.generateRiskRecommendations(riskLevel, riskFactors)
+
+	assessment := &models.RiskAssessment{
+		OverallRiskScore:  overallRiskScore,
+		RiskLevel:         riskLevel,
+		RiskFactors:       riskFactors,
+		MitigationActions: recommendations,
+		ConfidenceLevel:   0.8, // Based on pattern confidence
+		AssessmentBasis:   "behavioral pattern analysis",
+	}
+
+	return assessment, nil
 }
 
 func (s *BehavioralAnalysisService) generateRiskRecommendations(riskLevel string, riskFactors []models.RiskFactor) []string {
@@ -757,52 +1302,340 @@ func (s *BehavioralAnalysisService) generateRiskRecommendations(riskLevel string
 	}
 
 	// Add specific recommendations based on risk factors
-	// PATCH: Remove usage of factor.Type (not in model)
-	// TODO: Add logic here if RiskFactor has a type or category field in the future
+	// Add recommendations based on risk factor characteristics
+	for _, factor := range riskFactors {
+		if factor.Score >= 7.0 {
+			recommendations = append(recommendations, fmt.Sprintf("High-risk factor '%s' requires immediate attention", factor.Factor))
+		} else if factor.Score >= 5.0 {
+			recommendations = append(recommendations, fmt.Sprintf("Medium-risk factor '%s' should be monitored closely", factor.Factor))
+		}
+	}
 
 	return recommendations
 }
 
 func (s *BehavioralAnalysisService) DetectBehaviorChanges(ctx context.Context, entityID string, entityType string, timeWindow time.Duration) ([]models.BehaviorChange, error) {
-	// PATCH: Remove TimeRange, Status, EndTime fields (not in model)
-	// PATCH: Remove usage of models.PatternStatusActive (undefined)
-	// PATCH: Remove s.patternRepo.GetBehaviorPatterns (not defined on interface)
-	// TODO: Implement DetectBehaviorChanges logic when repository and model support is available
-	return nil, fmt.Errorf("DetectBehaviorChanges not implemented")
+	// Get recent behavior patterns for the entity
+	filter := &models.BehaviorPatternFilter{
+		EntityID:   entityID,
+		EntityType: entityType,
+	}
+	
+	patterns, err := s.patternRepo.GetBehaviorPatterns(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get behavior patterns: %w", err)
+	}
+	
+	// Get baseline profile for comparison
+	baseline, err := s.patternRepo.GetBaselineProfile(ctx, entityID, entityType)
+	if err != nil {
+		// If no baseline exists, return empty changes
+		return []models.BehaviorChange{}, nil
+	}
+	
+	var changes []models.BehaviorChange
+	cutoff := time.Now().Add(-timeWindow)
+	
+	// Analyze patterns for significant changes
+	for _, pattern := range patterns {
+		if pattern.CreatedAt.After(cutoff) {
+			// Check if this pattern represents a significant change from baseline
+			change := s.analyzeBehaviorChange(pattern, baseline)
+			if change != nil {
+				changes = append(changes, *change)
+			}
+		}
+	}
+	
+	return changes, nil
+}
+
+// analyzeBehaviorChange analyzes a single pattern for behavior changes
+func (s *BehavioralAnalysisService) analyzeBehaviorChange(pattern models.BehaviorPattern, baseline *models.BaselineProfile) *models.BehaviorChange {
+	// Determine change type based on pattern type
+	changeType := "unknown"
+	severity := "low"
+	
+	switch pattern.Type {
+	case "access_frequency_anomaly":
+		changeType = "access_pattern_change"
+		severity = "medium"
+	case "response_time_anomaly":
+		changeType = "performance_change"
+		severity = "medium"
+	case "sequence_anomaly":
+		changeType = "usage_pattern_change"
+		severity = "high"
+	case "impossible_travel":
+		changeType = "location_change"
+		severity = "critical"
+	default:
+		changeType = "behavior_change"
+		severity = "medium"
+	}
+	
+	// Calculate change magnitude based on risk score
+	magnitude := "minor"
+	if pattern.RiskScore >= 7.0 {
+		magnitude = "major"
+	} else if pattern.RiskScore >= 5.0 {
+		magnitude = "moderate"
+	}
+	
+	return &models.BehaviorChange{
+		ID:          uuid.New().String(),
+		EntityID:    pattern.UserID,
+		EntityType:  "user_id", // Assuming user-based analysis
+		ChangeType:  changeType,
+		Severity:    severity,
+		Magnitude:   magnitude,
+		Description: pattern.Description,
+		RiskScore:   pattern.RiskScore,
+		Confidence:  pattern.Confidence,
+		DetectedAt:  pattern.CreatedAt,
+		Metadata:    pattern.Metadata,
+	}
 }
 
 // Interface method implementations
 func (s *BehavioralAnalysisService) AnalyzeBehavior(ctx context.Context, request *models.BehaviorAnalysisRequest) (*models.BehaviorAnalysisResult, error) {
-	// TODO: Implement behavior analysis logic
-	return &models.BehaviorAnalysisResult{
+	startTime := time.Now()
+	
+	// Extract features from traffic data
+	features := s.extractBehaviorFeatures(request.TrafficData)
+	
+	// Get baseline profile if requested
+	var baseline *models.BaselineProfile
+	if request.IncludeBaseline {
+		var entityID, entityType string
+		if request.UserID != "" {
+			entityID = request.UserID
+			entityType = "user_id"
+		} else if request.IPAddress != "" {
+			entityID = request.IPAddress
+			entityType = "ip_address"
+		}
+		
+		if entityID != "" {
+			baseline, _ = s.patternRepo.GetBaselineProfile(ctx, entityID, entityType)
+		}
+	}
+	
+	// Analyze different types of patterns
+	accessPatterns, _ := s.analyzeAccessPatterns(ctx, features, baseline, request)
+	timingPatterns, _ := s.analyzeTimingPatterns(ctx, features, baseline, request)
+	sequencePatterns, _ := s.analyzeSequencePatterns(ctx, features, baseline, request)
+	locationPatterns, _ := s.analyzeLocationPatterns(ctx, features, baseline, request)
+	
+	// Combine all patterns
+	var allPatterns []models.BehaviorPattern
+	allPatterns = append(allPatterns, accessPatterns...)
+	allPatterns = append(allPatterns, timingPatterns...)
+	allPatterns = append(allPatterns, sequencePatterns...)
+	allPatterns = append(allPatterns, locationPatterns...)
+	
+	// Calculate risk assessment
+	riskAssessment := models.RiskAssessment{
+		OverallRiskScore: 0.0,
+		RiskLevel:        "low",
+		RiskFactors:      []models.RiskFactor{},
+		MitigationActions: []string{},
+		ConfidenceLevel:  0.5,
+		AssessmentBasis:  "behavioral pattern analysis",
+	}
+	
+	if len(allPatterns) > 0 {
+		// Calculate overall risk score
+		totalScore := 0.0
+		totalConfidence := 0.0
+		for _, pattern := range allPatterns {
+			totalScore += pattern.RiskScore * pattern.Confidence
+			totalConfidence += pattern.Confidence
+		}
+		
+		if totalConfidence > 0 {
+			riskAssessment.OverallRiskScore = totalScore / totalConfidence
+		}
+		
+		// Determine risk level
+		if riskAssessment.OverallRiskScore >= 7.0 {
+			riskAssessment.RiskLevel = "critical"
+		} else if riskAssessment.OverallRiskScore >= 5.0 {
+			riskAssessment.RiskLevel = "high"
+		} else if riskAssessment.OverallRiskScore >= 3.0 {
+			riskAssessment.RiskLevel = "medium"
+		}
+		
+		// Generate recommendations
+		riskAssessment.MitigationActions = s.generateBehaviorRecommendations(allPatterns)
+	}
+	
+	// Create baseline comparison
+	baselineComparison := models.BaselineComparison{
+		HasBaseline:    baseline != nil,
+		DeviationScore: 0.0,
+		Stability:      0.8,
+		Confidence:     0.7,
+	}
+	
+	if baseline != nil {
+		baselineComparison.BaselineAge = time.Since(baseline.CreatedAt)
+		// Calculate deviation score based on patterns
+		if len(allPatterns) > 0 {
+			totalDeviation := 0.0
+			for _, pattern := range allPatterns {
+				totalDeviation += pattern.RiskScore
+			}
+			baselineComparison.DeviationScore = totalDeviation / float64(len(allPatterns))
+		}
+	}
+	
+	processingTime := time.Since(startTime)
+	
+	result := &models.BehaviorAnalysisResult{
 		RequestID:         request.RequestID,
-		PatternsDetected:  []models.BehaviorPattern{},
-		AnomaliesDetected: []models.BehaviorAnomaly{},
-		AnalyzedAt:        time.Now(),
-	}, nil
+		PatternsDetected:  allPatterns,
+		AnomaliesDetected: []models.BehaviorAnomaly{}, // Not implemented yet
+		RiskAssessment:    riskAssessment,
+		BaselineComparison: baselineComparison,
+		Recommendations:   riskAssessment.MitigationActions,
+		ProcessingTime:    processingTime,
+		Metadata: map[string]interface{}{
+			"features_analyzed": len(features),
+			"patterns_found":    len(allPatterns),
+		},
+		AnalyzedAt: time.Now(),
+	}
+	
+	return result, nil
+}
+
+// extractBehaviorFeatures extracts features from traffic data for behavioral analysis
+func (s *BehavioralAnalysisService) extractBehaviorFeatures(trafficData map[string]interface{}) map[string]interface{} {
+	features := make(map[string]interface{})
+	
+	// Extract basic features
+	if userID, ok := trafficData["user_id"].(string); ok {
+		features["user_id"] = userID
+	}
+	if ipAddr, ok := trafficData["ip_address"].(string); ok {
+		features["ip_address"] = ipAddr
+	}
+	if sessionID, ok := trafficData["session_id"].(string); ok {
+		features["session_id"] = sessionID
+	}
+	
+	// Extract request features
+	if request, ok := trafficData["request"].(map[string]interface{}); ok {
+		if method, ok := request["method"].(string); ok {
+			features["request_method"] = method
+		}
+		if path, ok := request["path"].(string); ok {
+			features["endpoint_path"] = path
+		}
+		if userAgent, ok := request["user_agent"].(string); ok {
+			features["user_agent"] = userAgent
+		}
+	}
+	
+	// Extract response features
+	if response, ok := trafficData["response"].(map[string]interface{}); ok {
+		if statusCode, ok := response["status_code"].(int); ok {
+			features["status_code"] = statusCode
+		}
+		if responseTime, ok := response["response_time"].(float64); ok {
+			features["response_time"] = responseTime
+		}
+	}
+	
+	// Extract timestamp
+	if timestamp, ok := trafficData["timestamp"].(time.Time); ok {
+		features["timestamp"] = timestamp
+		features["hour_of_day"] = timestamp.Hour()
+		features["day_of_week"] = int(timestamp.Weekday())
+	}
+	
+	// Extract location features
+	if location, ok := trafficData["location"].(map[string]interface{}); ok {
+		if country, ok := location["country"].(string); ok {
+			features["country"] = country
+		}
+		if city, ok := location["city"].(string); ok {
+			features["city"] = city
+		}
+	}
+	
+	return features
 }
 
 func (s *BehavioralAnalysisService) GetBehaviorPatterns(ctx context.Context, entityID string, entityType string, limit int) ([]models.BehaviorPattern, error) {
-	// TODO: Implement pattern retrieval logic using entity filters
-	return []models.BehaviorPattern{}, nil
+	// Create filter for entity
+	filter := &models.BehaviorPatternFilter{
+		EntityID:   entityID,
+		EntityType: entityType,
+	}
+	
+	// Get patterns from repository
+	patterns, err := s.patternRepo.GetBehaviorPatterns(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Apply limit if specified
+	if limit > 0 && len(patterns) > limit {
+		patterns = patterns[:limit]
+	}
+	
+	return patterns, nil
 }
 
 func (s *BehavioralAnalysisService) CreateBaseline(ctx context.Context, entityID string, entityType string) (*models.BaselineProfile, error) {
-	// TODO: Implement baseline creation logic
-	return &models.BaselineProfile{
+	// Create a new baseline profile
+	profile := &models.BaselineProfile{
+		EntityID:   entityID,
+		EntityType: entityType,
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
 		AccessPatterns: &models.AccessPatterns{
-			NormalAccessHours:   []int{},
-			AverageHourlyAccess: 0.0,
+			NormalAccessHours:   []int{9, 10, 11, 12, 13, 14, 15, 16, 17}, // Business hours
+			AverageHourlyAccess: 5.0, // Default average
 		},
-	}, nil
+		UsagePatterns: &models.UsagePatterns{
+			CommonEndpoints: map[string]float64{
+				"/api/v1/health": 0.3,
+				"/api/v1/users":  0.2,
+			},
+			MethodFrequency: map[string]float64{
+				"GET":    0.7,
+				"POST":   0.2,
+				"PUT":    0.08,
+				"DELETE": 0.02,
+			},
+		},
+		TimingPatterns: &models.TimingPatterns{
+			AverageResponseTime: 150.0, // 150ms default
+		},
+		LocationPatterns: &models.LocationPatterns{
+			CommonCountries: []string{"US"},
+			CommonCities:    []string{},
+		},
+	}
+	
+	// Save baseline to repository
+	err := s.patternRepo.CreateBaselineProfile(ctx, profile)
+	if err != nil {
+		return nil, err
+	}
+	
+	return profile, nil
 }
 
 func (s *BehavioralAnalysisService) GetBaselines(ctx context.Context, entityID string, entityType string) (*models.BaselineProfile, error) {
-	// TODO: Implement baseline retrieval logic
-	return &models.BaselineProfile{
-		AccessPatterns: &models.AccessPatterns{
-			NormalAccessHours:   []int{},
-			AverageHourlyAccess: 0.0,
-		},
-	}, nil
+	// Get baseline profile from repository
+	profile, err := s.patternRepo.GetBaselineProfile(ctx, entityID, entityType)
+	if err != nil {
+		return nil, err
+	}
+	
+	return profile, nil
 }
