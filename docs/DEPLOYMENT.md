@@ -70,7 +70,6 @@ ScopeAPI supports multiple deployment strategies:
 |----------|---------------|-------------|----------------|-------------|
 | `env.example` | ✅ Template | ✅ Template | ✅ Template | ✅ Yes |
 | `.env.local` | ✅ Use | ❌ Never | ❌ Never | ❌ Never |
-| `.env` | ❌ Deprecated | ❌ Never | ❌ Never | ❌ Never |
 | `k8s/secrets.yaml` | ❌ Not used | ✅ Use | ✅ Use | ❌ Never |
 
 ## 🏠 **Local Development Setup**
@@ -204,7 +203,7 @@ data:
 
 ### **Check Current Environment**
 ```bash
-# See which environment files exist
+# Check if environment files exist
 ls -la | grep "\.env"
 
 # Should only show:
@@ -237,11 +236,12 @@ kubectl get secrets -n scopeapi
 
 ### **Common Issues**
 
-#### **1. Script Refuses to Use .env File**
+#### **1. Script Refuses to Use Environment File**
 ```bash
 # Error: "Docker deployment is only allowed for LOCAL DEVELOPMENT"
-# Solution: Use .env.local instead of .env
-mv .env .env.local
+# Solution: Use .env.local for local development
+cp env.example .env.local
+nano .env.local
 ```
 
 #### **2. Script Refuses Docker for Staging/Production**
