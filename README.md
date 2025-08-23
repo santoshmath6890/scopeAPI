@@ -93,13 +93,23 @@ cd scripts
 ```
 
 ### **4. Access Services**
-- **Admin Console**: http://localhost:8086
-- **API Discovery**: http://localhost:8080
-- **Gateway Integration**: http://localhost:8081
-- **Data Ingestion**: http://localhost:8082
-- **Threat Detection**: http://localhost:8083
-- **Data Protection**: http://localhost:8084
-- **Attack Blocking**: http://localhost:8085
+
+#### **Docker Development Environment**
+When running with Docker Compose, services are accessible via:
+
+- **Admin Console**: http://localhost:8086 (Host port 8086 maps to container port 8086)
+- **API Discovery**: http://localhost:8080 (Host port 8080 maps to container port 8080)
+- **Gateway Integration**: http://localhost:8081 (Host port 8081 maps to container port 8081)
+- **Data Ingestion**: http://localhost:8082 (Host port 8082 maps to container port 8082)
+- **Threat Detection**: http://localhost:8083 (Host port 8083 maps to container port 8083)
+- **Data Protection**: http://localhost:8084 (Host port 8084 maps to container port 8084)
+- **Attack Blocking**: http://localhost:8085 (Host port 8085 maps to container port 8085)
+
+#### **Kubernetes Production Environment**
+In production, services are accessible via:
+- **Ingress URLs** (configured in k8s/ingress/)
+- **Service endpoints** within the cluster
+- **Load balancer IPs** (if configured)
 
 ## 🔧 **Development Workflows**
 
