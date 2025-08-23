@@ -12,10 +12,11 @@
 ScopeAPI is an **open-source platform** that helps organizations secure their APIs through:
 
 - **🔍 API Discovery & Cataloging** - Automatically discover and catalog API endpoints
-- **🛡️ Threat Detection & Prevention** - Real-time security threat identification and blocking
+- **🛡️ Threat Detection & Prevention** - AI-powered real-time security threat identification and behavioral analysis
 - **🔒 Data Protection & Compliance** - Sensitive data detection and regulatory compliance
 - **⚡ Attack Blocking** - Real-time threat prevention and blocking
 - **🌐 Gateway Integration** - Seamless integration with popular API gateways
+- **📥 Data Ingestion & Processing** - Real-time data streaming and intelligent data validation from multiple sources
 - **📊 Centralized Management** - Unified admin console for all security operations
 
 ## 🏗️ **Architecture**
@@ -194,6 +195,12 @@ The `k8s/` directory contains all Kubernetes deployment configurations for stagi
 - **Policy Management** - Centralized policy configuration
 - **Health Monitoring** - Gateway health and performance
 - **Configuration Sync** - Automated policy deployment
+
+### **📥 Data Ingestion**
+- **Real-time Data Streaming** - Continuous data ingestion from multiple sources
+- **Data Validation & Cleansing** - Automated data quality checks and normalization
+- **Schema Management** - Dynamic schema detection and versioning
+- **Batch Processing** - Efficient bulk data processing and transformation
 
 ## 🖥️ **Admin Console (Frontend)**
 
