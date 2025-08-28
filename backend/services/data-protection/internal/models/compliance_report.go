@@ -432,7 +432,7 @@ type ComplianceStatusFilter struct {
 	Statuses   []string `json:"statuses,omitempty"`
 }
 
-type ComplianceStatus struct {
+type ComplianceStatusInfo struct {
 	OverallStatus     ComplianceStatus             `json:"overall_status"`
 	FrameworkStatuses map[string]FrameworkStatus   `json:"framework_statuses"`
 	Summary           ComplianceStatusSummary      `json:"summary"`
@@ -464,4 +464,271 @@ type ComplianceValidationFilter struct {
 	Statuses    []string   `json:"statuses,omitempty"`
 	Limit       int        `json:"limit,omitempty"`
 	Offset      int        `json:"offset,omitempty"`
+}
+
+// ComplianceFrameworkData - Compliance framework definition
+type ComplianceFrameworkData struct {
+	ID          string   `json:"id" db:"id"`
+	Name        string   `json:"name" db:"name"`
+	Description string   `json:"description" db:"description"`
+	Version     string   `json:"version" db:"version"`
+	Region      string   `json:"region" db:"region"`
+	Categories  []string `json:"categories" db:"categories"`
+	Enabled     bool     `json:"enabled" db:"enabled"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// ComplianceFrameworkFilter - Filter for compliance frameworks
+type ComplianceFrameworkFilter struct {
+	Region      string   `json:"region,omitempty"`
+	Categories  []string `json:"categories,omitempty"`
+	Enabled     *bool    `json:"enabled,omitempty"`
+	Limit       int      `json:"limit,omitempty"`
+	Offset      int      `json:"offset,omitempty"`
+}
+
+// =============================================================================
+// ADDITIONAL COMPLIANCE AND RISK TYPES
+// =============================================================================
+
+// TimeRange - Time range for filtering
+type TimeRange struct {
+	StartDate time.Time `json:"start_date"`
+	EndDate   time.Time `json:"end_date"`
+	Since     time.Time `json:"since"`
+	Until     time.Time `json:"until"`
+}
+
+// AuditLogFilter - Filter for audit logs
+type AuditLogFilter struct {
+	StartDate   *time.Time `json:"start_date,omitempty"`
+	EndDate     *time.Time `json:"end_date,omitempty"`
+	Action      string     `json:"action,omitempty"`
+	UserID      string     `json:"user_id,omitempty"`
+	Resource    string     `json:"resource,omitempty"`
+	Limit       int        `json:"limit,omitempty"`
+	Offset      int        `json:"offset,omitempty"`
+}
+
+// AuditLogEntry - Audit log entry
+type AuditLogEntry struct {
+	ID          string                 `json:"id" db:"id"`
+	Timestamp   time.Time              `json:"timestamp" db:"timestamp"`
+	UserID      string                 `json:"user_id" db:"user_id"`
+	Action      string                 `json:"action" db:"action"`
+	Resource    string                 `json:"resource" db:"resource"`
+	Details     map[string]interface{} `json:"details" db:"details"`
+	IPAddress   string                 `json:"ip_address" db:"ip_address"`
+	UserAgent   string                 `json:"user_agent" db:"user_agent"`
+	Success     bool                   `json:"success" db:"success"`
+	Error       string                 `json:"error,omitempty" db:"error"`
+}
+
+// ComplianceStatistics - Statistics for compliance
+type ComplianceStatistics struct {
+	TotalFrameworks     int                    `json:"total_frameworks"`
+	CompliantFrameworks int                    `json:"compliant_frameworks"`
+	ViolationCount      int                    `json:"violation_count"`
+	ComplianceRate      float64                `json:"compliance_rate"`
+	StatisticsByDate    map[string]interface{} `json:"statistics_by_date"`
+	Metadata            map[string]interface{} `json:"metadata"`
+}
+
+// RiskScoringRequest - Risk scoring request
+type RiskScoringRequest struct {
+	RequestID string                 `json:"request_id"`
+	Data      map[string]interface{} `json:"data"`
+	Context   map[string]interface{} `json:"context"`
+}
+
+// RiskScoringResult - Risk scoring result
+type RiskScoringResult struct {
+	RequestID   string                 `json:"request_id"`
+	RiskScore   float64                `json:"risk_score"`
+	RiskLevel   string                 `json:"risk_level"`
+	Factors     []string               `json:"factors"`
+	Metadata    map[string]interface{} `json:"metadata"`
+	CalculatedAt time.Time             `json:"calculated_at"`
+}
+
+// RiskProfile - Risk assessment profile
+type RiskProfile struct {
+	ID          string                 `json:"id"`
+	Name        string                 `json:"name"`
+	Description string                 `json:"description"`
+	Category    string                 `json:"category"`
+	BaseScore   float64                `json:"base_score"`
+	Multipliers map[string]float64     `json:"multipliers"`
+	Enabled     bool                   `json:"enabled"`
+	CreatedAt   time.Time              `json:"created_at"`
+	UpdatedAt   time.Time              `json:"updated_at"`
+}
+
+// RiskProfileFilter - Filter for risk profiles
+type RiskProfileFilter struct {
+	Category string `json:"category,omitempty"`
+	Enabled  *bool  `json:"enabled,omitempty"`
+	Limit    int    `json:"limit,omitempty"`
+	Offset   int    `json:"offset,omitempty"`
+}
+
+// RiskTrendFilter - Filter for risk trends
+type RiskTrendFilter struct {
+	StartDate *time.Time `json:"start_date,omitempty"`
+	EndDate   *time.Time `json:"end_date,omitempty"`
+	Category  string     `json:"category,omitempty"`
+	Limit     int        `json:"limit,omitempty"`
+	Offset    int        `json:"offset,omitempty"`
+}
+
+// RiskTrendAnalysis - Risk trend analysis result
+type RiskTrendAnalysis struct {
+	Period      string                 `json:"period"`
+	Trends      []RiskTrend            `json:"trends"`
+	Summary     map[string]interface{} `json:"summary"`
+	GeneratedAt time.Time              `json:"generated_at"`
+}
+
+// RiskTrend - Individual risk trend data point
+type RiskTrend struct {
+	Date      time.Time `json:"date"`
+	RiskScore float64   `json:"risk_score"`
+	Category  string    `json:"category"`
+	Count     int       `json:"count"`
+}
+
+// RiskReportFilter - Filter for risk reports
+type RiskReportFilter struct {
+	StartDate *time.Time `json:"start_date,omitempty"`
+	EndDate   *time.Time `json:"end_date,omitempty"`
+	Category  string     `json:"category,omitempty"`
+	Limit     int        `json:"limit,omitempty"`
+	Offset    int        `json:"offset,omitempty"`
+}
+
+// RiskReport - Risk assessment report
+type RiskReport struct {
+	ID          string                 `json:"id"`
+	Title       string                 `json:"title"`
+	Summary     map[string]interface{} `json:"summary"`
+	Details     map[string]interface{} `json:"details"`
+	Recommendations []string           `json:"recommendations"`
+	GeneratedAt time.Time              `json:"generated_at"`
+}
+
+// RiskScoringRule - Risk scoring rule
+type RiskScoringRule struct {
+	ID          string                 `json:"id"`
+	Name        string                 `json:"name"`
+	Description string                 `json:"description"`
+	Category    string                 `json:"category"`
+	Weight      float64                `json:"weight"`
+	Conditions  []RiskCondition        `json:"conditions"`
+	Enabled     bool                   `json:"enabled"`
+	CreatedAt   time.Time              `json:"created_at"`
+	UpdatedAt   time.Time              `json:"updated_at"`
+}
+
+// RiskCondition - Risk scoring condition
+type RiskCondition struct {
+	Field    string      `json:"field"`
+	Operator string      `json:"operator"`
+	Value    interface{} `json:"value"`
+	Weight   float64     `json:"weight"`
+}
+
+// RiskWeights - Risk calculation weights
+type RiskWeights struct {
+	PIIDetected     float64 `json:"pii_detected"`
+	DataSensitivity float64 `json:"data_sensitivity"`
+	ComplianceRisk  float64 `json:"compliance_risk"`
+	AccessPattern   float64 `json:"access_pattern"`
+	SecurityLevel   float64 `json:"security_level"`
+}
+
+// FrameworkComplianceResult - Compliance result for a framework
+type FrameworkComplianceResult struct {
+	FrameworkID    string                   `json:"framework_id"`
+	FrameworkName  string                   `json:"framework_name"`
+	Status         string                   `json:"status"`
+	Score          float64                  `json:"score"`
+	Violations     []ComplianceViolation    `json:"violations"`
+	Requirements   []RequirementResult      `json:"requirements"`
+	ProcessingTime time.Duration            `json:"processing_time"`
+}
+
+// ComplianceCondition - Compliance rule condition
+type ComplianceCondition struct {
+	Field       string      `json:"field"`
+	Operator    string      `json:"operator"`
+	Value       interface{} `json:"value"`
+	Weight      float64     `json:"weight"`
+	Description string      `json:"description"`
+}
+
+// ComplianceAction - Compliance action
+type ComplianceAction struct {
+	Type        string                 `json:"type"`
+	Config      map[string]interface{} `json:"config"`
+	Enabled     bool                   `json:"enabled"`
+	Priority    int                    `json:"priority"`
+	Description string                 `json:"description"`
+}
+
+// DataAnalysis - Data analysis result
+type DataAnalysis struct {
+	DataType        string                 `json:"data_type"`
+	Classification  string                 `json:"classification"`
+	Sensitivity     string                 `json:"sensitivity"`
+	Confidence      float64                `json:"confidence"`
+	PIIDetected     bool                   `json:"pii_detected"`
+	ComplianceRisk  float64                `json:"compliance_risk"`
+	Recommendations []string               `json:"recommendations"`
+	Metadata        map[string]interface{} `json:"metadata"`
+}
+
+// ComplianceIssue - Compliance issue found during validation
+type ComplianceIssue struct {
+	ID          string                 `json:"id"`
+	Type        string                 `json:"type"`
+	Severity    string                 `json:"severity"`
+	Framework   string                 `json:"framework"`
+	Rule        string                 `json:"rule"`
+	Description string                 `json:"description"`
+	Location    string                 `json:"location"`
+	Evidence    string                 `json:"evidence"`
+	Suggestion  string                 `json:"suggestion"`
+	Metadata    map[string]interface{} `json:"metadata"`
+	DetectedAt  time.Time              `json:"detected_at"`
+}
+
+// ScoreAdjustment - Risk score adjustment
+type ScoreAdjustment struct {
+	Factor      string  `json:"factor"`
+	Description string  `json:"description"`
+	Adjustment  float64 `json:"adjustment"`
+	Weight      float64 `json:"weight"`
+}
+
+// RiskLevel - Risk level constants
+type RiskLevel string
+
+const (
+	RiskLevelLow      RiskLevel = "low"
+	RiskLevelMedium   RiskLevel = "medium"
+	RiskLevelHigh     RiskLevel = "high"
+	RiskLevelCritical RiskLevel = "critical"
+)
+
+// ComplianceRequirement - Compliance framework requirement
+type ComplianceRequirement struct {
+	ID          string                 `json:"id"`
+	Name        string                 `json:"name"`
+	Description string                 `json:"description"`
+	Category    string                 `json:"category"`
+	Mandatory   bool                   `json:"mandatory"`
+	Controls    []string               `json:"controls"`
+	References  []string               `json:"references"`
+	Metadata    map[string]interface{} `json:"metadata"`
 }

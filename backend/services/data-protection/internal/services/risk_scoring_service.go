@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"scopeapi.local/backend/services/data-protection/internal/models"
-	"scopeapi.local/backend/services/data-protection/internal/repository"
-	"scopeapi.local/backend/shared/logging"
-	"scopeapi.local/backend/shared/messaging/kafka"
+	"data-protection/internal/models"
+	"data-protection/internal/repository"
+	"shared/logging"
+	"shared/messaging/kafka"
 )
 
 type RiskScoringServiceInterface interface {

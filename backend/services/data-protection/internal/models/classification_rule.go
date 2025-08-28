@@ -268,3 +268,41 @@ type ClassificationTrend struct {
 	HighRiskClassifications int       `json:"high_risk_classifications"`
 	ComplianceIssues        int       `json:"compliance_issues"`
 }
+
+// =============================================================================
+// ADDITIONAL CLASSIFICATION TYPES
+// =============================================================================
+
+// ClassificationRuleFilter - Filter for classification rules
+type ClassificationRuleFilter struct {
+	Category     string `json:"category,omitempty"`
+	Method       string `json:"method,omitempty"`
+	Enabled      *bool  `json:"enabled,omitempty"`
+	Priority     *int   `json:"priority,omitempty"`
+	Tags         []string `json:"tags,omitempty"`
+	Limit        int     `json:"limit,omitempty"`
+	Offset       int     `json:"offset,omitempty"`
+}
+
+// DataLabel - Data classification label
+type DataLabel struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+// ClassificationReportFilter - Filter for classification reports
+type ClassificationReportFilter struct {
+	Category   string     `json:"category,omitempty"`
+	StartDate  *time.Time `json:"start_date,omitempty"`
+	EndDate    *time.Time `json:"end_date,omitempty"`
+	Limit      int        `json:"limit,omitempty"`
+	Offset     int        `json:"offset,omitempty"`
+}
+
+// ClassificationReport - Classification analysis report
+type ClassificationReport struct {
+	ID          string                 `json:"id"`
+	Summary     map[string]interface{} `json:"summary"`
+	Details     map[string]interface{} `json:"details"`
+	GeneratedAt time.Time              `json:"generated_at"`
+}

@@ -7,7 +7,7 @@ import (
 
 	"scopeapi.local/backend/services/api-discovery/internal/models"
 	"scopeapi.local/backend/services/api-discovery/internal/repository"
-	"scopeapi.local/backend/shared/logging"
+	"shared/logging"
 )
 
 type InventoryServiceInterface interface {

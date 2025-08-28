@@ -1,4 +1,4 @@
-module scopeapi.local/backend/shared
+module shared
 
 go 1.21
 

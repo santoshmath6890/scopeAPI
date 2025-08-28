@@ -4,14 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	"scopeapi.local/backend/services/data-protection/internal/models"
-	"scopeapi.local/backend/services/data-protection/internal/repository"
-	"scopeapi.local/backend/shared/logging"
-	"scopeapi.local/backend/shared/messaging/kafka"
+	"data-protection/internal/models"
+	"data-protection/internal/repository"
+	"shared/logging"
+	"shared/messaging/kafka"
 )
 
 type ComplianceServiceInterface interface {
@@ -29,7 +32,7 @@ type ComplianceService struct {
 	kafkaProducer  kafka.ProducerInterface
 	logger         logging.Logger
 	rules          map[string]*models.ComplianceRule
-	frameworks     map[string]*models.ComplianceFramework
+	frameworks     map[string]*models.ComplianceFrameworkData
 }
 
 
@@ -43,7 +46,7 @@ type ComplianceService struct {
 		kafkaProducer:  kafkaProducer,
 		logger:         logger,
 		rules:          make(map[string]*models.ComplianceRule),
-		frameworks:     make(map[string]*models.ComplianceFramework),
+		frameworks:     make(map[string]*models.ComplianceFrameworkData),
 	}
 
 	// Load default compliance frameworks and rules
@@ -54,7 +57,7 @@ type ComplianceService struct {
 }
 
 func (s *ComplianceService) loadDefaultFrameworks() {
-	frameworks := []models.ComplianceFramework{
+	frameworks := []models.ComplianceFrameworkData{
 		{
 			ID:          "gdpr",
 			Name:        "General Data Protection Regulation",
@@ -64,41 +67,6 @@ func (s *ComplianceService) loadDefaultFrameworks() {
 			Categories: []string{
 				"data_protection", "privacy", "consent", "data_subject_rights",
 				"data_processing", "data_retention", "data_breach",
-			},
-			Requirements: []models.ComplianceRequirement{
-				{
-					ID:          "gdpr_art_6",
-					Name:        "Lawfulness of processing",
-					Description: "Processing shall be lawful only if and to the extent that at least one of the conditions applies",
-					Category:    "data_processing",
-					Mandatory:   true,
-					Controls: []string{
-						"consent_management", "legitimate_interest_assessment",
-						"legal_basis_documentation",
-					},
-				},
-				{
-					ID:          "gdpr_art_25",
-					Name:        "Data protection by design and by default",
-					Description: "Data protection by design and by default requirements",
-					Category:    "data_protection",
-					Mandatory:   true,
-					Controls: []string{
-						"privacy_by_design", "data_minimization",
-						"pseudonymization", "encryption",
-					},
-				},
-				{
-					ID:          "gdpr_art_32",
-					Name:        "Security of processing",
-					Description: "Appropriate technical and organisational measures",
-					Category:    "data_protection",
-					Mandatory:   true,
-					Controls: []string{
-						"encryption", "access_controls", "security_monitoring",
-						"incident_response", "vulnerability_management",
-					},
-				},
 			},
 			Enabled: true,
 		},
@@ -112,29 +80,6 @@ func (s *ComplianceService) loadDefaultFrameworks() {
 				"consumer_rights", "data_disclosure", "data_deletion",
 				"data_portability", "opt_out_rights",
 			},
-			Requirements: []models.ComplianceRequirement{
-				{
-					ID:          "ccpa_1798_100",
-					Name:        "Right to Know",
-					Description: "Consumer right to know about personal information collection",
-					Category:    "consumer_rights",
-					Mandatory:   true,
-					Controls: []string{
-						"privacy_notice", "data_inventory", "collection_disclosure",
-					},
-				},
-				{
-					ID:          "ccpa_1798_105",
-					Name:        "Right to Delete",
-					Description: "Consumer right to delete personal information",
-					Category:    "data_deletion",
-					Mandatory:   true,
-					Controls: []string{
-						"deletion_procedures", "data_retention_policies",
-						"third_party_deletion",
-					},
-				},
-			},
 			Enabled: true,
 		},
 		{
@@ -146,19 +91,6 @@ func (s *ComplianceService) loadDefaultFrameworks() {
 			Categories: []string{
 				"phi_protection", "access_controls", "audit_controls",
 				"integrity", "transmission_security",
-			},
-			Requirements: []models.ComplianceRequirement{
-				{
-					ID:          "hipaa_164_312",
-					Name:        "Technical Safeguards",
-					Description: "Technical safeguards for electronic PHI",
-					Category:    "phi_protection",
-					Mandatory:   true,
-					Controls: []string{
-						"access_control", "audit_controls", "integrity",
-						"person_authentication", "transmission_security",
-					},
-				},
 			},
 			Enabled: true,
 		},
@@ -172,19 +104,6 @@ func (s *ComplianceService) loadDefaultFrameworks() {
 				"network_security", "cardholder_data_protection",
 				"vulnerability_management", "access_control",
 				"monitoring", "security_policies",
-			},
-			Requirements: []models.ComplianceRequirement{
-				{
-					ID:          "pci_req_3",
-					Name:        "Protect stored cardholder data",
-					Description: "Protection requirements for stored cardholder data",
-					Category:    "cardholder_data_protection",
-					Mandatory:   true,
-					Controls: []string{
-						"data_encryption", "key_management", "data_retention",
-						"secure_deletion",
-					},
-				},
 			},
 			Enabled: true,
 		},
@@ -206,7 +125,7 @@ func (s *ComplianceService) loadDefaultRules() {
 			Framework:   "gdpr",
 			Category:    "data_protection",
 			Severity:    models.ComplianceSeverityHigh,
-			Conditions: []models.ComplianceCondition{
+			Conditions: []models.RuleCondition{
 				{
 					Field:    "contains_pii",
 					Operator: "equals",
@@ -218,7 +137,7 @@ func (s *ComplianceService) loadDefaultRules() {
 					Value:    "false",
 				},
 			},
-			Actions: []models.ComplianceAction{
+			Actions: []models.RuleAction{
 				{
 					Type: "violation",
 					Config: map[string]interface{}{
@@ -243,7 +162,7 @@ func (s *ComplianceService) loadDefaultRules() {
 			Framework:   "ccpa",
 			Category:    "data_retention",
 			Severity:    models.ComplianceSeverityMedium,
-			Conditions: []models.ComplianceCondition{
+			Conditions: []models.RuleCondition{
 				{
 					Field:    "data_age_days",
 					Operator: "greater_than",
@@ -255,7 +174,7 @@ func (s *ComplianceService) loadDefaultRules() {
 					Value:    "false",
 				},
 			},
-			Actions: []models.ComplianceAction{
+			Actions: []models.RuleAction{
 				{
 					Type: "violation",
 					Config: map[string]interface{}{
@@ -273,7 +192,7 @@ func (s *ComplianceService) loadDefaultRules() {
 			Framework:   "hipaa",
 			Category:    "access_control",
 			Severity:    models.ComplianceSeverityCritical,
-			Conditions: []models.ComplianceCondition{
+			Conditions: []models.RuleCondition{
 				{
 					Field:    "contains_phi",
 					Operator: "equals",
@@ -285,7 +204,7 @@ func (s *ComplianceService) loadDefaultRules() {
 					Value:    "none,basic",
 				},
 			},
-			Actions: []models.ComplianceAction{
+			Actions: []models.RuleAction{
 				{
 					Type: "violation",
 					Config: map[string]interface{}{
@@ -309,7 +228,7 @@ func (s *ComplianceService) loadDefaultRules() {
 			Framework:   "pci_dss",
 			Category:    "cardholder_data_protection",
 			Severity:    models.ComplianceSeverityCritical,
-			Conditions: []models.ComplianceCondition{
+			Conditions: []models.RuleCondition{
 				{
 					Field:    "contains_cardholder_data",
 					Operator: "equals",
@@ -321,7 +240,7 @@ func (s *ComplianceService) loadDefaultRules() {
 					Value:    "AES-256,AES-192",
 				},
 			},
-			Actions: []models.ComplianceAction{
+			Actions: []models.RuleAction{
 				{
 					Type: "violation",
 					Config: map[string]interface{}{

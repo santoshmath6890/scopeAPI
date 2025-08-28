@@ -136,16 +136,7 @@ type PIIDetectionRule struct {
 	Actions     []RuleAction       `json:"actions"`
 }
 
-type RuleCondition struct {
-	Field    string `json:"field"`
-	Operator string `json:"operator"`
-	Value    string `json:"value"`
-}
-
-type RuleAction struct {
-	Type   string                 `json:"type"`
-	Config map[string]interface{} `json:"config"`
-}
+// RuleCondition and RuleAction are defined in compliance_report.go
 
 type PIIDetectionOptions struct {
 	EnableMLDetection     bool    `json:"enable_ml_detection"`
@@ -159,13 +150,17 @@ type PIIDetectionOptions struct {
 }
 
 type PIIDetectionResult struct {
-	RequestID       string                 `json:"request_id"`
-	DetectedPII     []PIIData              `json:"detected_pii"`
-	Summary         PIIDetectionSummary    `json:"summary"`
+	ID             string                 `json:"id" db:"id"`
+	RequestID      string                 `json:"request_id"`
+	PIIType        string                 `json:"pii_type" db:"pii_type"`
+	DetectedPII    []PIIData              `json:"detected_pii"`
+	Summary        PIIDetectionSummary    `json:"summary"`
 	Recommendations []string               `json:"recommendations"`
-	ProcessingTime  time.Duration          `json:"processing_time"`
-	Metadata        map[string]interface{} `json:"metadata"`
-	DetectedAt      time.Time              `json:"detected_at"`
+	ProcessingTime time.Duration          `json:"processing_time"`
+	Metadata       map[string]interface{} `json:"metadata"`
+	DetectedAt     time.Time              `json:"detected_at"`
+	CreatedAt      time.Time              `json:"created_at" db:"created_at"`
+	UpdatedAt      time.Time              `json:"updated_at" db:"updated_at"`
 }
 
 type PIIDetectionSummary struct {
@@ -282,4 +277,77 @@ type PIITrend struct {
 	PIIDetected      int       `json:"pii_detected"`
 	HighRiskPII      int       `json:"high_risk_pii"`
 	ComplianceIssues int       `json:"compliance_issues"`
+}
+
+// =============================================================================
+// ADDITIONAL PII TYPES
+// =============================================================================
+
+// PIIPattern - PII detection pattern
+type PIIPattern struct {
+	ID          string            `json:"id" db:"id"`
+	Name        string            `json:"name" db:"name"`
+	Type        string            `json:"type" db:"type"`
+	PIIType     string            `json:"pii_type" db:"pii_type"`
+	Category    string            `json:"category" db:"category"`
+	Pattern     string            `json:"pattern" db:"pattern"`
+	Sensitivity string            `json:"sensitivity" db:"sensitivity"`
+	Confidence  float64           `json:"confidence" db:"confidence"`
+	Enabled     bool              `json:"enabled" db:"enabled"`
+	Description string            `json:"description" db:"description"`
+	Tags        []string          `json:"tags" db:"tags"`
+	Metadata    map[string]interface{} `json:"metadata" db:"metadata"`
+	CreatedAt   time.Time         `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time         `json:"updated_at" db:"updated_at"`
+}
+
+// PIIPatternFilter - Filter for PII patterns
+type PIIPatternFilter struct {
+	Type         string   `json:"type,omitempty"`
+	PIIType      string   `json:"pii_type,omitempty"`
+	Category     string   `json:"category,omitempty"`
+	Sensitivity  string   `json:"sensitivity,omitempty"`
+	Enabled      *bool    `json:"enabled,omitempty"`
+	Tags         []string `json:"tags,omitempty"`
+	Limit        int      `json:"limit,omitempty"`
+	Offset       int      `json:"offset,omitempty"`
+}
+
+// PIIHistoryFilter - Filter for PII detection history
+type PIIHistoryFilter struct {
+	StartDate    *time.Time `json:"start_date,omitempty"`
+	EndDate      *time.Time `json:"end_date,omitempty"`
+	Since        *time.Time `json:"since,omitempty"`
+	PIIType      string     `json:"pii_type,omitempty"`
+	Confidence   *float64   `json:"confidence,omitempty"`
+	Limit        int        `json:"limit,omitempty"`
+	Offset       int        `json:"offset,omitempty"`
+}
+
+// PIIFinding - Individual PII finding
+type PIIFinding struct {
+	Type        string  `json:"type"`
+	Value       string  `json:"value"`
+	Confidence  float64 `json:"confidence"`
+	Location    string  `json:"location"`
+	Sensitivity string  `json:"sensitivity"`
+}
+
+// ConfidenceStatistics - Statistics for confidence levels
+type ConfidenceStatistics struct {
+	HighConfidence   int `json:"high_confidence"`
+	MediumConfidence int `json:"medium_confidence"`
+	LowConfidence    int `json:"low_confidence"`
+	AverageConfidence float64 `json:"average_confidence"`
+}
+
+// ExtendedPIIStatistics - Extended PII statistics with additional fields
+type ExtendedPIIStatistics struct {
+	TotalDetections    int                    `json:"total_detections"`
+	DetectionsByType   map[string]int         `json:"detections_by_type"`
+	DetectionsByDate   map[string]int         `json:"detections_by_date"`
+	AverageConfidence  float64                `json:"average_confidence"`
+	HighRiskDetections int                    `json:"high_risk_detections"`
+	ConfidenceStats    ConfidenceStatistics   `json:"confidence_stats"`
+	Metadata           map[string]interface{} `json:"metadata"`
 }

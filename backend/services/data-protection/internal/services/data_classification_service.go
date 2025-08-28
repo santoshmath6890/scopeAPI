@@ -2,16 +2,20 @@ package services
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	"scopeapi.local/backend/services/data-protection/internal/models"
-	"scopeapi.local/backend/services/data-protection/internal/repository"
-	"scopeapi.local/backend/shared/logging"
-	"scopeapi.local/backend/shared/messaging/kafka"
+	"data-protection/internal/models"
+	"data-protection/internal/repository"
+	"shared/logging"
+	"shared/messaging/kafka"
 )
 
 type DataClassificationServiceInterface interface {
@@ -412,10 +416,10 @@ func (s *DataClassificationService) detectSensitiveFieldNames(fieldNames []strin
 	return hints
 }
 
-func (s *DataClassificationService) containsSpecialChars(s string) bool {
+func (s *DataClassificationService) containsSpecialChars(str string) bool {
 	specialChars := "!@#$%^&*()_+-=[]{}|;:,.<>?"
 	for _, char := range specialChars {
-		if strings.ContainsRune(s, char) {
+		if strings.ContainsRune(str, char) {
 			return true
 		}
 	}

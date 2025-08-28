@@ -16,7 +16,10 @@ type DiscoveryRepositoryInterface interface {
 	GetDiscovery(ctx context.Context, discoveryID string) (*models.Discovery, error)
 	UpdateDiscoveryStatus(ctx context.Context, discoveryID string, status string) error
 	UpdateDiscoveryProgress(ctx context.Context, discoveryID string, progress int) error
+	UpdateDiscoveryEndpointsFound(ctx context.Context, discoveryID string, count int) error
 	GetDiscoveryResults(ctx context.Context, discoveryID string, page, limit int) (*models.DiscoveryResults, error)
+	SaveEndpoint(ctx context.Context, endpoint *models.Endpoint) error
+	UpdateEndpoint(ctx context.Context, endpoint *models.Endpoint) error
 	SaveEndpointAnalysis(ctx context.Context, analysis *models.EndpointAnalysis) error
 	GetEndpointMetadata(ctx context.Context, endpointID string) (*models.Metadata, error)
 	UpdateEndpointMetadata(ctx context.Context, endpointID string, metadata *models.Metadata) error
@@ -145,6 +148,21 @@ func (r *DiscoveryRepository) UpdateDiscoveryProgress(ctx context.Context, disco
 	return nil
 }
 
+func (r *DiscoveryRepository) UpdateDiscoveryEndpointsFound(ctx context.Context, discoveryID string, count int) error {
+	query := `
+		UPDATE scopeapi.discoveries 
+		SET endpoints_found = $1, updated_at = $2
+		WHERE id = $3
+	`
+
+	_, err := r.db.ExecContext(ctx, query, count, time.Now(), discoveryID)
+	if err != nil {
+		return fmt.Errorf("failed to update discovery endpoints found: %w", err)
+	}
+
+	return nil
+}
+
 func (r *DiscoveryRepository) GetDiscoveryResults(ctx context.Context, discoveryID string, page, limit int) (*models.DiscoveryResults, error) {
 	offset := (page - 1) * limit
 
@@ -209,6 +227,78 @@ func (r *DiscoveryRepository) GetDiscoveryResults(ctx context.Context, discovery
 		Limit:       limit,
 		Endpoints:   endpoints,
 	}, nil
+}
+
+func (r *DiscoveryRepository) SaveEndpoint(ctx context.Context, endpoint *models.Endpoint) error {
+	headersJSON, _ := json.Marshal(endpoint.Headers)
+	parametersJSON, _ := json.Marshal(endpoint.Parameters)
+	responsesJSON, _ := json.Marshal(endpoint.Responses)
+	tagsJSON, _ := json.Marshal(endpoint.Tags)
+
+	query := `
+		INSERT INTO scopeapi.endpoints (id, api_id, url, path, method, headers, body, status_code, content_type, summary, description, parameters, responses, tags, is_active, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+	`
+
+	_, err := r.db.ExecContext(ctx, query,
+		endpoint.ID,
+		endpoint.APIID,
+		endpoint.URL,
+		endpoint.Path,
+		endpoint.Method,
+		headersJSON,
+		endpoint.Body,
+		endpoint.StatusCode,
+		endpoint.ContentType,
+		endpoint.Summary,
+		endpoint.Description,
+		parametersJSON,
+		responsesJSON,
+		tagsJSON,
+		endpoint.IsActive,
+		endpoint.CreatedAt,
+		endpoint.UpdatedAt,
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to save endpoint: %w", err)
+	}
+
+	return nil
+}
+
+func (r *DiscoveryRepository) UpdateEndpoint(ctx context.Context, endpoint *models.Endpoint) error {
+	headersJSON, _ := json.Marshal(endpoint.Headers)
+	parametersJSON, _ := json.Marshal(endpoint.Parameters)
+	responsesJSON, _ := json.Marshal(endpoint.Responses)
+	tagsJSON, _ := json.Marshal(endpoint.Tags)
+
+	query := `
+		UPDATE scopeapi.endpoints 
+		SET headers = $1, body = $2, status_code = $3, content_type = $4, summary = $5, description = $6, parameters = $7, responses = $8, tags = $9, is_active = $10, updated_at = $11
+		WHERE id = $12
+	`
+
+	_, err := r.db.ExecContext(ctx, query,
+		headersJSON,
+		endpoint.Body,
+		endpoint.StatusCode,
+		endpoint.ContentType,
+		endpoint.Summary,
+		endpoint.Description,
+		parametersJSON,
+		responsesJSON,
+		tagsJSON,
+		endpoint.IsActive,
+		time.Now(),
+		endpoint.ID,
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to update endpoint: %w", err)
+	}
+
+	return nil
 }
 
 func (r *DiscoveryRepository) SaveEndpointAnalysis(ctx context.Context, analysis *models.EndpointAnalysis) error {

@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	"scopeapi.local/backend/services/api-discovery/internal/models"
 	"scopeapi.local/backend/services/api-discovery/internal/repository"
-	"scopeapi.local/backend/shared/logging"
+	"shared/logging"
 )
 
 type MetadataServiceInterface interface {

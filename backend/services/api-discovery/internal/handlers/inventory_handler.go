@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"scopeapi.local/backend/services/api-discovery/internal/services"
-	"scopeapi.local/backend/shared/logging"
+	"shared/logging"
 )
 
 type InventoryHandler struct {

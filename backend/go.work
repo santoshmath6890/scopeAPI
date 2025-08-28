@@ -1,12 +1,6 @@
-go 1.22
+go 1.22.2
 
 use (
-	./services/data-ingestion
 	./services/api-discovery
-	./services/threat-detection
-	./services/gateway-integration
-	./services/admin-console
-	./services/data-protection
-	./services/attack-blocking
 	./shared
 )

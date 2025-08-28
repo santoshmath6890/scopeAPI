@@ -11,14 +11,14 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"scopeapi.local/backend/services/data-protection/internal/config"
-	"scopeapi.local/backend/services/data-protection/internal/handlers"
-	"scopeapi.local/backend/services/data-protection/internal/repository"
-	"scopeapi.local/backend/services/data-protection/internal/services"
-	"scopeapi.local/backend/shared/database/postgresql"
-	"scopeapi.local/backend/shared/logging"
-	"scopeapi.local/backend/shared/messaging/kafka"
-	"scopeapi.local/backend/shared/monitoring/metrics"
+	"data-protection/config"
+	"data-protection/internal/handlers"
+	"data-protection/internal/repository"
+	"data-protection/internal/services"
+	"shared/database/postgresql"
+	"shared/logging"
+	"shared/messaging/kafka"
+	"shared/monitoring/metrics"
 )
 
 func main() {

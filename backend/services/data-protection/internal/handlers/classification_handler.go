@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"scopeapi.local/backend/services/data-protection/internal/models"
-	"scopeapi.local/backend/services/data-protection/internal/services"
-	"scopeapi.local/backend/shared/logging"
+	"data-protection/internal/models"
+	"data-protection/internal/services"
+	"shared/logging"
 )
 
 type ClassificationHandler struct {
