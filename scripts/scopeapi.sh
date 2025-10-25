@@ -38,6 +38,10 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+print_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
 print_header() {
     echo -e "${BLUE}==========================================${NC}"
     echo -e "${BLUE}$1${NC}"
@@ -115,11 +119,11 @@ check_prerequisites() {
     print_success "docker-compose is available"
     
     # Check if .env.local file exists (only for local development)
-    if [ ! -f ".env.local" ]; then
+    if [ ! -f "$SCRIPT_DIR/.env.local" ]; then
         print_warning "No .env.local file found"
         print_status "Creating .env.local file from template for LOCAL DEVELOPMENT ONLY..."
         if [ -f "$SCRIPT_DIR/env.example" ]; then
-            cp "$SCRIPT_DIR/env.example" .env.local
+            cp "$SCRIPT_DIR/env.example" "$SCRIPT_DIR/.env.local"
             print_success "Created .env.local file from env.example"
             print_warning "⚠️  IMPORTANT: .env.local is for LOCAL DEVELOPMENT ONLY!"
             print_warning "Please edit .env.local file and set your local passwords"
@@ -134,7 +138,8 @@ check_prerequisites() {
     fi
     
     # Use .env.local for local development
-    ENV_FILE=".env.local"
+    ENV_FILE="$SCRIPT_DIR/.env.local"
+    export ENV_FILE  # Export immediately for use in docker-compose commands
     print_success ".env.local file found (LOCAL DEVELOPMENT MODE)"
     print_info "⚠️  Remember: .env.local is for your local machine only!"
     
@@ -153,7 +158,7 @@ setup_infrastructure() {
     print_status "Starting infrastructure services..."
     
     # Start infrastructure using docker-compose
-    if docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/$ENV_FILE" up -d zookeeper kafka postgres redis elasticsearch kibana; then
+    if docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" up -d zookeeper kafka postgres redis elasticsearch kibana; then
         print_success "Infrastructure services started successfully"
         
         # Wait for services to be ready
@@ -161,7 +166,7 @@ setup_infrastructure() {
         sleep 15
         
         # Check service status
-        if docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/$ENV_FILE" ps | grep -q "Up"; then
+        if docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" ps | grep -q "Up"; then
             print_success "All infrastructure services are running"
         else
             print_warning "Some services may not be fully ready yet"
@@ -217,7 +222,7 @@ validate_setup() {
     
     # Check if all services are running
     print_status "Checking service status..."
-    if docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/$ENV_FILE" ps | grep -q "Up"; then
+    if docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" ps | grep -q "Up"; then
         print_success "All services are running"
     else
         print_warning "Some services may not be running"
@@ -237,7 +242,7 @@ start_services() {
     
     # Always start infrastructure first
     print_status "Starting infrastructure services..."
-    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/$ENV_FILE" up -d zookeeper kafka postgres redis elasticsearch kibana
+    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" up -d zookeeper kafka postgres redis elasticsearch kibana
     
     # Wait for infrastructure to be ready
     print_status "Waiting for infrastructure to be ready..."
@@ -252,12 +257,12 @@ start_services() {
         
         if [ "$service" = "all" ]; then
             print_status "Starting all microservices..."
-            docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/$ENV_FILE" up -d api-discovery gateway-integration data-ingestion threat-detection data-protection attack-blocking admin-console
+            docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" up -d api-discovery gateway-integration data-ingestion threat-detection data-protection attack-blocking admin-console
             break
         fi
         
         print_status "Starting $service..."
-        docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/$ENV_FILE" up -d "$service"
+        docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" up -d "$service"
     done
     
     print_success "Services started successfully!"
@@ -268,7 +273,7 @@ start_services() {
 # Function to stop services
 stop_services() {
     print_status "Stopping all services..."
-    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/$ENV_FILE" down
+    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" down
     print_success "All services stopped"
 }
 
@@ -285,7 +290,7 @@ restart_services() {
     
     for service in "${services[@]}"; do
         print_status "Restarting $service..."
-        docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/$ENV_FILE" restart "$service"
+        docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" restart "$service"
     done
     
     print_success "Services restarted successfully!"
@@ -297,10 +302,10 @@ show_logs() {
     
     if [ -z "$service" ]; then
         print_status "Showing logs for all services..."
-        docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/$ENV_FILE" logs -f
+        docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" logs -f
     else
         print_status "Showing logs for $service..."
-        docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/$ENV_FILE" logs -f "$service"
+        docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" logs -f "$service"
     fi
 }
 
@@ -310,11 +315,11 @@ show_status() {
     
     echo ""
     print_status "=== INFRASTRUCTURE STATUS ==="
-    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/$ENV_FILE" ps zookeeper kafka postgres redis elasticsearch kibana
+    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" ps zookeeper kafka postgres redis elasticsearch kibana
     
     echo ""
     print_status "=== MICROSERVICES STATUS ==="
-    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/$ENV_FILE" ps api-discovery gateway-integration data-ingestion threat-detection data-protection attack-blocking admin-console
+    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" ps api-discovery gateway-integration data-ingestion threat-detection data-protection attack-blocking admin-console
     
     echo ""
     print_status "=== SYSTEM RESOURCES ==="
@@ -338,7 +343,7 @@ build_services() {
     
     for service in "${services[@]}"; do
         print_status "Building $service..."
-        docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/$ENV_FILE" build "$service"
+        docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" build "$service"
     done
     
     print_success "Services built successfully!"
@@ -351,7 +356,7 @@ clean_all() {
     
     if [[ "$response" =~ ^[Yy]$ ]]; then
         print_status "Cleaning all containers, volumes, and images..."
-        docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/$ENV_FILE" down -v --rmi all
+        docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" down -v --rmi all
         docker system prune -af
         print_success "Cleanup completed!"
     else
@@ -369,7 +374,7 @@ open_shell() {
     fi
     
     print_status "Opening shell in $service container..."
-    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/$ENV_FILE" exec "$service" sh
+    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" exec "$service" sh
 }
 
 # Function to execute command in service container
@@ -384,7 +389,7 @@ execute_command() {
     fi
     
     print_status "Executing '$command' in $service container..."
-    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/$ENV_FILE" exec "$service" sh -c "$command"
+    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" exec "$service" sh -c "$command"
 }
 
 # Function to start debug mode
@@ -399,11 +404,11 @@ start_debug() {
     print_status "Starting $service in debug mode..."
     
     # Stop the service first
-    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/$ENV_FILE" stop "$service"
+    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" stop "$service"
     
     # Start in debug mode (assuming debug configuration exists)
     print_status "Starting $service with debug configuration..."
-    docker-compose -f "$SCRIPT_DIR/docker-compose.debug.yml" --env-file "$PROJECT_ROOT/$ENV_FILE" up -d "$service"
+    docker-compose -f "$SCRIPT_DIR/docker-compose.debug.yml" --env-file "$ENV_FILE" up -d "$service"
     
     print_success "$service started in debug mode!"
     print_info "Connect your debugger to localhost:2345"
@@ -414,7 +419,7 @@ show_comprehensive_status() {
     print_header "Comprehensive Status"
     
     print_status "Infrastructure Services:"
-    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/$ENV_FILE" ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
     
     echo ""
     print_status "Network Information:"
@@ -434,7 +439,7 @@ cleanup_services() {
     print_header "Cleaning Up Services"
     print_status "Stopping and removing services..."
     
-    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/$ENV_FILE" down
+    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" down
     print_success "Services cleaned up successfully!"
 }
 
@@ -447,7 +452,7 @@ cleanup_full() {
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         print_status "Removing all containers, volumes, and networks..."
-        docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$PROJECT_ROOT/$ENV_FILE" down -v --remove-orphans
+        docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" down -v --remove-orphans
         docker system prune -f
         print_success "Full cleanup completed!"
     else
