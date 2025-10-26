@@ -184,7 +184,15 @@ setup_database() {
     print_status "Setting up PostgreSQL database..."
     
     # Run the database setup script with environment variables (basic setup only)
-    if DB_HOST="$DB_HOST" DB_PORT="$DB_PORT" DB_USER="$DB_USER" DB_PASSWORD="$DB_PASSWORD" DB_NAME="$DB_NAME" DB_SSL_MODE="$DB_SSL_MODE" "$SCRIPT_DIR/setup-database.sh" --basic; then
+    # Use POSTGRES_* variables if DB_* are not set
+    DB_HOST="${DB_HOST:-${POSTGRES_HOST:-localhost}}"
+    DB_PORT="${DB_PORT:-${POSTGRES_PORT:-5432}}"
+    DB_USER="${DB_USER:-${POSTGRES_USER:-scopeapi}}"
+    DB_PASSWORD="${DB_PASSWORD:-${POSTGRES_PASSWORD:-scopeapi_dev_password_2024}}"
+    DB_NAME="${DB_NAME:-${POSTGRES_DB:-scopeapi}}"
+    
+    # Suppress verbose output by redirecting stdout
+    if DB_HOST="$DB_HOST" DB_PORT="$DB_PORT" DB_USER="$DB_USER" DB_PASSWORD="$DB_PASSWORD" DB_NAME="$DB_NAME" DB_SSL_MODE="$DB_SSL_MODE" "$SCRIPT_DIR/setup-database.sh" --basic > /dev/null 2>&1; then
         print_success "Database setup completed successfully"
     else
         print_error "Database setup failed"
@@ -199,7 +207,11 @@ create_test_data() {
     print_status "Creating sample test data..."
     
     # Run database setup with test data flag (basic mode)
-    if "$SCRIPT_DIR/setup-database.sh" --basic --test-data; then
+    # Suppress verbose output by redirecting stdout and only showing errors
+    "$SCRIPT_DIR/setup-database.sh" --basic --test-data > /dev/null 2>&1
+    local result=$?
+    
+    if [ $result -eq 0 ]; then
         print_success "Test data created successfully"
     else
         print_warning "Test data creation failed (may already exist)"
@@ -213,7 +225,11 @@ validate_setup() {
     print_status "Running validation tests..."
     
     # Run database setup with validation flag (basic mode)
-    if "$SCRIPT_DIR/setup-database.sh" --basic --validate; then
+    # Suppress verbose output by redirecting stdout and only showing errors
+    "$SCRIPT_DIR/setup-database.sh" --basic --validate > /dev/null 2>&1
+    local result=$?
+    
+    if [ $result -eq 0 ]; then
         print_success "Validation completed successfully"
     else
         print_error "Validation failed"

@@ -34,15 +34,25 @@ print_warning() {
 }
 
 # Default configuration
+# Use POSTGRES_* variables from .env.local if not provided
 DB_HOST=${DB_HOST:-localhost}
 DB_PORT=${DB_PORT:-5432}
-DB_USER=${DB_USER:-postgres}
-DB_PASSWORD=${DB_PASSWORD:-password}
-DB_NAME=${DB_NAME:-scopeapi}
+DB_USER=${DB_USER:-${POSTGRES_USER:-scopeapi}}
+DB_PASSWORD=${DB_PASSWORD:-${POSTGRES_PASSWORD:-scopeapi_dev_password_2024}}
+DB_NAME=${DB_NAME:-${POSTGRES_DB:-scopeapi}}
 DB_SSL_MODE=${DB_SSL_MODE:-disable}
 
 print_info "ScopeAPI Database Setup"
 print_info "======================="
+
+# Debug: Print connection details (hide password completely)
+print_info "Database Connection Details:"
+print_info "  Host: $DB_HOST"
+print_info "  Port: $DB_PORT"
+print_info "  User: $DB_USER"
+print_info "  Password: ******** (hidden)"
+print_info "  Database: $DB_NAME"
+print_info "  SSL Mode: $DB_SSL_MODE"
 
 # Check if PostgreSQL is installed
 check_postgresql() {
