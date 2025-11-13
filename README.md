@@ -5,7 +5,7 @@
 [![Docker Version](https://img.shields.io/badge/Docker-24+-blue.svg)](https://docker.com)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-**ScopeAPI** is a comprehensive **cloud API** security management platform** designed to protect, monitor, and manage APIs in modern distributed systems. It provides a unified approach to API security and cloud security across multiple domains with enterprise-grade capabilities.
+**ScopeAPI** is a comprehensive **cloud API security management platform** designed to protect, monitor, and manage APIs in modern distributed systems. It provides a unified approach to API security and cloud security across multiple domains with enterprise-grade capabilities.
 
 ## 🎯 **What is ScopeAPI?**
 
