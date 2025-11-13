@@ -38,7 +38,7 @@ Welcome to the ScopeAPI documentation! This is a comprehensive guide to understa
 
 ## 🎯 **What is ScopeAPI?**
 
-ScopeAPI is a comprehensive API security and management platform that provides:
+ScopeAPI is a comprehensive cloud API security and management platform that provides:
 
 - **🔍 API Discovery** - Automatically discover and catalog APIs
 - **🛡️ Threat Detection** - Identify security threats and vulnerabilities

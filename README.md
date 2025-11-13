@@ -5,11 +5,11 @@
 [![Docker Version](https://img.shields.io/badge/Docker-24+-blue.svg)](https://docker.com)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-**ScopeAPI** is a comprehensive **API security and management platform** designed to protect, monitor, and manage APIs in modern distributed systems. It provides a unified approach to API security across multiple domains with enterprise-grade capabilities.
+**ScopeAPI** is a comprehensive **cloud API** security management platform** designed to protect, monitor, and manage APIs in modern distributed systems. It provides a unified approach to API security and cloud security across multiple domains with enterprise-grade capabilities.
 
 ## 🎯 **What is ScopeAPI?**
 
-ScopeAPI is an **open-source platform** that helps organizations secure their APIs through:
+ScopeAPI is an **open-source cloud security platform** that helps organizations secure their APIs and cloud infrastructure through:
 
 - **🔍 API Discovery & Cataloging** - Automatically discover and catalog API endpoints
 - **🛡️ Threat Detection & Prevention** - AI-powered real-time security threat identification and behavioral analysis
@@ -19,7 +19,7 @@ ScopeAPI is an **open-source platform** that helps organizations secure their AP
 - **📥 Data Ingestion & Processing** - Real-time data streaming and intelligent data validation from multiple sources
 - **📊 Centralized Management** - Unified admin console for all security operations
 
-## 🏗️ **Architecture**
+## 🏗️ **Cloud Security Architecture**
 
 ScopeAPI follows a **microservices architecture** with:
 
@@ -228,7 +228,7 @@ For complete technology stack details, see **[🏗️ Architecture Guide](docs/A
 
 For detailed performance characteristics, scalability features, and security architecture, see **[🏗️ Architecture Guide](docs/ARCHITECTURE.md)**
 
-## 🌟 **Why Choose ScopeAPI?**
+## 🌟 **Why Choose ScopeAPI for Cloud Security?**
 
 ### **✅ Open Source**
 - **Transparent** - Full source code visibility
