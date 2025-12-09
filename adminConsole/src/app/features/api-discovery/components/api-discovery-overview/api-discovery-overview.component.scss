@@ -1,0 +1,27 @@
+package services
+
+.content {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.card {
+  min-width: 220px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.api-discovery-cards-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.api-discovery-cards-grid .card {
+  min-width: 220px;
+  max-width: 100%;
+  box-sizing: border-box;
+}

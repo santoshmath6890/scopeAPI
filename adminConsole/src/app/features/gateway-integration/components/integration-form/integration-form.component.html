@@ -1,0 +1,579 @@
+<div class="integration-form">
+  <!-- Header -->
+  <div class="header">
+    <h2>{{ isEditMode ? 'Edit' : 'Create' }} Gateway Integration</h2>
+    <button class="btn btn-outline-secondary" (click)="onCancel()">
+      <i class="fas fa-arrow-left"></i> Back to List
+    </button>
+  </div>
+
+  <!-- Error Alert -->
+  <div *ngIf="error" class="alert alert-danger alert-dismissible">
+    <span>{{ error }}</span>
+    <button type="button" class="btn-close" (click)="clearError()"></button>
+  </div>
+
+  <!-- Loading Spinner -->
+  <div *ngIf="loading" class="text-center py-4">
+    <div class="spinner-border" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+
+  <!-- Form -->
+  <form *ngIf="!loading" [formGroup]="integrationForm" (ngSubmit)="onSubmit()" class="form-container">
+    <div class="row">
+      <!-- Basic Information -->
+      <div class="col-lg-8">
+        <div class="card">
+          <div class="card-header">
+            <h5><i class="fas fa-info-circle"></i> Basic Information</h5>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label for="name" class="form-label">Integration Name *</label>
+                  <input 
+                    type="text" 
+                    id="name" 
+                    class="form-control" 
+                    formControlName="name"
+                    placeholder="Enter integration name">
+                  <div *ngIf="getFieldError('name')" class="text-danger small mt-1">
+                    {{ getFieldError('name') }}
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label for="status" class="form-label">Status</label>
+                  <select id="status" class="form-select" formControlName="status">
+                    <option value="pending">Pending</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="error">Error</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Gateway Type Selection -->
+            <div class="mb-4">
+              <label class="form-label">Gateway Type *</label>
+              <div class="gateway-type-grid">
+                <div 
+                  *ngFor="let type of gatewayTypes" 
+                  class="gateway-type-card"
+                  [class.selected]="integrationForm.get('type')?.value === type.value"
+                  (click)="integrationForm.get('type')?.setValue(type.value)">
+                  <div class="gateway-icon">{{ type.icon }}</div>
+                  <div class="gateway-info">
+                    <h6>{{ type.label }}</h6>
+                    <p>{{ type.description }}</p>
+                  </div>
+                  <div class="selection-indicator">
+                    <i class="fas fa-check"></i>
+                  </div>
+                </div>
+              </div>
+              <div *ngIf="getFieldError('type')" class="text-danger small mt-1">
+                {{ getFieldError('type') }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Configuration -->
+        <div class="card mt-4" *ngIf="integrationForm.get('type')?.value">
+          <div class="card-header">
+            <h5><i class="fas fa-cog"></i> Configuration</h5>
+          </div>
+          <div class="card-body" formGroupName="config">
+            <!-- Kong Configuration -->
+            <div *ngIf="integrationForm.get('type')?.value === 'kong'">
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label for="adminUrl" class="form-label">Admin URL *</label>
+                    <input 
+                      type="url" 
+                      id="adminUrl" 
+                      class="form-control" 
+                      formControlName="adminUrl"
+                      placeholder="http://kong-admin:8001">
+                    <div *ngIf="getFieldError('adminUrl')" class="text-danger small mt-1">
+                      {{ getFieldError('adminUrl') }}
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label for="proxyUrl" class="form-label">Proxy URL *</label>
+                    <input 
+                      type="url" 
+                      id="proxyUrl" 
+                      class="form-control" 
+                      formControlName="proxyUrl"
+                      placeholder="http://kong-proxy:8000">
+                    <div *ngIf="getFieldError('proxyUrl')" class="text-danger small mt-1">
+                      {{ getFieldError('proxyUrl') }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label for="timeout" class="form-label">Timeout (ms)</label>
+                    <input 
+                      type="number" 
+                      id="timeout" 
+                      class="form-control" 
+                      formControlName="timeout"
+                      min="1000" max="60000">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- NGINX Configuration -->
+            <div *ngIf="integrationForm.get('type')?.value === 'nginx'">
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label for="configPath" class="form-label">Config Path *</label>
+                    <input 
+                      type="text" 
+                      id="configPath" 
+                      class="form-control" 
+                      formControlName="configPath"
+                      placeholder="/etc/nginx/nginx.conf">
+                    <div *ngIf="getFieldError('configPath')" class="text-danger small mt-1">
+                      {{ getFieldError('configPath') }}
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label for="reloadCommand" class="form-label">Reload Command</label>
+                    <input 
+                      type="text" 
+                      id="reloadCommand" 
+                      class="form-control" 
+                      formControlName="reloadCommand"
+                      placeholder="nginx -s reload">
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <div class="form-check">
+                      <input 
+                        type="checkbox" 
+                        id="backupConfig" 
+                        class="form-check-input" 
+                        formControlName="backupConfig">
+                      <label for="backupConfig" class="form-check-label">
+                        Backup Configuration
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Traefik Configuration -->
+            <div *ngIf="integrationForm.get('type')?.value === 'traefik'">
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label for="apiUrl" class="form-label">API URL *</label>
+                    <input 
+                      type="url" 
+                      id="apiUrl" 
+                      class="form-control" 
+                      formControlName="apiUrl"
+                      placeholder="http://localhost:8080">
+                    <div *ngIf="getFieldError('apiUrl')" class="text-danger small mt-1">
+                      {{ getFieldError('apiUrl') }}
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <div class="form-check">
+                      <input 
+                        type="checkbox" 
+                        id="dashboard" 
+                        class="form-check-input" 
+                        formControlName="dashboard">
+                      <label for="dashboard" class="form-check-label">
+                        Enable Dashboard
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <div class="form-check">
+                      <input 
+                        type="checkbox" 
+                        id="insecureSkipVerify" 
+                        class="form-check-input" 
+                        formControlName="insecureSkipVerify">
+                      <label for="insecureSkipVerify" class="form-check-label">
+                        Skip TLS Verification
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Envoy Configuration -->
+            <div *ngIf="integrationForm.get('type')?.value === 'envoy'">
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label for="adminUrl" class="form-label">Admin URL *</label>
+                    <input 
+                      type="url" 
+                      id="adminUrl" 
+                      class="form-control" 
+                      formControlName="adminUrl"
+                      placeholder="http://localhost:9901">
+                    <div *ngIf="getFieldError('adminUrl')" class="text-danger small mt-1">
+                      {{ getFieldError('adminUrl') }}
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label for="configPath" class="form-label">Config Path</label>
+                    <input 
+                      type="text" 
+                      id="configPath" 
+                      class="form-control" 
+                      formControlName="configPath"
+                      placeholder="/etc/envoy/envoy.yaml">
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <div class="form-check">
+                      <input 
+                        type="checkbox" 
+                        id="hotRestart" 
+                        class="form-check-input" 
+                        formControlName="hotRestart">
+                      <label for="hotRestart" class="form-check-label">
+                        Enable Hot Restart
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- HAProxy Configuration -->
+            <div *ngIf="integrationForm.get('type')?.value === 'haproxy'">
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label for="configPath" class="form-label">Config Path *</label>
+                    <input 
+                      type="text" 
+                      id="configPath" 
+                      class="form-control" 
+                      formControlName="configPath"
+                      placeholder="/etc/haproxy/haproxy.cfg">
+                    <div *ngIf="getFieldError('configPath')" class="text-danger small mt-1">
+                      {{ getFieldError('configPath') }}
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label for="socketPath" class="form-label">Socket Path</label>
+                    <input 
+                      type="text" 
+                      id="socketPath" 
+                      class="form-control" 
+                      formControlName="socketPath"
+                      placeholder="/var/run/haproxy.sock">
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label for="reloadCommand" class="form-label">Reload Command</label>
+                    <input 
+                      type="text" 
+                      id="reloadCommand" 
+                      class="form-control" 
+                      formControlName="reloadCommand"
+                      placeholder="systemctl reload haproxy">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Endpoints -->
+        <div class="card mt-4">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5><i class="fas fa-link"></i> Endpoints</h5>
+            <button type="button" class="btn btn-sm btn-primary" (click)="addEndpoint()">
+              <i class="fas fa-plus"></i> Add Endpoint
+            </button>
+          </div>
+          <div class="card-body">
+            <div formArrayName="endpoints">
+              <div 
+                *ngFor="let endpoint of endpointsArray.controls; let i = index" 
+                class="endpoint-item"
+                [formGroupName]="i">
+                <div class="endpoint-header">
+                  <h6>Endpoint {{ i + 1 }}</h6>
+                  <button 
+                    type="button" 
+                    class="btn btn-sm btn-outline-danger" 
+                    (click)="removeEndpoint(i)"
+                    [disabled]="endpointsArray.length === 1">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+                <div class="row">
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label [for]="'endpointName' + i" class="form-label">Name *</label>
+                      <input 
+                        type="text" 
+                        [id]="'endpointName' + i" 
+                        class="form-control" 
+                        formControlName="name"
+                        placeholder="e.g., Admin API">
+                      <div *ngIf="getEndpointFieldError(i, 'name')" class="text-danger small mt-1">
+                        {{ getEndpointFieldError(i, 'name') }}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label [for]="'endpointUrl' + i" class="form-label">URL *</label>
+                      <input 
+                        type="url" 
+                        [id]="'endpointUrl' + i" 
+                        class="form-control" 
+                        formControlName="url"
+                        placeholder="http://example.com">
+                      <div *ngIf="getEndpointFieldError(i, 'url')" class="text-danger small mt-1">
+                        {{ getEndpointFieldError(i, 'url') }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col-md-4">
+                    <div class="mb-3">
+                      <label [for]="'endpointProtocol' + i" class="form-label">Protocol</label>
+                      <select [id]="'endpointProtocol' + i" class="form-select" formControlName="protocol">
+                        <option *ngFor="let protocol of protocols" [value]="protocol">
+                          {{ protocol.toUpperCase() }}
+                        </option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="mb-3">
+                      <label [for]="'endpointPort' + i" class="form-label">Port *</label>
+                      <input 
+                        type="number" 
+                        [id]="'endpointPort' + i" 
+                        class="form-control" 
+                        formControlName="port"
+                        min="1" max="65535">
+                      <div *ngIf="getEndpointFieldError(i, 'port')" class="text-danger small mt-1">
+                        {{ getEndpointFieldError(i, 'port') }}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="mb-3">
+                      <label [for]="'endpointTimeout' + i" class="form-label">Timeout (ms) *</label>
+                      <input 
+                        type="number" 
+                        [id]="'endpointTimeout' + i" 
+                        class="form-control" 
+                        formControlName="timeout"
+                        min="1000">
+                      <div *ngIf="getEndpointFieldError(i, 'timeout')" class="text-danger small mt-1">
+                        {{ getEndpointFieldError(i, 'timeout') }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div *ngIf="endpointsArray.length === 0" class="text-center py-3 text-muted">
+              <i class="fas fa-link fa-2x mb-2"></i>
+              <p>No endpoints configured. Add at least one endpoint to continue.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar -->
+      <div class="col-lg-4">
+        <!-- Credentials -->
+        <div class="card">
+          <div class="card-header">
+            <h5><i class="fas fa-key"></i> Credentials (Optional)</h5>
+          </div>
+          <div class="card-body" formGroupName="credentials">
+            <div class="mb-3">
+              <label for="credentialType" class="form-label">Credential Type</label>
+              <select 
+                id="credentialType" 
+                class="form-select" 
+                formControlName="type"
+                (change)="onCredentialTypeChange()">
+                <option value="">No Authentication</option>
+                <option *ngFor="let credType of credentialTypes" [value]="credType.value">
+                  {{ credType.label }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Basic Auth -->
+            <div *ngIf="integrationForm.get('credentials.type')?.value === 'basic'">
+              <div class="mb-3">
+                <label for="username" class="form-label">Username *</label>
+                <input 
+                  type="text" 
+                  id="username" 
+                  class="form-control" 
+                  formControlName="username"
+                  placeholder="Enter username">
+                <div *ngIf="getFieldError('username')" class="text-danger small mt-1">
+                  {{ getFieldError('username') }}
+                </div>
+              </div>
+              <div class="mb-3">
+                <label for="password" class="form-label">Password *</label>
+                <input 
+                  type="password" 
+                  id="password" 
+                  class="form-control" 
+                  formControlName="password"
+                  placeholder="Enter password">
+                <div *ngIf="getFieldError('password')" class="text-danger small mt-1">
+                  {{ getFieldError('password') }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Token -->
+            <div *ngIf="integrationForm.get('credentials.type')?.value === 'token'">
+              <div class="mb-3">
+                <label for="token" class="form-label">Bearer Token *</label>
+                <input 
+                  type="password" 
+                  id="token" 
+                  class="form-control" 
+                  formControlName="token"
+                  placeholder="Enter bearer token">
+                <div *ngIf="getFieldError('token')" class="text-danger small mt-1">
+                  {{ getFieldError('token') }}
+                </div>
+              </div>
+            </div>
+
+            <!-- API Key -->
+            <div *ngIf="integrationForm.get('credentials.type')?.value === 'api_key'">
+              <div class="mb-3">
+                <label for="apiKey" class="form-label">API Key *</label>
+                <input 
+                  type="password" 
+                  id="apiKey" 
+                  class="form-control" 
+                  formControlName="apiKey"
+                  placeholder="Enter API key">
+                <div *ngIf="getFieldError('apiKey')" class="text-danger small mt-1">
+                  {{ getFieldError('apiKey') }}
+                </div>
+              </div>
+            </div>
+
+            <!-- TLS Certificate -->
+            <div *ngIf="integrationForm.get('credentials.type')?.value === 'tls'">
+              <div class="mb-3">
+                <label for="certificate" class="form-label">Certificate *</label>
+                <textarea 
+                  id="certificate" 
+                  class="form-control" 
+                  formControlName="certificate"
+                  rows="4"
+                  placeholder="Paste your certificate here"></textarea>
+                <div *ngIf="getFieldError('certificate')" class="text-danger small mt-1">
+                  {{ getFieldError('certificate') }}
+                </div>
+              </div>
+              <div class="mb-3">
+                <label for="privateKey" class="form-label">Private Key *</label>
+                <textarea 
+                  id="privateKey" 
+                  class="form-control" 
+                  formControlName="privateKey"
+                  rows="4"
+                  placeholder="Paste your private key here"></textarea>
+                <div *ngIf="getFieldError('privateKey')" class="text-danger small mt-1">
+                  {{ getFieldError('privateKey') }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="card mt-4">
+          <div class="card-header">
+            <h5><i class="fas fa-tools"></i> Actions</h5>
+          </div>
+          <div class="card-body">
+            <div class="d-grid gap-2">
+              <button 
+                type="button" 
+                class="btn btn-outline-info" 
+                (click)="onTestConnection()"
+                [disabled]="!integrationForm.valid">
+                <i class="fas fa-plug"></i> Test Connection
+              </button>
+              <button 
+                type="submit" 
+                class="btn btn-primary" 
+                [disabled]="!integrationForm.valid || saving">
+                <i class="fas fa-save"></i> 
+                {{ saving ? 'Saving...' : (isEditMode ? 'Update' : 'Create') }} Integration
+              </button>
+              <button 
+                type="button" 
+                class="btn btn-outline-secondary" 
+                (click)="onCancel()">
+                <i class="fas fa-times"></i> Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+</div> 

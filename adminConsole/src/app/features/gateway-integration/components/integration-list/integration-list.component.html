@@ -1,0 +1,203 @@
+<div class="integration-list">
+  <!-- Header -->
+  <div class="header">
+    <h2>Gateway Integrations</h2>
+    <button class="btn btn-primary" (click)="router.navigate(['/gateway-integration/integrations/new'])">
+      <i class="fas fa-plus"></i> Add Integration
+    </button>
+  </div>
+
+  <!-- Error Alert -->
+  <div *ngIf="error" class="alert alert-danger alert-dismissible">
+    <span>{{ error }}</span>
+    <button type="button" class="btn-close" (click)="clearError()"></button>
+  </div>
+
+  <!-- Filters Section -->
+  <div class="filters-section">
+    <div class="row">
+      <div class="col-md-3">
+        <label for="gatewayType" class="form-label">Gateway Type</label>
+        <select 
+          id="gatewayType" 
+          class="form-select" 
+          [(ngModel)]="selectedGatewayType"
+          (change)="onGatewayTypeChange()">
+          <option *ngFor="let type of gatewayTypes" [value]="type.value">
+            {{ type.label }}
+          </option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label for="status" class="form-label">Status</label>
+        <select 
+          id="status" 
+          class="form-select" 
+          [(ngModel)]="selectedStatus"
+          (change)="onStatusChange()">
+          <option *ngFor="let status of statuses" [value]="status.value">
+            {{ status.label }}
+          </option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label for="search" class="form-label">Search</label>
+        <input 
+          type="text" 
+          id="search" 
+          class="form-control" 
+          placeholder="Search by name or type..."
+          [(ngModel)]="searchTerm"
+          (input)="onSearchChange()">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">&nbsp;</label>
+        <button class="btn btn-outline-secondary w-100" (click)="clearFilters()">
+          <i class="fas fa-times"></i> Clear
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Spinner -->
+  <div *ngIf="loading" class="text-center py-4">
+    <div class="spinner-border" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+
+  <!-- Integrations Table -->
+  <div *ngIf="!loading && paginatedIntegrations.length > 0" class="table-responsive">
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th>Health</th>
+          <th>Last Sync</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let integration of paginatedIntegrations">
+          <td>
+            <div class="integration-name">
+              <span class="gateway-icon">{{ getGatewayTypeIcon(integration.type) }}</span>
+              <strong>{{ integration.name }}</strong>
+            </div>
+          </td>
+          <td>
+            <span class="badge bg-secondary">{{ integration.type | titlecase }}</span>
+          </td>
+          <td>
+            <span class="badge" [ngClass]="'bg-' + getStatusColor(integration.status)">
+              {{ integration.status | titlecase }}
+            </span>
+          </td>
+          <td>
+            <div *ngIf="integration.health" class="health-status">
+              <span class="badge" [ngClass]="'bg-' + (integration.health.status === 'healthy' ? 'success' : 'danger')">
+                {{ integration.health.status }}
+              </span>
+              <small *ngIf="integration.health.latency" class="text-muted ms-2">
+                {{ integration.health.latency }}ms
+              </small>
+            </div>
+            <span *ngIf="!integration.health" class="text-muted">Unknown</span>
+          </td>
+          <td>
+            <span *ngIf="integration.lastSync" class="text-muted">
+              {{ formatDate(integration.lastSync) }}
+            </span>
+            <span *ngIf="!integration.lastSync" class="text-muted">Never</span>
+          </td>
+          <td>
+            <span class="text-muted">{{ formatDate(integration.createdAt) }}</span>
+          </td>
+          <td>
+            <div class="btn-group" role="group">
+              <button 
+                class="btn btn-sm btn-outline-primary" 
+                (click)="onViewIntegration(integration)"
+                title="View Details">
+                <i class="fas fa-eye"></i>
+              </button>
+              <button 
+                class="btn btn-sm btn-outline-secondary" 
+                (click)="onEditIntegration(integration)"
+                title="Edit">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button 
+                class="btn btn-sm btn-outline-info" 
+                (click)="onTestIntegration(integration)"
+                title="Test Connection">
+                <i class="fas fa-plug"></i>
+              </button>
+              <button 
+                class="btn btn-sm btn-outline-success" 
+                (click)="onSyncIntegration(integration)"
+                title="Sync Configuration">
+                <i class="fas fa-sync"></i>
+              </button>
+              <button 
+                class="btn btn-sm btn-outline-danger" 
+                (click)="onDeleteIntegration(integration)"
+                title="Delete">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!loading && paginatedIntegrations.length === 0" class="empty-state">
+    <div class="text-center py-5">
+      <i class="fas fa-plug fa-3x text-muted mb-3"></i>
+      <h4>No integrations found</h4>
+      <p class="text-muted">
+        {{ filteredIntegrations.length === 0 && integrations.length > 0 ? 'Try adjusting your filters.' : 'Get started by adding your first gateway integration.' }}
+      </p>
+      <button 
+        *ngIf="filteredIntegrations.length === 0 && integrations.length === 0"
+        class="btn btn-primary" 
+        (click)="router.navigate(['/gateway-integration/integrations/new'])">
+        <i class="fas fa-plus"></i> Add Integration
+      </button>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  <div *ngIf="totalPages > 1" class="pagination-section">
+    <nav aria-label="Integration pagination">
+      <ul class="pagination justify-content-center">
+        <li class="page-item" [class.disabled]="currentPage === 1">
+          <a class="page-link" (click)="onPageChange(currentPage - 1)" style="cursor: pointer;">
+            Previous
+          </a>
+        </li>
+        <li 
+          *ngFor="let page of pages" 
+          class="page-item" 
+          [class.active]="page === currentPage">
+          <a class="page-link" (click)="onPageChange(page)" style="cursor: pointer;">
+            {{ page }}
+          </a>
+        </li>
+        <li class="page-item" [class.disabled]="currentPage === totalPages">
+          <a class="page-link" (click)="onPageChange(currentPage + 1)" style="cursor: pointer;">
+            Next
+          </a>
+        </li>
+      </ul>
+    </nav>
+    <div class="text-center text-muted">
+      Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to {{ Math.min(currentPage * itemsPerPage, totalItems) }} of {{ totalItems }} integrations
+    </div>
+  </div>
+</div> 

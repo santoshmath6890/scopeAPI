@@ -1,0 +1,128 @@
+<div class="haproxy-integration">
+  <div class="header">
+    <h2><span class="gateway-icon">⚖️</span> HAProxy Gateway Management</h2>
+    <div class="header-actions">
+      <button class="btn btn-outline-info" (click)="onTestConnection()" [disabled]="!selectedIntegration">
+        <i class="fas fa-plug"></i> Test Connection
+      </button>
+      <button class="btn btn-outline-success" (click)="onSyncConfiguration()" [disabled]="!selectedIntegration">
+        <i class="fas fa-sync"></i> Sync Configuration
+      </button>
+    </div>
+  </div>
+
+  <!-- Error Alert -->
+  <div class="alert alert-danger" *ngIf="error" role="alert">
+    <i class="fas fa-exclamation-triangle"></i>
+    {{ error }}
+    <button type="button" class="btn-close" (click)="clearError()"></button>
+  </div>
+
+  <!-- Loading Spinner -->
+  <div class="loading-container" *ngIf="loading">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+
+  <!-- Integration Selection -->
+  <div class="integration-selection" *ngIf="!loading">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="fas fa-server"></i> Select HAProxy Instance</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <label for="integrationSelect" class="form-label">HAProxy Integration</label>
+            <select 
+              id="integrationSelect" 
+              class="form-select" 
+              [(ngModel)]="selectedIntegration"
+              (change)="selectIntegration(selectedIntegration!)">
+              <option [ngValue]="null">-- Select HAProxy Integration --</option>
+              <option *ngFor="let integration of haproxyIntegrations" [ngValue]="integration">
+                {{ integration.name }} ({{ integration.endpoints[0].url }})
+              </option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HAProxy Management Content -->
+  <div class="haproxy-content" *ngIf="selectedIntegration && !loading">
+    <div class="row">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h5>
+              <i class="fas fa-cogs"></i> 
+              HAProxy Configuration Management
+            </h5>
+            <span class="badge bg-info">{{ selectedIntegration.name }}</span>
+          </div>
+          <div class="card-body">
+            <div class="placeholder-content">
+              <div class="text-center py-5">
+                <i class="fas fa-tools fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">HAProxy Management Interface</h4>
+                <p class="text-muted">
+                  This interface will provide comprehensive HAProxy configuration management including:
+                </p>
+                <div class="row mt-4">
+                  <div class="col-md-3">
+                    <div class="feature-item">
+                      <i class="fas fa-list fa-2x text-primary mb-2"></i>
+                      <h6>Backend Management</h6>
+                      <small class="text-muted">Configure backend servers and load balancing</small>
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="feature-item">
+                      <i class="fas fa-route fa-2x text-success mb-2"></i>
+                      <h6>Frontend Rules</h6>
+                      <small class="text-muted">Manage frontend configurations and routing</small>
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="feature-item">
+                      <i class="fas fa-shield-alt fa-2x text-warning mb-2"></i>
+                      <h6>ACL Management</h6>
+                      <small class="text-muted">Configure access control lists</small>
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="feature-item">
+                      <i class="fas fa-chart-line fa-2x text-info mb-2"></i>
+                      <h6>Statistics</h6>
+                      <small class="text-muted">Monitor performance and health metrics</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- No Integrations State -->
+  <div class="no-integrations" *ngIf="!loading && haproxyIntegrations.length === 0">
+    <div class="card">
+      <div class="card-body text-center py-5">
+        <i class="fas fa-plus-circle fa-3x text-muted mb-3"></i>
+        <h4 class="text-muted">No HAProxy Integrations Found</h4>
+        <p class="text-muted">
+          You haven't configured any HAProxy integrations yet. 
+          Add your first HAProxy integration to get started.
+        </p>
+        <button class="btn btn-primary" routerLink="/gateway-integration/integrations/new">
+          <i class="fas fa-plus"></i> Add HAProxy Integration
+        </button>
+      </div>
+    </div>
+  </div>
+</div> 

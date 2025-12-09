@@ -1,0 +1,314 @@
+<div class="integration-details">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <button class="btn btn-outline-secondary" (click)="onBackToList()">
+        <i class="fas fa-arrow-left"></i> Back to List
+      </button>
+      <h2 *ngIf="integration">
+        <span class="gateway-icon">{{ getGatewayTypeIcon(integration.type) }}</span>
+        {{ integration.name }}
+      </h2>
+    </div>
+    <div class="header-actions" *ngIf="integration">
+      <button class="btn btn-outline-info" (click)="onTestConnection()" [disabled]="testing">
+        <i class="fas fa-plug"></i> {{ testing ? 'Testing...' : 'Test Connection' }}
+      </button>
+      <button class="btn btn-outline-success" (click)="onSyncConfiguration()" [disabled]="syncing">
+        <i class="fas fa-sync"></i> {{ syncing ? 'Syncing...' : 'Sync Configuration' }}
+      </button>
+      <button class="btn btn-outline-secondary" (click)="onEditIntegration()">
+        <i class="fas fa-edit"></i> Edit
+      </button>
+      <button class="btn btn-outline-danger" (click)="onDeleteIntegration()">
+        <i class="fas fa-trash"></i> Delete
+      </button>
+    </div>
+  </div>
+
+  <!-- Error Alert -->
+  <div *ngIf="error" class="alert alert-danger alert-dismissible">
+    <span>{{ error }}</span>
+    <button type="button" class="btn-close" (click)="clearError()"></button>
+  </div>
+
+  <!-- Loading Spinner -->
+  <div *ngIf="loading" class="text-center py-4">
+    <div class="spinner-border" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+
+  <!-- Integration Details -->
+  <div *ngIf="!loading && integration" class="details-container">
+    <div class="row">
+      <!-- Basic Information -->
+      <div class="col-lg-8">
+        <div class="card">
+          <div class="card-header">
+            <h5><i class="fas fa-info-circle"></i> Basic Information</h5>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6">
+                <div class="info-item">
+                  <label>Name</label>
+                  <span>{{ integration.name }}</span>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="info-item">
+                  <label>Gateway Type</label>
+                  <span>
+                    <span class="gateway-icon">{{ getGatewayTypeIcon(integration.type) }}</span>
+                    {{ getGatewayTypeDisplayName(integration.type) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-6">
+                <div class="info-item">
+                  <label>Status</label>
+                  <span class="badge" [ngClass]="'bg-' + getStatusColor(integration.status)">
+                    {{ integration.status | titlecase }}
+                  </span>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="info-item">
+                  <label>Created</label>
+                  <span>{{ formatDate(integration.createdAt) }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-6">
+                <div class="info-item">
+                  <label>Last Updated</label>
+                  <span>{{ formatDate(integration.updatedAt) }}</span>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="info-item">
+                  <label>Last Sync</label>
+                  <span>{{ integration.lastSync ? formatDate(integration.lastSync) : 'Never' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Health Status -->
+        <div class="card mt-4" *ngIf="integration.health">
+          <div class="card-header">
+            <h5><i class="fas fa-heartbeat"></i> Health Status</h5>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6">
+                <div class="info-item">
+                  <label>Status</label>
+                  <span class="badge" [ngClass]="'bg-' + getHealthStatusColor(integration.health)">
+                    {{ integration.health.status | titlecase }}
+                  </span>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="info-item">
+                  <label>Latency</label>
+                  <span>{{ integration.health.latency ? formatLatency(integration.health.latency) : 'Unknown' }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-12">
+                <div class="info-item">
+                  <label>Message</label>
+                  <span>{{ integration.health.message || 'No message available' }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="row" *ngIf="integration.health.lastCheck">
+              <div class="col-md-6">
+                <div class="info-item">
+                  <label>Last Check</label>
+                  <span>{{ formatDate(integration.health.lastCheck) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Configuration -->
+        <div class="card mt-4">
+          <div class="card-header">
+            <h5><i class="fas fa-cog"></i> Configuration</h5>
+          </div>
+          <div class="card-body">
+            <div *ngIf="Object.keys(integration.config).length === 0" class="text-muted">
+              No configuration available
+            </div>
+            <div *ngIf="Object.keys(integration.config).length > 0" class="config-grid">
+              <div 
+                *ngFor="let key of Object.keys(integration.config)" 
+                class="config-item">
+                <label>{{ key | titlecase }}</label>
+                <div class="config-value" [class.complex]="isConfigValueComplex(integration.config[key])">
+                  <span *ngIf="!isConfigValueComplex(integration.config[key])">
+                    {{ getConfigDisplayValue(integration.config[key]) }}
+                  </span>
+                  <pre *ngIf="isConfigValueComplex(integration.config[key])">{{ getConfigDisplayValue(integration.config[key]) }}</pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Endpoints -->
+        <div class="card mt-4">
+          <div class="card-header">
+            <h5><i class="fas fa-link"></i> Endpoints ({{ integration.endpoints.length }})</h5>
+          </div>
+          <div class="card-body">
+            <div *ngIf="integration.endpoints.length === 0" class="text-muted">
+              No endpoints configured
+            </div>
+            <div *ngIf="integration.endpoints.length > 0" class="endpoints-list">
+              <div 
+                *ngFor="let endpoint of integration.endpoints; let i = index" 
+                class="endpoint-item">
+                <div class="endpoint-header">
+                  <h6>{{ endpoint.name }}</h6>
+                  <span class="badge bg-secondary">{{ endpoint.protocol.toUpperCase() }}</span>
+                </div>
+                <div class="endpoint-details">
+                  <div class="endpoint-url">
+                    <strong>URL:</strong> {{ endpoint.url }}
+                  </div>
+                  <div class="endpoint-info">
+                    <span><strong>Port:</strong> {{ endpoint.port }}</span>
+                    <span><strong>Timeout:</strong> {{ formatLatency(endpoint.timeout) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar -->
+      <div class="col-lg-4">
+        <!-- Credentials -->
+        <div class="card" *ngIf="integration.credentials">
+          <div class="card-header">
+            <h5><i class="fas fa-key"></i> Credentials</h5>
+          </div>
+          <div class="card-body">
+            <div class="info-item">
+              <label>Type</label>
+              <span class="badge bg-info">{{ integration.credentials.type | titlecase }}</span>
+            </div>
+            
+            <div *ngIf="integration.credentials.username" class="info-item">
+              <label>Username</label>
+              <span>{{ getCredentialDisplayValue(integration.credentials.username) }}</span>
+            </div>
+            
+            <div *ngIf="integration.credentials.token" class="info-item">
+              <label>Token</label>
+              <span>{{ getCredentialDisplayValue(integration.credentials.token) }}</span>
+            </div>
+            
+            <div *ngIf="integration.credentials.apiKey" class="info-item">
+              <label>API Key</label>
+              <span>{{ getCredentialDisplayValue(integration.credentials.apiKey) }}</span>
+            </div>
+            
+            <div *ngIf="integration.credentials.certificate" class="info-item">
+              <label>Certificate</label>
+              <span class="text-muted">Configured (hidden for security)</span>
+            </div>
+            
+            <div *ngIf="integration.credentials.privateKey" class="info-item">
+              <label>Private Key</label>
+              <span class="text-muted">Configured (hidden for security)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Last Sync Result -->
+        <div class="card mt-4" *ngIf="lastSyncResult">
+          <div class="card-header">
+            <h5><i class="fas fa-sync"></i> Last Sync Result</h5>
+          </div>
+          <div class="card-body">
+            <div class="info-item">
+              <label>Status</label>
+              <span class="badge" [ngClass]="lastSyncResult.success ? 'bg-success' : 'bg-danger'">
+                {{ lastSyncResult.success ? 'Success' : 'Failed' }}
+              </span>
+            </div>
+            <div class="info-item">
+              <label>Message</label>
+              <span>{{ lastSyncResult.message }}</span>
+            </div>
+            <div class="info-item">
+              <label>Duration</label>
+              <span>{{ formatLatency(lastSyncResult.duration) }}</span>
+            </div>
+            <div class="info-item">
+              <label>Timestamp</label>
+              <span>{{ formatDate(lastSyncResult.timestamp) }}</span>
+            </div>
+            <div *ngIf="lastSyncResult.changes.length > 0" class="info-item">
+              <label>Changes</label>
+              <span class="badge bg-info">{{ lastSyncResult.changes.length }} changes</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card mt-4">
+          <div class="card-header">
+            <h5><i class="fas fa-tools"></i> Quick Actions</h5>
+          </div>
+          <div class="card-body">
+            <div class="d-grid gap-2">
+              <button 
+                class="btn btn-outline-info" 
+                (click)="onTestConnection()" 
+                [disabled]="testing">
+                <i class="fas fa-plug"></i> {{ testing ? 'Testing...' : 'Test Connection' }}
+              </button>
+              <button 
+                class="btn btn-outline-success" 
+                (click)="onSyncConfiguration()" 
+                [disabled]="syncing">
+                <i class="fas fa-sync"></i> {{ syncing ? 'Syncing...' : 'Sync Configuration' }}
+              </button>
+              <button class="btn btn-outline-secondary" (click)="onEditIntegration()">
+                <i class="fas fa-edit"></i> Edit Integration
+              </button>
+              <button class="btn btn-outline-danger" (click)="onDeleteIntegration()">
+                <i class="fas fa-trash"></i> Delete Integration
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Not Found -->
+  <div *ngIf="!loading && !integration" class="not-found">
+    <div class="text-center py-5">
+      <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+      <h4>Integration Not Found</h4>
+      <p class="text-muted">The requested integration could not be found or may have been deleted.</p>
+      <button class="btn btn-primary" (click)="onBackToList()">
+        <i class="fas fa-arrow-left"></i> Back to List
+      </button>
+    </div>
+  </div>
+</div> 

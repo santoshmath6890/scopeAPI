@@ -1,0 +1,9 @@
+<div class="app-container">
+  <app-header *ngIf="!isAuthPage()"></app-header>
+  <div class="main-content" [class.auth-layout]="isAuthPage()">
+    <app-sidebar *ngIf="!isAuthPage()"></app-sidebar>
+    <main class="content-area" [class.auth-content]="isAuthPage()">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>

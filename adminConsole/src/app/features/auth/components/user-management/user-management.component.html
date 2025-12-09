@@ -1,0 +1,161 @@
+<div class="dashboard-overview">
+  <div class="dashboard-header">
+    <h1>User Management</h1>
+    <p>Manage system users, roles, and permissions</p>
+  </div>
+
+  <div class="dashboard-actions">
+    <div class="action-card">
+      <h3>User Actions</h3>
+      <div class="action-buttons">
+        <button class="btn btn-primary" (click)="openCreateUserModal()">
+          <span class="icon">➕</span>
+          Create New User
+        </button>
+        <button class="btn btn-secondary" (click)="refreshUsers()">
+          <span class="icon">🔄</span>
+          Refresh
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="dashboard-stats">
+    <div class="stat-card">
+      <div class="stat-icon">👥</div>
+      <div class="stat-content">
+        <h3>Total Users</h3>
+        <div class="stat-value">{{ users.length }}</div>
+        <div class="stat-label">System users</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon">✅</div>
+      <div class="stat-content">
+        <h3>Active Users</h3>
+        <div class="stat-value">{{ getActiveUsersCount() }}</div>
+        <div class="stat-label">Currently active</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon">🔐</div>
+      <div class="stat-content">
+        <h3>Roles</h3>
+        <div class="stat-value">{{ getUniqueRolesCount() }}</div>
+        <div class="stat-label">User roles</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="content-section">
+    <div class="users-table">
+      <table>
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Last Login</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let user of users" [class.inactive]="!user.isActive">
+            <td>
+              <div class="user-info">
+                <div class="avatar">{{ user.username.charAt(0).toUpperCase() }}</div>
+                <div class="user-details">
+                  <strong>{{ user.username }}</strong>
+                  <small>ID: {{ user.id }}</small>
+                </div>
+              </div>
+            </td>
+            <td>{{ user.email }}</td>
+            <td>
+              <span class="role-badge" [class]="getRoleClass(user.role)">
+                {{ user.role }}
+              </span>
+            </td>
+            <td>
+              <span class="status-badge" [class]="user.isActive ? 'active' : 'inactive'">
+                {{ user.isActive ? 'Active' : 'Inactive' }}
+              </span>
+            </td>
+            <td>{{ user.lastLogin | date:'short' }}</td>
+            <td>
+              <div class="action-buttons">
+                <button class="btn-icon" (click)="editUser(user)" title="Edit User">
+                  ✏️
+                </button>
+                <button class="btn-icon" (click)="viewUserDetails(user)" title="View Details">
+                  👁️
+                </button>
+                <button 
+                  class="btn-icon danger" 
+                  (click)="deleteUser(user.id)" 
+                  title="Delete User"
+                  [disabled]="user.id === currentUser?.id"
+                >
+                  🗑️
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Create/Edit User Modal -->
+  <div class="modal" *ngIf="showUserModal" (click)="closeUserModal($event)">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>{{ editingUser ? 'Edit User' : 'Create New User' }}</h2>
+        <button class="close-btn" (click)="closeUserModal()">✕</button>
+      </div>
+      
+      <form [formGroup]="userForm" (ngSubmit)="saveUser()" class="modal-body">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" formControlName="username" placeholder="Enter username">
+        </div>
+        
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" formControlName="email" placeholder="Enter email">
+        </div>
+        
+        <div class="form-group">
+          <label for="role">Role</label>
+          <select id="role" formControlName="role">
+            <option value="">Select Role</option>
+            <option *ngFor="let role of userRoles" [value]="role">{{ role }}</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" formControlName="password" placeholder="Enter password">
+        </div>
+        
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" formControlName="isActive">
+            <span class="checkmark"></span>
+            Active User
+          </label>
+        </div>
+        
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" (click)="closeUserModal()">Cancel</button>
+          <button type="submit" class="btn-primary" [disabled]="userForm.invalid || isSaving">
+            {{ isSaving ? 'Saving...' : 'Save User' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

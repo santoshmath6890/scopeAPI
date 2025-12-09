@@ -1,0 +1,179 @@
+<div class="dashboard-overview">
+  <div class="dashboard-header">
+    <div class="breadcrumb">
+      <a routerLink="/dashboard" class="breadcrumb-link">Dashboard</a>
+      <span class="breadcrumb-separator">/</span>
+      <span class="breadcrumb-current">Access Policies</span>
+    </div>
+    <h1>Access Policies</h1>
+    <p>Manage access control policies and permissions</p>
+  </div>
+
+  <div class="dashboard-actions">
+    <div class="action-card">
+      <h3>Policy Actions</h3>
+      <div class="action-buttons">
+        <button class="btn btn-primary" (click)="openCreatePolicyModal()">
+          <span class="icon">➕</span>
+          Create New Policy
+        </button>
+        <button class="btn btn-secondary" (click)="refreshPolicies()">
+          <span class="icon">🔄</span>
+          Refresh
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="dashboard-stats">
+    <div class="stat-card">
+      <div class="stat-icon">🔐</div>
+      <div class="stat-content">
+        <h3>Total Policies</h3>
+        <div class="stat-value">{{ policies.length }}</div>
+        <div class="stat-label">Access policies</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon">✅</div>
+      <div class="stat-content">
+        <h3>Active Policies</h3>
+        <div class="stat-value">{{ getActivePoliciesCount() }}</div>
+        <div class="stat-label">Currently active</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon">🛡️</div>
+      <div class="stat-content">
+        <h3>Protected Resources</h3>
+        <div class="stat-value">{{ getUniqueResourcesCount() }}</div>
+        <div class="stat-label">Secured resources</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="content-section">
+    <div class="policies-grid">
+      <div class="policy-card" *ngFor="let policy of policies" [class.inactive]="!policy.isActive">
+        <div class="policy-header">
+          <h3>{{ policy.name }}</h3>
+          <span class="status-badge" [class]="policy.isActive ? 'active' : 'inactive'">
+            {{ policy.isActive ? 'Active' : 'Inactive' }}
+          </span>
+        </div>
+        
+        <div class="policy-description">
+          <p>{{ policy.description }}</p>
+        </div>
+        
+        <div class="policy-details">
+          <div class="detail-item">
+            <strong>Resources:</strong>
+            <span class="resources">
+              <span class="resource-tag" *ngFor="let resource of policy.resources">
+                {{ resource }}
+              </span>
+            </span>
+          </div>
+          
+          <div class="detail-item">
+            <strong>Actions:</strong>
+            <span class="actions">
+              <span class="action-tag" *ngFor="let action of policy.actions">
+                {{ action }}
+              </span>
+            </span>
+          </div>
+          
+          <div class="detail-item" *ngIf="hasConditions(policy.conditions)">
+            <strong>Conditions:</strong>
+            <div class="conditions">
+              <div *ngFor="let condition of getConditionsList(policy.conditions)">
+                <small>{{ condition.key }}: {{ condition.value }}</small>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="policy-footer">
+          <small>Created: {{ policy.createdAt | date:'short' }}</small>
+          <div class="policy-actions">
+            <button class="btn-icon" (click)="editPolicy(policy)" title="Edit Policy">
+              ✏️
+            </button>
+            <button class="btn-icon" (click)="viewPolicyDetails(policy)" title="View Details">
+              👁️
+            </button>
+            <button class="btn-icon danger" (click)="deletePolicy(policy.id)" title="Delete Policy">
+              🗑️
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create/Edit Policy Modal -->
+  <div class="modal" *ngIf="showPolicyModal" (click)="closePolicyModal($event)">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>{{ editingPolicy ? 'Edit Policy' : 'Create New Policy' }}</h2>
+        <button class="close-btn" (click)="closePolicyModal()">✕</button>
+      </div>
+      
+      <form [formGroup]="policyForm" (ngSubmit)="savePolicy()" class="modal-body">
+        <div class="form-group">
+          <label for="name">Policy Name</label>
+          <input type="text" id="name" formControlName="name" placeholder="Enter policy name">
+        </div>
+        
+        <div class="form-group">
+          <label for="description">Description</label>
+          <textarea id="description" formControlName="description" placeholder="Enter policy description" rows="3"></textarea>
+        </div>
+        
+        <div class="form-group">
+          <label for="resources">Resources</label>
+          <select id="resources" formControlName="resources" multiple>
+            <option value="dashboard">Dashboard</option>
+            <option value="api-discovery">API Discovery</option>
+            <option value="threat-detection">Threat Detection</option>
+            <option value="data-protection">Data Protection</option>
+            <option value="attack-protection">Attack Protection</option>
+            <option value="user-management">User Management</option>
+            <option value="access-policies">Access Policies</option>
+            <option value="*">All Resources (*)</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="actions">Actions</label>
+          <select id="actions" formControlName="actions" multiple>
+            <option value="read">Read</option>
+            <option value="write">Write</option>
+            <option value="delete">Delete</option>
+            <option value="create">Create</option>
+            <option value="*">All Actions (*)</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" formControlName="isActive">
+            <span class="checkmark"></span>
+            Active Policy
+          </label>
+        </div>
+        
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" (click)="closePolicyModal()">Cancel</button>
+          <button type="submit" class="btn-primary" [disabled]="policyForm.invalid || isSaving">
+            {{ isSaving ? 'Saving...' : 'Save Policy' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

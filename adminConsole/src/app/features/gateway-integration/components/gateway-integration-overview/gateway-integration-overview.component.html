@@ -1,0 +1,195 @@
+<div class="gateway-integration-overview">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-content">
+      <h1>Gateway Integration</h1>
+      <p>Manage and monitor your API gateway integrations</p>
+      <button class="btn btn-primary" (click)="onAddIntegration()">
+        <i class="fas fa-plus"></i>
+        Add Integration
+      </button>
+    </div>
+  </div>
+
+  <!-- Error Alert -->
+  <div *ngIf="error" class="alert alert-danger alert-dismissible" role="alert">
+    <i class="fas fa-exclamation-triangle"></i>
+    {{ error }}
+    <button type="button" class="btn-close" (click)="clearError()"></button>
+  </div>
+
+  <!-- Statistics Cards -->
+  <div class="stats-section">
+    <div class="row">
+      <div class="col-md-3">
+        <div class="stat-card">
+          <div class="stat-icon">
+            <i class="fas fa-server"></i>
+          </div>
+          <div class="stat-content">
+            <h3>{{ totalIntegrations }}</h3>
+            <p>Total Integrations</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stat-card stat-success">
+          <div class="stat-icon">
+            <i class="fas fa-check-circle"></i>
+          </div>
+          <div class="stat-content">
+            <h3>{{ activeIntegrations }}</h3>
+            <p>Active</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stat-card stat-warning">
+          <div class="stat-icon">
+            <i class="fas fa-exclamation-triangle"></i>
+          </div>
+          <div class="stat-content">
+            <h3>{{ errorIntegrations }}</h3>
+            <p>Errors</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stat-card stat-info">
+          <div class="stat-icon">
+            <i class="fas fa-clock"></i>
+          </div>
+          <div class="stat-content">
+            <h3>{{ pendingIntegrations }}</h3>
+            <p>Pending</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gateway Type Distribution -->
+  <div class="gateway-types-section">
+    <h2>Gateway Types</h2>
+    <div class="row">
+      <div class="col-md-2" *ngFor="let type of gatewayIntegrationService.getGatewayTypes()">
+        <div class="gateway-type-card" (click)="onGatewayTypeClick(type)">
+          <div class="gateway-type-icon">
+            <i class="fas fa-{{ getGatewayTypeIcon(type) }}"></i>
+          </div>
+          <div class="gateway-type-content">
+            <h4>{{ getGatewayTypeDisplayName(type) }}</h4>
+            <p>{{ gatewayTypeStats[type] || 0 }} integrations</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Integrations List -->
+  <div class="integrations-section">
+    <div class="section-header">
+      <h2>Integrations</h2>
+      <div class="section-actions">
+        <button class="btn btn-outline-secondary" (click)="loadIntegrations()" [disabled]="loading">
+          <i class="fas fa-sync-alt" [class.fa-spin]="loading"></i>
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div *ngIf="loading" class="loading-container">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+    </div>
+
+    <!-- Integrations Table -->
+    <div *ngIf="!loading && integrations.length > 0" class="table-responsive">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Health</th>
+            <th>Last Sync</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let integration of integrations">
+            <td>
+              <div class="integration-name">
+                <strong>{{ integration.name }}</strong>
+                <small class="text-muted d-block">{{ integration.id }}</small>
+              </div>
+            </td>
+            <td>
+              <span class="badge badge-secondary">
+                <i class="fas fa-{{ getGatewayTypeIcon(integration.type) }}"></i>
+                {{ getGatewayTypeDisplayName(integration.type) }}
+              </span>
+            </td>
+            <td>
+              <span class="badge badge-{{ getStatusColor(integration.status) }}">
+                {{ getStatusDisplayName(integration.status) }}
+              </span>
+            </td>
+            <td>
+              <div *ngIf="integration.health" class="health-status">
+                <span class="badge badge-{{ getHealthStatusColor(integration.health.status) }}">
+                  {{ integration.health.status }}
+                </span>
+                <small class="text-muted d-block">{{ formatLatency(integration.health.latency) }}</small>
+              </div>
+              <span *ngIf="!integration.health" class="text-muted">Unknown</span>
+            </td>
+            <td>
+              <span *ngIf="integration.lastSync" class="text-muted">
+                {{ formatDate(integration.lastSync) }}
+              </span>
+              <span *ngIf="!integration.lastSync" class="text-muted">Never</span>
+            </td>
+            <td>
+              <div class="btn-group" role="group">
+                <button class="btn btn-sm btn-outline-primary" (click)="onViewIntegration(integration)" title="View">
+                  <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" (click)="onEditIntegration(integration)" title="Edit">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-info" (click)="onTestIntegration(integration)" title="Test">
+                  <i class="fas fa-heartbeat"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-success" (click)="onSyncIntegration(integration)" title="Sync">
+                  <i class="fas fa-sync-alt"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" (click)="onDeleteIntegration(integration)" title="Delete">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!loading && integrations.length === 0" class="empty-state">
+      <div class="empty-state-content">
+        <i class="fas fa-server empty-state-icon"></i>
+        <h3>No Integrations Found</h3>
+        <p>Get started by adding your first gateway integration.</p>
+        <button class="btn btn-primary" (click)="onAddIntegration()">
+          <i class="fas fa-plus"></i>
+          Add Integration
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Router Outlet for Child Routes -->
+  <router-outlet></router-outlet>
+</div> 

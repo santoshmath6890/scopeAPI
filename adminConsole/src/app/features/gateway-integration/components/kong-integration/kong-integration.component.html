@@ -1,0 +1,383 @@
+<div class="kong-integration">
+  <!-- Header -->
+  <div class="header">
+    <h2><span class="gateway-icon">🔗</span> Kong Gateway Management</h2>
+    <div class="header-actions">
+      <button class="btn btn-outline-info" (click)="onTestConnection()" [disabled]="!selectedIntegration">
+        <i class="fas fa-plug"></i> Test Connection
+      </button>
+      <button class="btn btn-outline-success" (click)="onSyncConfiguration()" [disabled]="!selectedIntegration">
+        <i class="fas fa-sync"></i> Sync Configuration
+      </button>
+    </div>
+  </div>
+
+  <!-- Error Alert -->
+  <div *ngIf="error" class="alert alert-danger alert-dismissible">
+    <span>{{ error }}</span>
+    <button type="button" class="btn-close" (click)="clearError()"></button>
+  </div>
+
+  <!-- Loading Spinner -->
+  <div *ngIf="loading" class="text-center py-4">
+    <div class="spinner-border" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+
+  <!-- Kong Management Interface -->
+  <div *ngIf="!loading" class="kong-interface">
+    <div class="row">
+      <!-- Integration Selection -->
+      <div class="col-lg-3">
+        <div class="card">
+          <div class="card-header">
+            <h5><i class="fas fa-server"></i> Kong Instances</h5>
+          </div>
+          <div class="card-body">
+            <div *ngIf="kongIntegrations.length === 0" class="text-muted">
+              No Kong integrations found
+            </div>
+            <div *ngIf="kongIntegrations.length > 0" class="integration-list">
+              <div 
+                *ngFor="let integration of kongIntegrations" 
+                class="integration-item"
+                [class.selected]="selectedIntegration?.id === integration.id"
+                (click)="selectIntegration(integration)">
+                <div class="integration-info">
+                  <h6>{{ integration.name }}</h6>
+                  <span class="badge" [ngClass]="'bg-' + (integration.status === 'active' ? 'success' : 'warning')">
+                    {{ integration.status }}
+                  </span>
+                </div>
+                <div class="integration-health" *ngIf="integration.health">
+                  <span class="badge" [ngClass]="'bg-' + (integration.health.status === 'healthy' ? 'success' : 'danger')">
+                    {{ integration.health.status }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Kong Management Content -->
+      <div class="col-lg-9">
+        <div *ngIf="!selectedIntegration" class="no-selection">
+          <div class="text-center py-5">
+            <i class="fas fa-server fa-3x text-muted mb-3"></i>
+            <h4>Select a Kong Instance</h4>
+            <p class="text-muted">Choose a Kong integration from the list to manage its configuration.</p>
+          </div>
+        </div>
+
+        <div *ngIf="selectedIntegration" class="kong-content">
+          <!-- Kong Overview -->
+          <div class="card mb-4">
+            <div class="card-header">
+              <h5><i class="fas fa-info-circle"></i> Kong Overview - {{ selectedIntegration.name }}</h5>
+            </div>
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-3">
+                  <div class="stat-item">
+                    <div class="stat-value">{{ services.length }}</div>
+                    <div class="stat-label">Services</div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="stat-item">
+                    <div class="stat-value">{{ routes.length }}</div>
+                    <div class="stat-label">Routes</div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="stat-item">
+                    <div class="stat-value">{{ plugins.length }}</div>
+                    <div class="stat-label">Plugins</div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="stat-item">
+                    <div class="stat-value">{{ consumers.length }}</div>
+                    <div class="stat-label">Consumers</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Kong Tabs -->
+          <div class="card">
+            <div class="card-header">
+              <ul class="nav nav-tabs card-header-tabs" id="kongTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link active" id="services-tab" data-bs-toggle="tab" data-bs-target="#services" type="button" role="tab">
+                    <i class="fas fa-cogs"></i> Services
+                  </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="routes-tab" data-bs-toggle="tab" data-bs-target="#routes" type="button" role="tab">
+                    <i class="fas fa-route"></i> Routes
+                  </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="plugins-tab" data-bs-toggle="tab" data-bs-target="#plugins" type="button" role="tab">
+                    <i class="fas fa-puzzle-piece"></i> Plugins
+                  </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="consumers-tab" data-bs-toggle="tab" data-bs-target="#consumers" type="button" role="tab">
+                    <i class="fas fa-users"></i> Consumers
+                  </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="upstreams-tab" data-bs-toggle="tab" data-bs-target="#upstreams" type="button" role="tab">
+                    <i class="fas fa-network-wired"></i> Upstreams
+                  </button>
+                </li>
+              </ul>
+            </div>
+            <div class="card-body">
+              <div class="tab-content" id="kongTabContent">
+                <!-- Services Tab -->
+                <div class="tab-pane fade show active" id="services" role="tabpanel">
+                  <div class="tab-header">
+                    <h6>Services</h6>
+                    <button class="btn btn-sm btn-primary" (click)="onAddService()">
+                      <i class="fas fa-plus"></i> Add Service
+                    </button>
+                  </div>
+                  <div class="table-responsive">
+                    <table class="table table-hover">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>URL</th>
+                          <th>Protocol</th>
+                          <th>Status</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let service of services">
+                          <td><strong>{{ service.name }}</strong></td>
+                          <td>{{ service.url }}</td>
+                          <td><span class="badge bg-secondary">{{ service.protocol }}</span></td>
+                          <td><span class="badge bg-success">{{ getServiceStatus(service) }}</span></td>
+                          <td>
+                            <div class="btn-group btn-group-sm">
+                              <button class="btn btn-outline-secondary" (click)="onEditService(service)">
+                                <i class="fas fa-edit"></i>
+                              </button>
+                              <button class="btn btn-outline-danger" (click)="onDeleteService(service)">
+                                <i class="fas fa-trash"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- Routes Tab -->
+                <div class="tab-pane fade" id="routes" role="tabpanel">
+                  <div class="tab-header">
+                    <h6>Routes</h6>
+                    <button class="btn btn-sm btn-primary" (click)="onAddRoute()">
+                      <i class="fas fa-plus"></i> Add Route
+                    </button>
+                  </div>
+                  <div class="table-responsive">
+                    <table class="table table-hover">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Protocols</th>
+                          <th>Methods</th>
+                          <th>Hosts</th>
+                          <th>Paths</th>
+                          <th>Status</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let route of routes">
+                          <td><strong>{{ route.name }}</strong></td>
+                          <td>
+                            <span *ngFor="let protocol of route.protocols" class="badge bg-info me-1">
+                              {{ protocol }}
+                            </span>
+                          </td>
+                          <td>
+                            <span *ngFor="let method of route.methods" class="badge bg-secondary me-1">
+                              {{ method }}
+                            </span>
+                          </td>
+                          <td>{{ route.hosts.join(', ') }}</td>
+                          <td>{{ route.paths.join(', ') }}</td>
+                          <td><span class="badge bg-success">{{ getRouteStatus(route) }}</span></td>
+                          <td>
+                            <div class="btn-group btn-group-sm">
+                              <button class="btn btn-outline-secondary" (click)="onEditRoute(route)">
+                                <i class="fas fa-edit"></i>
+                              </button>
+                              <button class="btn btn-outline-danger" (click)="onDeleteRoute(route)">
+                                <i class="fas fa-trash"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- Plugins Tab -->
+                <div class="tab-pane fade" id="plugins" role="tabpanel">
+                  <div class="tab-header">
+                    <h6>Plugins</h6>
+                    <button class="btn btn-sm btn-primary" (click)="onAddPlugin()">
+                      <i class="fas fa-plus"></i> Add Plugin
+                    </button>
+                  </div>
+                  <div class="table-responsive">
+                    <table class="table table-hover">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Service</th>
+                          <th>Configuration</th>
+                          <th>Status</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let plugin of plugins">
+                          <td>
+                            <span class="plugin-icon">{{ getPluginIcon(plugin.name) }}</span>
+                            <strong>{{ plugin.name }}</strong>
+                          </td>
+                          <td>{{ plugin.service_id }}</td>
+                          <td>
+                            <small class="text-muted">
+                              {{ JSON.stringify(plugin.config) | slice:0:50 }}{{ JSON.stringify(plugin.config).length > 50 ? '...' : '' }}
+                            </small>
+                          </td>
+                          <td>
+                            <span class="badge" [ngClass]="plugin.enabled ? 'bg-success' : 'bg-secondary'">
+                              {{ getPluginStatus(plugin) }}
+                            </span>
+                          </td>
+                          <td>
+                            <div class="btn-group btn-group-sm">
+                              <button class="btn btn-outline-secondary" (click)="onEditPlugin(plugin)">
+                                <i class="fas fa-edit"></i>
+                              </button>
+                              <button class="btn btn-outline-danger" (click)="onDeletePlugin(plugin)">
+                                <i class="fas fa-trash"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- Consumers Tab -->
+                <div class="tab-pane fade" id="consumers" role="tabpanel">
+                  <div class="tab-header">
+                    <h6>Consumers</h6>
+                    <button class="btn btn-sm btn-primary" (click)="onAddConsumer()">
+                      <i class="fas fa-plus"></i> Add Consumer
+                    </button>
+                  </div>
+                  <div class="table-responsive">
+                    <table class="table table-hover">
+                      <thead>
+                        <tr>
+                          <th>Username</th>
+                          <th>Custom ID</th>
+                          <th>Tags</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let consumer of consumers">
+                          <td><strong>{{ consumer.username }}</strong></td>
+                          <td>{{ consumer.custom_id }}</td>
+                          <td>
+                            <span *ngFor="let tag of consumer.tags" class="badge bg-info me-1">
+                              {{ tag }}
+                            </span>
+                          </td>
+                          <td>
+                            <div class="btn-group btn-group-sm">
+                              <button class="btn btn-outline-secondary">
+                                <i class="fas fa-edit"></i>
+                              </button>
+                              <button class="btn btn-outline-danger">
+                                <i class="fas fa-trash"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- Upstreams Tab -->
+                <div class="tab-pane fade" id="upstreams" role="tabpanel">
+                  <div class="tab-header">
+                    <h6>Upstreams</h6>
+                    <button class="btn btn-sm btn-primary" (click)="onAddUpstream()">
+                      <i class="fas fa-plus"></i> Add Upstream
+                    </button>
+                  </div>
+                  <div class="table-responsive">
+                    <table class="table table-hover">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Algorithm</th>
+                          <th>Slots</th>
+                          <th>Health Checks</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let upstream of upstreams">
+                          <td><strong>{{ upstream.name }}</strong></td>
+                          <td><span class="badge bg-secondary">{{ upstream.algorithm }}</span></td>
+                          <td>{{ upstream.slots }}</td>
+                          <td>
+                            <span class="badge" [ngClass]="upstream.health_checks?.active ? 'bg-success' : 'bg-secondary'">
+                              {{ upstream.health_checks?.active ? 'Active' : 'Inactive' }}
+                            </span>
+                          </td>
+                          <td>
+                            <div class="btn-group btn-group-sm">
+                              <button class="btn btn-outline-secondary">
+                                <i class="fas fa-edit"></i>
+                              </button>
+                              <button class="btn btn-outline-danger">
+                                <i class="fas fa-trash"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div> 
