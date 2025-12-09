@@ -255,6 +255,8 @@ For detailed performance characteristics, scalability features, and security arc
 
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
+**ScopeAPI** is owned by **[advaith.ai](https://advaith.ai)**.
+
 ## 🙏 **Acknowledgments**
 
 - **Open Source Contributors** - For making this project possible
