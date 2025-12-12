@@ -7,6 +7,8 @@
 
 **ScopeAPI** is a comprehensive **cloud API security management platform** designed to protect, monitor, and manage APIs in modern distributed systems. It provides a unified approach to API security and cloud security across multiple domains with enterprise-grade capabilities.
 
+**ScopeAPI** is maintained by **[advaith.ai](https://advaith.ai)**.
+
 ## 🎯 **What is ScopeAPI?**
 
 ScopeAPI is an **open-source cloud security platform** that helps organizations secure their APIs and cloud infrastructure through:
@@ -255,7 +257,6 @@ For detailed performance characteristics, scalability features, and security arc
 
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
-**ScopeAPI** is owned by **[advaith.ai](https://advaith.ai)**.
 
 ## 🙏 **Acknowledgments**
 
