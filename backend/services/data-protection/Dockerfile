@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.22-alpine AS builder
 
 # Install git and ca-certificates
 RUN apk add --no-cache git ca-certificates
@@ -8,16 +8,21 @@ RUN apk add --no-cache git ca-certificates
 WORKDIR /app
 
 # Copy go mod files
-COPY go.mod go.sum ./
+# Copy shared modules
+COPY shared/ ./shared/
+COPY services/data-protection/go.mod services/data-protection/go.sum* ./services/data-protection/
+
+# Set working directory to service directory for dependency download
+WORKDIR /app/services/data-protection
 
 # Download dependencies
 RUN go mod download
 
 # Copy source code
-COPY . .
+COPY services/data-protection/ .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o data-protection-service ./cmd/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o data-protection-service cmd/main.go
 
 # Final stage
 FROM alpine:latest
@@ -33,10 +38,10 @@ RUN addgroup -g 1001 -S appgroup && \
 WORKDIR /app
 
 # Copy binary from builder stage
-COPY --from=builder /app/data-protection-service .
+COPY --from=builder /app/services/data-protection/data-protection-service .
 
 # Copy config files if they exist
-COPY --from=builder /app/config ./config
+COPY --from=builder /app/services/data-protection/config* ./config/
 
 # Change ownership to non-root user
 RUN chown -R appuser:appgroup /app

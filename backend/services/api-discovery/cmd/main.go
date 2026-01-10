@@ -14,9 +14,9 @@ import (
 	"scopeapi.local/backend/services/api-discovery/internal/handlers"
 	"scopeapi.local/backend/services/api-discovery/internal/repository"
 	"scopeapi.local/backend/services/api-discovery/internal/services"
-	"shared/database/postgresql"
-	"shared/logging"
-	"shared/monitoring/health"
+	"scopeapi.local/backend/shared/database/postgresql"
+	"scopeapi.local/backend/shared/logging"
+	"scopeapi.local/backend/shared/monitoring/health"
 )
 
 // getEnv gets an environment variable or returns a default value

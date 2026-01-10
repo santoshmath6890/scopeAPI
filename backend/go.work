@@ -1,6 +1,12 @@
 go 1.22.2
 
 use (
+	./services/admin-console
 	./services/api-discovery
+	./services/attack-blocking
+	./services/data-ingestion
+	./services/data-protection
+	./services/gateway-integration
+	./services/threat-detection
 	./shared
 )

@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"data-protection/internal/models"
 	"data-protection/internal/services"
-	"shared/logging"
+	"scopeapi.local/backend/shared/logging"
 )
 
 type ClassificationHandler struct {

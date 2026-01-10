@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.22-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata
@@ -10,7 +10,10 @@ WORKDIR /app
 # Copy go mod files
 # Copy shared modules
 COPY shared/ ./shared/
-COPY services/gateway-integration/go.mod services/gateway-integration/go.sum ./
+COPY services/gateway-integration/go.mod services/gateway-integration/go.sum* ./services/gateway-integration/
+
+# Set working directory to service directory for dependency download
+WORKDIR /app/services/gateway-integration
 
 # Download dependencies
 RUN go mod download
@@ -19,7 +22,7 @@ RUN go mod download
 COPY services/gateway-integration/ .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o gateway-integration ./cmd/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o gateway-integration cmd/main.go
 
 # Final stage
 FROM alpine:latest
@@ -35,10 +38,10 @@ RUN addgroup -g 1001 -S appgroup && \
 WORKDIR /app
 
 # Copy binary from builder stage
-COPY --from=builder /app/gateway-integration .
+COPY --from=builder /app/services/gateway-integration/gateway-integration .
 
 # Copy configuration files
-COPY --from=builder /app/config ./config
+COPY --from=builder /app/services/gateway-integration/config* ./config/
 
 # Change ownership to non-root user
 RUN chown -R appuser:appgroup /app

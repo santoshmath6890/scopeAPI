@@ -1,0 +1,63 @@
+# Debug Dockerfile for Gateway Integration Service
+# Includes Delve debugger and debug symbols
+
+FROM golang:1.21-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache git ca-certificates tzdata
+
+# Install Delve debugger
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
+
+# Set working directory
+WORKDIR /app
+
+# Copy go mod files
+COPY go.mod go.sum ./
+
+# Download dependencies
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the application with debug symbols
+RUN CGO_ENABLED=0 GOOS=linux go build -gcflags="all=-N -l" -o gateway-integration ./cmd/main.go
+
+# Debug stage
+FROM alpine:latest
+
+# Install runtime dependencies
+RUN apk --no-cache add ca-certificates tzdata wget
+
+# Install Delve debugger
+COPY --from=builder /go/bin/dlv /usr/local/bin/dlv
+
+# Create non-root user
+RUN addgroup -g 1001 -S scopeapi && \
+    adduser -u 1001 -S scopeapi -G scopeapi
+
+# Set working directory
+WORKDIR /app
+
+# Copy binary from builder stage
+COPY --from=builder /app/gateway-integration .
+
+# Copy configuration files
+COPY --from=builder /app/config ./config
+
+# Change ownership to non-root user
+RUN chown -R scopeapi:scopeapi /app
+
+# Switch to non-root user
+USER scopeapi
+
+# Expose ports
+EXPOSE 8081 2345
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8081/health || exit 1
+
+# Default command (can be overridden by docker-compose.debug.yml)
+CMD ["./gateway-integration"]

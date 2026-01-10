@@ -6,14 +6,16 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"data-protection/internal/models"
 	"data-protection/internal/repository"
-	"shared/logging"
-	"shared/messaging/kafka"
+
+	"github.com/google/uuid"
+	"scopeapi.local/backend/shared/logging"
+	"scopeapi.local/backend/shared/messaging/kafka"
 )
 
 type RiskScoringServiceInterface interface {
@@ -106,13 +108,13 @@ func (s *RiskScoringService) loadDefaultRiskProfiles() {
 			Category:    models.RiskCategoryHigh,
 			BaseScore:   60.0,
 			Multipliers: map[string]float64{
-				"pii_detected":      2.0,
-				"public_endpoint":   1.8,
-				"encrypted":         0.6,
-				"internal_network":  0.7,
-				"sensitive_data":    1.8,
-				"financial_data":    2.2,
-				"health_data":       2.5,
+				"pii_detected":     2.0,
+				"public_endpoint":  1.8,
+				"encrypted":        0.6,
+				"internal_network": 0.7,
+				"sensitive_data":   1.8,
+				"financial_data":   2.2,
+				"health_data":      2.5,
 			},
 			Thresholds: models.RiskThresholds{
 				Low:      0.0,
@@ -129,14 +131,14 @@ func (s *RiskScoringService) loadDefaultRiskProfiles() {
 			Category:    models.RiskCategoryCritical,
 			BaseScore:   80.0,
 			Multipliers: map[string]float64{
-				"pii_detected":      2.5,
-				"public_endpoint":   2.2,
-				"encrypted":         0.5,
-				"internal_network":  0.6,
-				"sensitive_data":    2.2,
-				"financial_data":    2.8,
-				"health_data":       3.0,
-				"government_data":   3.2,
+				"pii_detected":     2.5,
+				"public_endpoint":  2.2,
+				"encrypted":        0.5,
+				"internal_network": 0.6,
+				"sensitive_data":   2.2,
+				"financial_data":   2.8,
+				"health_data":      3.0,
+				"government_data":  3.2,
 			},
 			Thresholds: models.RiskThresholds{
 				Low:      0.0,
@@ -268,11 +270,11 @@ func (s *RiskScoringService) loadDefaultScoringRules() {
 
 func (s *RiskScoringService) setupDefaultWeights() {
 	s.weights = &models.RiskWeights{
-		DataSensitivity:    0.30,
-		ExposureLevel:      0.25,
-		AccessControls:     0.20,
-		Vulnerabilities:    0.15,
-		ComplianceStatus:   0.10,
+		DataSensitivity:  0.30,
+		ExposureLevel:    0.25,
+		AccessControls:   0.20,
+		Vulnerabilities:  0.15,
+		ComplianceStatus: 0.10,
 	}
 }
 
@@ -1076,12 +1078,12 @@ func (s *RiskScoringService) GetRiskTrends(ctx context.Context, filter *models.R
 			},
 		},
 		Summary: models.RiskTrendSummary{
-			TotalAssessments:    492,
-			AverageScore:        44.0,
-			ScoreChange:         -2.4,
-			TrendDirection:      "improving",
-			HighestRiskAPI:      "payment-api",
-			MostCommonRiskType:  "data_exposure",
+			TotalAssessments:   492,
+			AverageScore:       44.0,
+			ScoreChange:        -2.4,
+			TrendDirection:     "improving",
+			HighestRiskAPI:     "payment-api",
+			MostCommonRiskType: "data_exposure",
 		},
 		Recommendations: []string{
 			"Risk scores are trending downward - continue current security measures",
@@ -1122,19 +1124,19 @@ func (s *RiskScoringService) GenerateRiskReport(ctx context.Context, filter *mod
 func (s *RiskScoringService) publishRiskEvents(ctx context.Context, result *models.RiskScoringResult, request *models.RiskScoringRequest) error {
 	// Publish risk assessment event
 	assessmentEvent := map[string]interface{}{
-		"event_type":       "risk_assessment_completed",
-		"request_id":       request.RequestID,
-		"api_id":           request.APIID,
-		"endpoint_id":      request.EndpointID,
-		"risk_score":       result.RiskScore,
-		"risk_level":       result.RiskLevel,
-		"profile_used":     result.ProfileUsed,
-		"applied_rules":    result.AppliedRules,
-		"recommendations":  result.Recommendations,
-		"processing_time":  result.ProcessingTime.Milliseconds(),
-		"ip_address":       request.IPAddress,
-		"user_agent":       request.UserAgent,
-		"timestamp":        result.CalculatedAt,
+		"event_type":      "risk_assessment_completed",
+		"request_id":      request.RequestID,
+		"api_id":          request.APIID,
+		"endpoint_id":     request.EndpointID,
+		"risk_score":      result.RiskScore,
+		"risk_level":      result.RiskLevel,
+		"profile_used":    result.ProfileUsed,
+		"applied_rules":   result.AppliedRules,
+		"recommendations": result.Recommendations,
+		"processing_time": result.ProcessingTime.Milliseconds(),
+		"ip_address":      request.IPAddress,
+		"user_agent":      request.UserAgent,
+		"timestamp":       result.CalculatedAt,
 	}
 
 	eventJSON, err := json.Marshal(assessmentEvent)
@@ -1155,15 +1157,15 @@ func (s *RiskScoringService) publishRiskEvents(ctx context.Context, result *mode
 	// Publish high-risk alert if needed
 	if result.RiskLevel == models.RiskLevelHigh || result.RiskLevel == models.RiskLevelCritical {
 		alertEvent := map[string]interface{}{
-			"event_type":    "high_risk_alert",
-			"request_id":    request.RequestID,
-			"api_id":        request.APIID,
-			"endpoint_id":   request.EndpointID,
-			"risk_score":    result.RiskScore,
-			"risk_level":    result.RiskLevel,
-			"alert_level":   "high",
-			"message":       fmt.Sprintf("High risk detected: %s (Score: %.2f)", result.RiskLevel, result.RiskScore),
-			"timestamp":     time.Now(),
+			"event_type":  "high_risk_alert",
+			"request_id":  request.RequestID,
+			"api_id":      request.APIID,
+			"endpoint_id": request.EndpointID,
+			"risk_score":  result.RiskScore,
+			"risk_level":  result.RiskLevel,
+			"alert_level": "high",
+			"message":     fmt.Sprintf("High risk detected: %s (Score: %.2f)", result.RiskLevel, result.RiskScore),
+			"timestamp":   time.Now(),
 		}
 
 		alertJSON, err := json.Marshal(alertEvent)

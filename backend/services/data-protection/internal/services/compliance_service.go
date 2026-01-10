@@ -13,8 +13,8 @@ import (
 	"github.com/google/uuid"
 	"data-protection/internal/models"
 	"data-protection/internal/repository"
-	"shared/logging"
-	"shared/messaging/kafka"
+	"scopeapi.local/backend/shared/logging"
+	"scopeapi.local/backend/shared/messaging/kafka"
 )
 
 type ComplianceServiceInterface interface {

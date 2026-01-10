@@ -48,7 +48,7 @@ services:
     container_name: scopeapi-postgres
     hostname: postgres
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-scopeapi}
       POSTGRES_USER: ${POSTGRES_USER:-scopeapi}
@@ -61,7 +61,7 @@ services:
       - scopeapi-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U scopeapi -d scopeapi"]
+      test: [ "CMD-SHELL", "pg_isready -U scopeapi -d scopeapi" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -72,7 +72,7 @@ services:
     container_name: scopeapi-redis
     hostname: redis
     ports:
-      - "6379:6379"
+      - "6380:6379"
     command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
     volumes:
       - scopeapi-redis-data:/data
@@ -80,7 +80,7 @@ services:
       - scopeapi-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -104,7 +104,7 @@ services:
       - scopeapi-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      test: [ "CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -127,7 +127,7 @@ services:
       - scopeapi-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      test: [ "CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -149,7 +149,7 @@ services:
       - scopeapi-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -174,7 +174,7 @@ services:
       - scopeapi-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8086/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -187,8 +187,6 @@ services:
   api-discovery:
     build:
       context: ../backend
-      dockerfile: services/api-discovery/Dockerfile
-      dockerfile: services/gateway-integration/Dockerfile
       dockerfile: services/api-discovery/Dockerfile
     hostname: api-discovery
     ports:
@@ -211,7 +209,7 @@ services:
       - scopeapi-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -221,9 +219,7 @@ services:
   gateway-integration:
     build:
       context: ../backend
-      dockerfile: services/api-discovery/Dockerfile
       dockerfile: services/gateway-integration/Dockerfile
-      dockerfile: services/api-discovery/Dockerfile
     container_name: scopeapi-gateway-integration
     hostname: gateway-integration
     ports:
@@ -246,7 +242,7 @@ services:
       - scopeapi-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -256,9 +252,7 @@ services:
   data-ingestion:
     build:
       context: ../backend
-      dockerfile: services/api-discovery/Dockerfile
-      dockerfile: services/gateway-integration/Dockerfile
-      dockerfile: services/api-discovery/Dockerfile
+      dockerfile: services/data-ingestion/Dockerfile
     container_name: scopeapi-data-ingestion
     hostname: data-ingestion
     ports:
@@ -281,7 +275,7 @@ services:
       - scopeapi-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -291,9 +285,7 @@ services:
   threat-detection:
     build:
       context: ../backend
-      dockerfile: services/api-discovery/Dockerfile
-      dockerfile: services/gateway-integration/Dockerfile
-      dockerfile: services/api-discovery/Dockerfile
+      dockerfile: services/threat-detection/Dockerfile
     container_name: scopeapi-threat-detection
     hostname: threat-detection
     ports:
@@ -316,7 +308,7 @@ services:
       - scopeapi-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8083/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8083/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -326,9 +318,7 @@ services:
   data-protection:
     build:
       context: ../backend
-      dockerfile: services/api-discovery/Dockerfile
-      dockerfile: services/gateway-integration/Dockerfile
-      dockerfile: services/api-discovery/Dockerfile
+      dockerfile: services/data-protection/Dockerfile
     container_name: scopeapi-data-protection
     hostname: data-protection
     ports:
@@ -351,7 +341,7 @@ services:
       - scopeapi-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8084/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8084/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -361,9 +351,7 @@ services:
   attack-blocking:
     build:
       context: ../backend
-      dockerfile: services/api-discovery/Dockerfile
-      dockerfile: services/gateway-integration/Dockerfile
-      dockerfile: services/api-discovery/Dockerfile
+      dockerfile: services/attack-blocking/Dockerfile
     container_name: scopeapi-attack-blocking
     hostname: attack-blocking
     ports:
@@ -386,7 +374,7 @@ services:
       - scopeapi-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8085/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8085/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -395,10 +383,8 @@ services:
   # Admin Console Service
   admin-console:
     build:
-      context: ../backend
-      dockerfile: services/api-discovery/Dockerfile
-      dockerfile: services/gateway-integration/Dockerfile
-      dockerfile: services/api-discovery/Dockerfile
+      context: ..
+      dockerfile: backend/services/admin-console/Dockerfile
     container_name: scopeapi-admin-console
     hostname: admin-console
     ports:
@@ -421,7 +407,7 @@ services:
       - scopeapi-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8086/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8086/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -447,4 +433,4 @@ volumes:
     name: scopeapi-mongodb-data
   scopeapi-influxdb-data:
     driver: local
-    name: scopeapi-influxdb-data 
+    name: scopeapi-influxdb-data

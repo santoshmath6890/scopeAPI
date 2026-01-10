@@ -101,12 +101,12 @@ check_prerequisites() {
     fi
     print_success "Docker is running"
     
-    # Check if docker-compose is available
-    if ! command -v docker-compose &> /dev/null; then
-        print_error "docker-compose is not installed. Please install it first."
+    # Check if docker compose is available
+    if ! docker compose version &> /dev/null; then
+        print_error "docker compose plugin is not installed. Please install it first."
         exit 1
     fi
-    print_success "docker-compose is available"
+    print_success "docker compose is available"
     
     # Check if .env.local file exists
     if [ ! -f ".env.local" ]; then
@@ -151,7 +151,7 @@ start_dev_environment() {
     
     # Always start infrastructure first
     print_status "Starting infrastructure services..."
-    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" up -d zookeeper kafka postgres redis elasticsearch kibana
+    docker compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" up -d zookeeper kafka postgres redis elasticsearch kibana
     
     # Wait for infrastructure to be ready
     print_status "Waiting for infrastructure to be ready..."
@@ -166,12 +166,12 @@ start_dev_environment() {
         
         if [ "$service" = "all" ]; then
             print_status "Starting all microservices..."
-            docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" up -d api-discovery gateway-integration data-ingestion threat-detection data-protection attack-blocking admin-console
+            docker compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" up -d api-discovery gateway-integration data-ingestion threat-detection data-protection attack-blocking admin-console
             break
         fi
         
         print_status "Starting $service..."
-        docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" up -d "$service"
+        docker compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" up -d "$service"
     done
     
     print_success "Development environment started successfully!"
@@ -182,7 +182,7 @@ start_dev_environment() {
 # Function to stop development environment
 stop_dev_environment() {
     print_status "Stopping development environment..."
-    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" down
+    docker compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" down
     print_success "Development environment stopped"
 }
 
@@ -199,7 +199,7 @@ restart_services() {
     
     for service in "${services[@]}"; do
         print_status "Restarting $service..."
-        docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" restart "$service"
+        docker compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" restart "$service"
     done
     
     print_success "Services restarted successfully!"
@@ -211,10 +211,10 @@ show_logs() {
     
     if [ -z "$service" ]; then
         print_status "Showing logs for all services..."
-        docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" logs -f
+        docker compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" logs -f
     else
         print_status "Showing logs for $service..."
-        docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" logs -f "$service"
+        docker compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" logs -f "$service"
     fi
 }
 
@@ -224,11 +224,11 @@ show_status() {
     
     echo ""
     print_status "=== INFRASTRUCTURE STATUS ==="
-    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" ps zookeeper kafka postgres redis elasticsearch kibana
+    docker compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" ps zookeeper kafka postgres redis elasticsearch kibana
     
     echo ""
     print_status "=== MICROSERVICES STATUS ==="
-    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" ps api-discovery gateway-integration data-ingestion threat-detection data-protection attack-blocking admin-console
+    docker compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" ps api-discovery gateway-integration data-ingestion threat-detection data-protection attack-blocking admin-console
     
     echo ""
     print_status "=== SYSTEM RESOURCES ==="
@@ -251,11 +251,11 @@ start_debug() {
     print_status "Starting $service in debug mode..."
     
     # Stop the service first
-    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" stop "$service"
+    docker compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" stop "$service"
     
     # Start in debug mode (assuming debug configuration exists)
     print_status "Starting $service with debug configuration..."
-    docker-compose -f "$SCRIPT_DIR/docker-compose.debug.yml" --env-file "$ENV_FILE" up -d "$service"
+    docker compose -f "$SCRIPT_DIR/docker-compose.debug.yml" --env-file "$ENV_FILE" up -d "$service"
     
     print_success "$service started in debug mode!"
     print_info "Connect your debugger to localhost:2345"
@@ -344,7 +344,7 @@ clean_dev_environment() {
     
     if [[ "$response" =~ ^[Yy]$ ]]; then
         print_status "Cleaning development environment..."
-        docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" down -v --rmi all
+        docker compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" down -v --rmi all
         docker system prune -af
         print_success "Development environment cleaned"
     else
@@ -362,7 +362,7 @@ open_shell() {
     fi
     
     print_status "Opening shell in $service container..."
-    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" exec "$service" sh
+    docker compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" exec "$service" sh
 }
 
 # Function to execute command in service container
@@ -377,7 +377,7 @@ execute_command() {
     fi
     
     print_status "Executing '$command' in $service container..."
-    docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" exec "$service" sh -c "$command"
+    docker compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$ENV_FILE" exec "$service" sh -c "$command"
 }
 
 # Function to run linting and code quality checks

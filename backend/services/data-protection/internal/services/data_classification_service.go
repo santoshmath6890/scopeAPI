@@ -11,11 +11,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"data-protection/internal/models"
 	"data-protection/internal/repository"
-	"shared/logging"
-	"shared/messaging/kafka"
+
+	"github.com/google/uuid"
+	"scopeapi.local/backend/shared/logging"
+	"scopeapi.local/backend/shared/messaging/kafka"
 )
 
 type DataClassificationServiceInterface interface {
@@ -28,24 +29,24 @@ type DataClassificationServiceInterface interface {
 }
 
 type DataClassificationService struct {
-	piiRepo       repository.PIIRepositoryInterface
-	kafkaProducer kafka.ProducerInterface
-	logger        logging.Logger
-	rules         map[string]*models.ClassificationRule
-	labelHierarchy map[string][]string
+	classificationRepo repository.ClassificationRepositoryInterface
+	kafkaProducer      kafka.ProducerInterface
+	logger             logging.Logger
+	rules              map[string]*models.ClassificationRule
+	labelHierarchy     map[string][]string
 }
 
 func NewDataClassificationService(
-	piiRepo repository.PIIRepositoryInterface,
+	classificationRepo repository.ClassificationRepositoryInterface,
 	kafkaProducer kafka.ProducerInterface,
 	logger logging.Logger,
 ) *DataClassificationService {
 	service := &DataClassificationService{
-		piiRepo:       piiRepo,
-		kafkaProducer: kafkaProducer,
-		logger:        logger,
-		rules:         make(map[string]*models.ClassificationRule),
-		labelHierarchy: make(map[string][]string),
+		classificationRepo: classificationRepo,
+		kafkaProducer:      kafkaProducer,
+		logger:             logger,
+		rules:              make(map[string]*models.ClassificationRule),
+		labelHierarchy:     make(map[string][]string),
 	}
 
 	// Load default classification rules
@@ -227,13 +228,13 @@ func (s *DataClassificationService) ClassifyData(ctx context.Context, request *m
 	startTime := time.Now()
 
 	result := &models.DataClassificationResult{
-		RequestID:        request.RequestID,
-		Classifications:  []models.DataClassification{},
-		AppliedLabels:    []models.DataLabel{},
-		ExecutedActions:  []models.ClassificationAction{},
-		RulesMatched:     []string{},
-		ProcessingTime:   0,
-		ClassifiedAt:     time.Now(),
+		RequestID:       request.RequestID,
+		Classifications: []models.DataClassification{},
+		AppliedLabels:   []models.DataLabel{},
+		ExecutedActions: []models.ClassificationAction{},
+		RulesMatched:    []string{},
+		ProcessingTime:  0,
+		ClassifiedAt:    time.Now(),
 	}
 
 	// Analyze data structure
@@ -271,7 +272,7 @@ func (s *DataClassificationService) ClassifyData(ctx context.Context, request *m
 			// Execute actions
 			for _, action := range rule.Actions {
 				if err := s.executeAction(ctx, action, request.Data, classification); err != nil {
-					s.logger.Warn("Failed to execute classification action", 
+					s.logger.Warn("Failed to execute classification action",
 						"rule_id", rule.ID, "action_type", action.Type, "error", err)
 				} else {
 					result.ExecutedActions = append(result.ExecutedActions, action)
@@ -296,14 +297,14 @@ func (s *DataClassificationService) ClassifyData(ctx context.Context, request *m
 			UserAgent:       request.UserAgent,
 			ClassifiedAt:    time.Now(),
 			Metadata: map[string]interface{}{
-				"data_source":      request.DataSource,
-				"rules_matched":    result.RulesMatched,
-				"processing_time":  result.ProcessingTime.Milliseconds(),
-				"data_analysis":    dataAnalysis,
+				"data_source":     request.DataSource,
+				"rules_matched":   result.RulesMatched,
+				"processing_time": result.ProcessingTime.Milliseconds(),
+				"data_analysis":   dataAnalysis,
 			},
 		}
 
-		if err := s.piiRepo.CreateClassificationData(ctx, classificationData); err != nil {
+		if err := s.classificationRepo.CreateClassificationData(ctx, classificationData); err != nil {
 			s.logger.Error("Failed to store classification data", "error", err)
 		}
 
@@ -318,20 +319,20 @@ func (s *DataClassificationService) ClassifyData(ctx context.Context, request *m
 
 func (s *DataClassificationService) analyzeDataStructure(data map[string]interface{}) *models.DataAnalysis {
 	analysis := &models.DataAnalysis{
-		FieldCount:    0,
-		FieldTypes:    make(map[string]int),
-		FieldNames:    []string{},
-		DataPatterns:  []string{},
-		NestedLevels:  0,
-		ArrayFields:   []string{},
+		FieldCount:     0,
+		FieldTypes:     make(map[string]int),
+		FieldNames:     []string{},
+		DataPatterns:   []string{},
+		NestedLevels:   0,
+		ArrayFields:    []string{},
 		SensitiveHints: []string{},
 	}
 
 	s.analyzeDataRecursive(data, "", analysis, 0)
-	
+
 	// Detect sensitive field name patterns
 	analysis.SensitiveHints = s.detectSensitiveFieldNames(analysis.FieldNames)
-	
+
 	return analysis
 }
 
@@ -347,16 +348,16 @@ func (s *DataClassificationService) analyzeDataRecursive(data interface{}, path 
 			if path != "" {
 				currentPath = path + "." + key
 			}
-			
+
 			analysis.FieldCount++
 			analysis.FieldNames = append(analysis.FieldNames, key)
-			
+
 			s.analyzeDataRecursive(value, currentPath, analysis, level+1)
 		}
 	case []interface{}:
 		analysis.ArrayFields = append(analysis.ArrayFields, path)
 		analysis.FieldTypes["array"]++
-		
+
 		for i, item := range v {
 			currentPath := fmt.Sprintf("%s[%d]", path, i)
 			s.analyzeDataRecursive(item, currentPath, analysis, level+1)
@@ -382,23 +383,23 @@ func (s *DataClassificationService) analyzeDataRecursive(data interface{}, path 
 
 func (s *DataClassificationService) detectSensitiveFieldNames(fieldNames []string) []string {
 	var hints []string
-	
+
 	sensitivePatterns := map[string]string{
-		"password":    "authentication",
-		"token":       "authentication",
-		"key":         "authentication",
-		"secret":      "authentication",
-		"email":       "contact",
-		"phone":       "contact",
-		"address":     "location",
-		"ssn":         "identifier",
-		"id":          "identifier",
-		"card":        "financial",
-		"account":     "financial",
-		"salary":      "financial",
-		"medical":     "health",
-		"health":      "health",
-		"diagnosis":   "health",
+		"password":  "authentication",
+		"token":     "authentication",
+		"key":       "authentication",
+		"secret":    "authentication",
+		"email":     "contact",
+		"phone":     "contact",
+		"address":   "location",
+		"ssn":       "identifier",
+		"id":        "identifier",
+		"card":      "financial",
+		"account":   "financial",
+		"salary":    "financial",
+		"medical":   "health",
+		"health":    "health",
+		"diagnosis": "health",
 	}
 
 	for _, fieldName := range fieldNames {
@@ -583,7 +584,7 @@ func (s *DataClassificationService) evaluatePIICondition(condition models.Classi
 	// This would typically integrate with the PII detection service
 	// For now, we'll do a simple check for common PII patterns
 	hasPII := s.hasBasicPIIPatterns(data)
-	
+
 	switch condition.Operator {
 	case "equals":
 		expectedValue := condition.Value == "true"
@@ -594,7 +595,7 @@ func (s *DataClassificationService) evaluatePIICondition(condition models.Classi
 
 func (s *DataClassificationService) evaluatePIITypeCondition(condition models.ClassificationCondition, data map[string]interface{}) (bool, interface{}) {
 	detectedTypes := s.detectBasicPIITypes(data)
-	
+
 	switch condition.Operator {
 	case "in":
 		targetTypes := strings.Split(condition.Value, ",")
@@ -648,14 +649,14 @@ func (s *DataClassificationService) getNestedValue(data map[string]interface{}, 
 		if i == len(parts)-1 {
 			return current[part]
 		}
-		
+
 		if next, ok := current[part].(map[string]interface{}); ok {
 			current = next
 		} else {
 			return nil
 		}
 	}
-	
+
 	return nil
 }
 
@@ -663,7 +664,7 @@ func (s *DataClassificationService) hasBasicPIIPatterns(data map[string]interfac
 	// Simple PII detection patterns
 	patterns := []string{
 		`\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b`, // Email
-		`\b\d{3}-?\d{2}-?\d{4}\b`,                              // SSN
+		`\b\d{3}-?\d{2}-?\d{4}\b`,                             // SSN
 		`\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b`,          // Credit Card
 	}
 
@@ -698,11 +699,11 @@ func (s *DataClassificationService) detectBasicPIITypes(data map[string]interfac
 
 func (s *DataClassificationService) calculateConfidence(rule *models.ClassificationRule, matchContext map[string]interface{}) float64 {
 	baseConfidence := 0.8 // Default confidence
-	
+
 	// Adjust confidence based on number of conditions matched
 	conditionCount := len(rule.Conditions)
 	matchCount := len(matchContext)
-	
+
 	if conditionCount > 0 {
 		matchRatio := float64(matchCount) / float64(conditionCount)
 		baseConfidence *= matchRatio
@@ -765,8 +766,8 @@ func (s *DataClassificationService) executeEncryption(ctx context.Context, actio
 		algorithm = "AES-256"
 	}
 
-	s.logger.Info("Encryption action triggered", 
-		"rule_id", classification.RuleID, 
+	s.logger.Info("Encryption action triggered",
+		"rule_id", classification.RuleID,
 		"algorithm", algorithm,
 		"classification", classification.Category)
 
@@ -781,13 +782,13 @@ func (s *DataClassificationService) executeAuditing(ctx context.Context, action 
 
 	if logAccess {
 		auditEvent := map[string]interface{}{
-			"event_type":      "data_access_audit",
-			"classification":  classification.Category,
-			"rule_id":         classification.RuleID,
-			"rule_name":       classification.RuleName,
-			"confidence":      classification.Confidence,
-			"timestamp":       time.Now(),
-			"alert_required":  alertAccess,
+			"event_type":     "data_access_audit",
+			"classification": classification.Category,
+			"rule_id":        classification.RuleID,
+			"rule_name":      classification.RuleName,
+			"confidence":     classification.Confidence,
+			"timestamp":      time.Now(),
+			"alert_required": alertAccess,
 		}
 
 		auditJSON, err := json.Marshal(auditEvent)
@@ -813,17 +814,17 @@ func (s *DataClassificationService) executeAccessControl(ctx context.Context, ac
 	requireApproval, _ := action.Config["require_approval"].(bool)
 
 	if requireApproval {
-		s.logger.Warn("Access control triggered - approval required", 
+		s.logger.Warn("Access control triggered - approval required",
 			"rule_id", classification.RuleID,
 			"classification", classification.Category)
 
 		// In a real implementation, this would integrate with an approval workflow system
 		accessControlEvent := map[string]interface{}{
-			"event_type":     "access_control_required",
-			"classification": classification.Category,
-			"rule_id":        classification.RuleID,
+			"event_type":        "access_control_required",
+			"classification":    classification.Category,
+			"rule_id":           classification.RuleID,
 			"requires_approval": true,
-			"timestamp":      time.Now(),
+			"timestamp":         time.Now(),
 		}
 
 		eventJSON, err := json.Marshal(accessControlEvent)
@@ -910,7 +911,7 @@ func (s *DataClassificationService) executeQuarantine(ctx context.Context, actio
 		return fmt.Errorf("failed to produce quarantine event: %w", err)
 	}
 
-	s.logger.Warn("Data quarantined", 
+	s.logger.Warn("Data quarantined",
 		"rule_id", classification.RuleID,
 		"classification", classification.Category,
 		"reason", reason)
@@ -936,7 +937,7 @@ func (s *DataClassificationService) CreateClassificationRule(ctx context.Context
 	rule.UpdatedAt = time.Now()
 
 	// Store in repository
-	if err := s.piiRepo.CreateClassificationRule(ctx, rule); err != nil {
+	if err := s.classificationRepo.CreateClassificationRule(ctx, rule); err != nil {
 		return fmt.Errorf("failed to create classification rule: %w", err)
 	}
 
@@ -955,7 +956,7 @@ func (s *DataClassificationService) UpdateClassificationRule(ctx context.Context
 
 	// Update in repository
 	rule.UpdatedAt = time.Now()
-	if err := s.piiRepo.UpdateClassificationRule(ctx, ruleID, rule); err != nil {
+	if err := s.classificationRepo.UpdateClassificationRule(ctx, ruleID, rule); err != nil {
 		return fmt.Errorf("failed to update classification rule: %w", err)
 	}
 
@@ -1054,10 +1055,10 @@ func (s *DataClassificationService) ApplyDataLabels(ctx context.Context, data ma
 	// For now, we'll create a labeling event
 
 	labelingEvent := map[string]interface{}{
-		"event_type":  "data_labeling",
-		"labels":      labels,
-		"data_hash":   s.calculateDataHash(data),
-		"timestamp":   time.Now(),
+		"event_type": "data_labeling",
+		"labels":     labels,
+		"data_hash":  s.calculateDataHash(data),
+		"timestamp":  time.Now(),
 	}
 
 	eventJSON, err := json.Marshal(labelingEvent)
@@ -1091,10 +1092,10 @@ func (s *DataClassificationService) GetDataClassificationReport(ctx context.Cont
 			TotalClassifications: 0,
 			CategoryBreakdown:    make(map[string]int),
 			LabelBreakdown:       make(map[string]int),
-			RuleUsage:           make(map[string]int),
+			RuleUsage:            make(map[string]int),
 		},
 		Classifications: []models.DataClassification{},
-		Trends:         []models.ClassificationTrend{},
+		Trends:          []models.ClassificationTrend{},
 		Recommendations: []string{},
 	}
 
@@ -1107,21 +1108,21 @@ func (s *DataClassificationService) GetDataClassificationReport(ctx context.Cont
 func (s *DataClassificationService) publishClassificationEvents(ctx context.Context, result *models.DataClassificationResult, request *models.DataClassificationRequest) error {
 	for _, classification := range result.Classifications {
 		eventData := map[string]interface{}{
-			"event_type":       "data_classified",
+			"event_type":        "data_classified",
 			"classification_id": classification.ID,
-			"rule_id":          classification.RuleID,
-			"rule_name":        classification.RuleName,
-			"category":         classification.Category,
-			"labels":           classification.Labels,
-			"confidence":       classification.Confidence,
-			"match_context":    classification.MatchContext,
-			"request_id":       request.RequestID,
-			"api_id":           request.APIID,
-			"endpoint_id":      request.EndpointID,
-			"ip_address":       request.IPAddress,
-			"user_agent":       request.UserAgent,
-			"data_source":      request.DataSource,
-			"timestamp":        classification.ClassifiedAt,
+			"rule_id":           classification.RuleID,
+			"rule_name":         classification.RuleName,
+			"category":          classification.Category,
+			"labels":            classification.Labels,
+			"confidence":        classification.Confidence,
+			"match_context":     classification.MatchContext,
+			"request_id":        request.RequestID,
+			"api_id":            request.APIID,
+			"endpoint_id":       request.EndpointID,
+			"ip_address":        request.IPAddress,
+			"user_agent":        request.UserAgent,
+			"data_source":       request.DataSource,
+			"timestamp":         classification.ClassifiedAt,
 		}
 
 		eventJSON, err := json.Marshal(eventData)

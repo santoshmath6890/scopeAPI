@@ -10,15 +10,16 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"data-protection/config"
 	"data-protection/internal/handlers"
 	"data-protection/internal/repository"
 	"data-protection/internal/services"
-	"shared/database/postgresql"
-	"shared/logging"
-	"shared/messaging/kafka"
-	"shared/monitoring/metrics"
+
+	"github.com/gin-gonic/gin"
+	"scopeapi.local/backend/shared/database/postgresql"
+	"scopeapi.local/backend/shared/logging"
+	"scopeapi.local/backend/shared/messaging/kafka"
+	"scopeapi.local/backend/shared/monitoring/metrics"
 )
 
 func main() {
@@ -68,7 +69,7 @@ func main() {
 	dataClassificationService := services.NewDataClassificationService(classificationRepo, kafkaProducer, logger)
 	piiDetectionService := services.NewPIIDetectionService(piiRepo, kafkaProducer, logger)
 	complianceService := services.NewComplianceService(complianceRepo, kafkaProducer, logger)
-	riskScoringService := services.NewRiskScoringService(classificationRepo, piiRepo, complianceRepo, kafkaProducer, logger)
+	riskScoringService := services.NewRiskScoringService(piiRepo, kafkaProducer, logger)
 
 	// Initialize handlers
 	classificationHandler := handlers.NewClassificationHandler(dataClassificationService, logger)
