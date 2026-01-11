@@ -35,11 +35,14 @@ func main() {
 	logger := logging.NewStructuredLogger("gateway-integration")
 
 	// Initialize database connection
-	db, err := postgresql.NewConnection(cfg.Database.PostgreSQL)
+	dbConn, err := postgresql.NewConnection(cfg.Database.PostgreSQL)
 	if err != nil {
 		logger.Fatal("Failed to connect to database", "error", err)
 	}
-	defer db.Close()
+	defer dbConn.Close()
+
+	// Initialize sqlx.DB
+	db := sqlx.NewDb(dbConn.DB(), "postgres")
 
 	// Initialize Kafka producer/consumer
 	kafkaProducer, err := kafka.NewProducer(cfg.Messaging.Kafka)
@@ -71,13 +74,13 @@ func main() {
 	haproxyService := services.NewHAProxyIntegrationService(integrationService, logger)
 
 	// Initialize handlers
-	integrationHandler := handlers.NewIntegrationHandler(integrationService, metricsCollector)
-	configHandler := handlers.NewConfigHandler(configService, metricsCollector)
-	kongHandler := handlers.NewKongHandler(kongService, metricsCollector)
-	nginxHandler := handlers.NewNginxHandler(nginxService, metricsCollector)
-	traefikHandler := handlers.NewTraefikHandler(traefikService, metricsCollector)
-	envoyHandler := handlers.NewEnvoyHandler(envoyService, metricsCollector)
-	haproxyHandler := handlers.NewHAProxyHandler(haproxyService, metricsCollector)
+	integrationHandler := handlers.NewIntegrationHandler(integrationService)
+	configHandler := handlers.NewConfigHandler(configService)
+	kongHandler := handlers.NewKongHandler(kongService)
+	nginxHandler := handlers.NewNginxHandler(nginxService)
+	traefikHandler := handlers.NewTraefikHandler(traefikService)
+	envoyHandler := handlers.NewEnvoyHandler(envoyService)
+	haproxyHandler := handlers.NewHAProxyHandler(haproxyService)
 
 	// Initialize JWT middleware
 	jwtMiddleware := jwt.NewJWTMiddleware(cfg.Auth.JWTSecret)
@@ -91,7 +94,7 @@ func main() {
 	})
 
 	// Metrics endpoint
-	router.GET("/metrics", metricsCollector.Handler())
+	router.GET("/metrics", gin.WrapH(metricsCollector.Handler()))
 
 	// API routes
 	v1 := router.Group("/api/v1")
@@ -101,6 +104,7 @@ func main() {
 		integrations := v1.Group("/integrations")
 		{
 			integrations.GET("", integrationHandler.GetIntegrations)
+			integrations.GET("/stats", integrationHandler.GetIntegrationStats)
 			integrations.GET("/:id", integrationHandler.GetIntegration)
 			integrations.POST("", integrationHandler.CreateIntegration)
 			integrations.PUT("/:id", integrationHandler.UpdateIntegration)
@@ -259,4 +263,4 @@ func processMessage(message kafka.Message, integrationService services.Integrati
 			logger.Error("Failed to process security event", "error", err)
 		}
 	}
-} 
+}

@@ -5,32 +5,33 @@ import (
 )
 
 type Threat struct {
-	ID            string    `json:"id"`
-	Type          string    `json:"type"`
-	Severity      string    `json:"severity"`
-	Status        string    `json:"status"`
-	Title         string    `json:"title"`
-	Description   string    `json:"description"`
-	DetectionMethod string  `json:"detection_method"`
-	Confidence    float64   `json:"confidence"`
-	RiskScore     float64   `json:"risk_score"`
-	Indicators    []ThreatIndicator `json:"indicators"`
-	RequestData   map[string]interface{} `json:"request_data"`
-	FirstSeen     time.Time `json:"first_seen"`
-	LastSeen      time.Time `json:"last_seen"`
-	Count         int       `json:"count"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
-	IPAddress     string    `json:"ip_address"`
-	UserAgent     string    `json:"user_agent"`
-	APIID         string    `json:"api_id"`
-	EndpointID    string    `json:"endpoint_id"`
-	SourceIP      string    `json:"source_ip"`
-	AttackType    string    `json:"attack_type"`
-	RequestDetail string    `json:"request_detail"`
-	ResponseDetail string   `json:"response_detail"`
-	ResponseData  map[string]interface{} `json:"response_data"`
-	Timestamp     time.Time `json:"timestamp"`
+	ID              string                 `json:"id"`
+	Type            string                 `json:"type"`
+	Severity        string                 `json:"severity"`
+	Status          string                 `json:"status"`
+	Title           string                 `json:"title"`
+	Description     string                 `json:"description"`
+	DetectionMethod string                 `json:"detection_method"`
+	Confidence      float64                `json:"confidence"`
+	RiskScore       float64                `json:"risk_score"`
+	Indicators      []ThreatIndicator      `json:"indicators"`
+	RequestData     map[string]interface{} `json:"request_data"`
+	FirstSeen       time.Time              `json:"first_seen"`
+	LastSeen        time.Time              `json:"last_seen"`
+	Count           int                    `json:"count"`
+	CreatedAt       time.Time              `json:"created_at"`
+	UpdatedAt       time.Time              `json:"updated_at"`
+	Metadata        map[string]interface{} `json:"metadata,omitempty"`
+	IPAddress       string                 `json:"ip_address"`
+	UserAgent       string                 `json:"user_agent"`
+	APIID           string                 `json:"api_id"`
+	EndpointID      string                 `json:"endpoint_id"`
+	SourceIP        string                 `json:"source_ip"`
+	AttackType      string                 `json:"attack_type"`
+	RequestDetail   string                 `json:"request_detail"`
+	ResponseDetail  string                 `json:"response_detail"`
+	ResponseData    map[string]interface{} `json:"response_data"`
+	Timestamp       time.Time              `json:"timestamp"`
 }
 
 type ThreatIndicator struct {
@@ -72,19 +73,19 @@ type ThreatFilter struct {
 }
 
 type ThreatStatistics struct {
-	TotalThreats      int64              `json:"total_threats"`
-	ActiveThreats     int64              `json:"active_threats"`
-	ResolvedThreats   int64              `json:"resolved_threats"`
-	CriticalThreats   int64              `json:"critical_threats"`
-	HighThreats       int64              `json:"high_threats"`
-	MediumThreats     int64              `json:"medium_threats"`
-	LowThreats        int64              `json:"low_threats"`
-	ThreatsByType     map[string]int64   `json:"threats_by_type"`
-	ThreatsBySource   map[string]int64   `json:"threats_by_source"`
-	RecentThreats     int64              `json:"recent_threats"`
-	TrendData         []ThreatTrendPoint `json:"trend_data"`
-	TopTargetedAPIs   []APIThreatSummary `json:"top_targeted_apis"`
-	TopAttackerIPs    []IPThreatSummary  `json:"top_attacker_ips"`
+	TotalThreats    int64              `json:"total_threats"`
+	ActiveThreats   int64              `json:"active_threats"`
+	ResolvedThreats int64              `json:"resolved_threats"`
+	CriticalThreats int64              `json:"critical_threats"`
+	HighThreats     int64              `json:"high_threats"`
+	MediumThreats   int64              `json:"medium_threats"`
+	LowThreats      int64              `json:"low_threats"`
+	ThreatsByType   map[string]int64   `json:"threats_by_type"`
+	ThreatsBySource map[string]int64   `json:"threats_by_source"`
+	RecentThreats   int64              `json:"recent_threats"`
+	TrendData       []ThreatTrendPoint `json:"trend_data"`
+	TopTargetedAPIs []APIThreatSummary `json:"top_targeted_apis"`
+	TopAttackerIPs  []IPThreatSummary  `json:"top_attacker_ips"`
 }
 
 type ThreatTrendPoint struct {
@@ -95,9 +96,9 @@ type ThreatTrendPoint struct {
 }
 
 type APIThreatSummary struct {
-	APIID       string `json:"api_id"`
-	APIName     string `json:"api_name"`
-	ThreatCount int64  `json:"threat_count"`
+	APIID       string    `json:"api_id"`
+	APIName     string    `json:"api_name"`
+	ThreatCount int64     `json:"threat_count"`
 	LastThreat  time.Time `json:"last_threat"`
 }
 

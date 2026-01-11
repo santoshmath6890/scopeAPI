@@ -19,7 +19,16 @@ import (
 )
 
 type RiskScoringServiceInterface interface {
-	CalculateRiskScore(ctx context.Context, request *models.RiskScoringRequest) (*models.RiskScoringResult, error)
+	AssessRisk(ctx context.Context, request *models.RiskAssessmentRequest) (*models.RiskScoringResult, error)
+	GetRiskScores(ctx context.Context, filter *models.RiskScoreFilter) ([]models.RiskAssessment, error) // Returns models.RiskAssessment as "scores"
+	GetRiskScore(ctx context.Context, id string) (*models.RiskAssessment, error)
+	CreateMitigationPlan(ctx context.Context, plan *models.MitigationPlan) error
+	GetMitigationPlan(ctx context.Context, id string) (*models.MitigationPlan, error)
+	UpdateMitigationPlan(ctx context.Context, plan *models.MitigationPlan) error
+	DeleteMitigationPlan(ctx context.Context, id string) error
+	GetRiskAssessments(ctx context.Context, filter *models.RiskScoreFilter) ([]models.RiskAssessment, error)
+
+	CalculateRiskScore(ctx context.Context, request *models.RiskAssessmentRequest) (*models.RiskScoringResult, error)
 	CreateRiskProfile(ctx context.Context, profile *models.RiskProfile) error
 	UpdateRiskProfile(ctx context.Context, profileID string, profile *models.RiskProfile) error
 	GetRiskProfiles(ctx context.Context, filter *models.RiskProfileFilter) ([]models.RiskProfile, error)
@@ -278,7 +287,11 @@ func (s *RiskScoringService) setupDefaultWeights() {
 	}
 }
 
-func (s *RiskScoringService) CalculateRiskScore(ctx context.Context, request *models.RiskScoringRequest) (*models.RiskScoringResult, error) {
+func (s *RiskScoringService) AssessRisk(ctx context.Context, request *models.RiskAssessmentRequest) (*models.RiskScoringResult, error) {
+	return s.CalculateRiskScore(ctx, request)
+}
+
+func (s *RiskScoringService) CalculateRiskScore(ctx context.Context, request *models.RiskAssessmentRequest) (*models.RiskScoringResult, error) {
 	startTime := time.Now()
 
 	result := &models.RiskScoringResult{
@@ -383,7 +396,7 @@ func (s *RiskScoringService) CalculateRiskScore(ctx context.Context, request *mo
 	return result, nil
 }
 
-func (s *RiskScoringService) selectRiskProfile(request *models.RiskScoringRequest) *models.RiskProfile {
+func (s *RiskScoringService) selectRiskProfile(request *models.RiskAssessmentRequest) *models.RiskProfile {
 	// Default to medium risk profile
 	defaultProfile := s.riskProfiles["medium_risk_profile"]
 
@@ -491,7 +504,7 @@ func (s *RiskScoringService) getSortedRules() []*models.RiskScoringRule {
 	return rules
 }
 
-func (s *RiskScoringService) evaluateRiskRule(rule *models.RiskScoringRule, request *models.RiskScoringRequest) bool {
+func (s *RiskScoringService) evaluateRiskRule(rule *models.RiskScoringRule, request *models.RiskAssessmentRequest) bool {
 	for _, condition := range rule.Conditions {
 		if !s.evaluateRiskCondition(condition, request) {
 			return false
@@ -500,7 +513,7 @@ func (s *RiskScoringService) evaluateRiskRule(rule *models.RiskScoringRule, requ
 	return true
 }
 
-func (s *RiskScoringService) evaluateRiskCondition(condition models.RiskCondition, request *models.RiskScoringRequest) bool {
+func (s *RiskScoringService) evaluateRiskCondition(condition models.RiskCondition, request *models.RiskAssessmentRequest) bool {
 	var value interface{}
 
 	// Get value from appropriate source
@@ -529,18 +542,19 @@ func (s *RiskScoringService) evaluateRiskCondition(condition models.RiskConditio
 	return s.evaluateConditionValue(value, condition.Operator, condition.Value)
 }
 
-func (s *RiskScoringService) evaluateConditionValue(value interface{}, operator, expectedValue string) bool {
+func (s *RiskScoringService) evaluateConditionValue(value interface{}, operator string, expectedValue interface{}) bool {
 	valueStr := fmt.Sprintf("%v", value)
+	expectedValueStr := fmt.Sprintf("%v", expectedValue)
 
 	switch operator {
 	case "equals":
-		return valueStr == expectedValue
+		return valueStr == expectedValueStr
 	case "not_equals":
-		return valueStr != expectedValue
+		return valueStr != expectedValueStr
 	case "contains":
-		return strings.Contains(strings.ToLower(valueStr), strings.ToLower(expectedValue))
+		return strings.Contains(strings.ToLower(valueStr), strings.ToLower(expectedValueStr))
 	case "in":
-		values := strings.Split(expectedValue, ",")
+		values := strings.Split(expectedValueStr, ",")
 		for _, v := range values {
 			if strings.TrimSpace(v) == valueStr {
 				return true
@@ -549,25 +563,25 @@ func (s *RiskScoringService) evaluateConditionValue(value interface{}, operator,
 		return false
 	case "greater_than":
 		if numValue, err := s.parseFloat(valueStr); err == nil {
-			if expectedNum, err := s.parseFloat(expectedValue); err == nil {
+			if expectedNum, err := s.parseFloat(expectedValueStr); err == nil {
 				return numValue > expectedNum
 			}
 		}
 	case "less_than":
 		if numValue, err := s.parseFloat(valueStr); err == nil {
-			if expectedNum, err := s.parseFloat(expectedValue); err == nil {
+			if expectedNum, err := s.parseFloat(expectedValueStr); err == nil {
 				return numValue < expectedNum
 			}
 		}
 	case "greater_equal":
 		if numValue, err := s.parseFloat(valueStr); err == nil {
-			if expectedNum, err := s.parseFloat(expectedValue); err == nil {
+			if expectedNum, err := s.parseFloat(expectedValueStr); err == nil {
 				return numValue >= expectedNum
 			}
 		}
 	case "less_equal":
 		if numValue, err := s.parseFloat(valueStr); err == nil {
-			if expectedNum, err := s.parseFloat(expectedValue); err == nil {
+			if expectedNum, err := s.parseFloat(expectedValueStr); err == nil {
 				return numValue <= expectedNum
 			}
 		}
@@ -600,7 +614,7 @@ func (s *RiskScoringService) applyScoreAdjustment(currentScore float64, adjustme
 	}
 }
 
-func (s *RiskScoringService) applyProfileMultipliers(currentScore float64, profile *models.RiskProfile, request *models.RiskScoringRequest) float64 {
+func (s *RiskScoringService) applyProfileMultipliers(currentScore float64, profile *models.RiskProfile, request *models.RiskAssessmentRequest) float64 {
 	adjustedScore := currentScore
 
 	// Apply multipliers based on data factors
@@ -643,7 +657,7 @@ func (s *RiskScoringService) isFactorActive(value interface{}) bool {
 	}
 }
 
-func (s *RiskScoringService) applyWeightedScoring(currentScore float64, request *models.RiskScoringRequest) float64 {
+func (s *RiskScoringService) applyWeightedScoring(currentScore float64, request *models.RiskAssessmentRequest) float64 {
 	// Calculate weighted components
 	dataSensitivityScore := s.calculateDataSensitivityScore(request)
 	exposureLevelScore := s.calculateExposureLevelScore(request)
@@ -662,7 +676,7 @@ func (s *RiskScoringService) applyWeightedScoring(currentScore float64, request 
 	return (weightedScore * 0.7) + (currentScore * 0.3)
 }
 
-func (s *RiskScoringService) calculateDataSensitivityScore(request *models.RiskScoringRequest) float64 {
+func (s *RiskScoringService) calculateDataSensitivityScore(request *models.RiskAssessmentRequest) float64 {
 	score := 0.0
 
 	if request.DataFactors != nil {
@@ -695,7 +709,7 @@ func (s *RiskScoringService) calculateDataSensitivityScore(request *models.RiskS
 	return math.Min(score, 100.0)
 }
 
-func (s *RiskScoringService) calculateExposureLevelScore(request *models.RiskScoringRequest) float64 {
+func (s *RiskScoringService) calculateExposureLevelScore(request *models.RiskAssessmentRequest) float64 {
 	score := 0.0
 
 	if request.ContextFactors != nil {
@@ -735,7 +749,7 @@ func (s *RiskScoringService) calculateExposureLevelScore(request *models.RiskSco
 	return math.Min(score, 100.0)
 }
 
-func (s *RiskScoringService) calculateAccessControlScore(request *models.RiskScoringRequest) float64 {
+func (s *RiskScoringService) calculateAccessControlScore(request *models.RiskAssessmentRequest) float64 {
 	score := 100.0 // Start high, reduce based on controls
 
 	if request.SecurityFactors != nil {
@@ -782,7 +796,7 @@ func (s *RiskScoringService) calculateAccessControlScore(request *models.RiskSco
 	return math.Max(score, 0.0)
 }
 
-func (s *RiskScoringService) calculateVulnerabilityScore(request *models.RiskScoringRequest) float64 {
+func (s *RiskScoringService) calculateVulnerabilityScore(request *models.RiskAssessmentRequest) float64 {
 	score := 0.0
 
 	if request.SecurityFactors != nil {
@@ -820,7 +834,7 @@ func (s *RiskScoringService) calculateVulnerabilityScore(request *models.RiskSco
 	return math.Min(score, 100.0)
 }
 
-func (s *RiskScoringService) calculateComplianceScore(request *models.RiskScoringRequest) float64 {
+func (s *RiskScoringService) calculateComplianceScore(request *models.RiskAssessmentRequest) float64 {
 	score := 0.0
 
 	if request.ContextFactors != nil {
@@ -883,7 +897,7 @@ func (s *RiskScoringService) determineRiskLevel(score float64, profile *models.R
 	return models.RiskLevelLow
 }
 
-func (s *RiskScoringService) generateRiskRecommendations(result *models.RiskScoringResult, profile *models.RiskProfile, request *models.RiskScoringRequest) []string {
+func (s *RiskScoringService) generateRiskRecommendations(result *models.RiskScoringResult, profile *models.RiskProfile, request *models.RiskAssessmentRequest) []string {
 	var recommendations []string
 
 	// Risk level based recommendations
@@ -1121,7 +1135,7 @@ func (s *RiskScoringService) GenerateRiskReport(ctx context.Context, filter *mod
 	return report, nil
 }
 
-func (s *RiskScoringService) publishRiskEvents(ctx context.Context, result *models.RiskScoringResult, request *models.RiskScoringRequest) error {
+func (s *RiskScoringService) publishRiskEvents(ctx context.Context, result *models.RiskScoringResult, request *models.RiskAssessmentRequest) error {
 	// Publish risk assessment event
 	assessmentEvent := map[string]interface{}{
 		"event_type":      "risk_assessment_completed",
@@ -1146,7 +1160,7 @@ func (s *RiskScoringService) publishRiskEvents(ctx context.Context, result *mode
 
 	message := kafka.Message{
 		Topic: "risk_assessment_events",
-		Key:   request.RequestID,
+		Key:   []byte(request.RequestID),
 		Value: eventJSON,
 	}
 
@@ -1175,7 +1189,7 @@ func (s *RiskScoringService) publishRiskEvents(ctx context.Context, result *mode
 
 		alertMessage := kafka.Message{
 			Topic: "security_alerts",
-			Key:   request.RequestID,
+			Key:   []byte(request.RequestID),
 			Value: alertJSON,
 		}
 
@@ -1185,4 +1199,42 @@ func (s *RiskScoringService) publishRiskEvents(ctx context.Context, result *mode
 	}
 
 	return nil
+}
+func (s *RiskScoringService) GetRiskScores(ctx context.Context, filter *models.RiskScoreFilter) ([]models.RiskAssessment, error) {
+	return s.piiRepo.GetRiskAssessments(ctx, filter)
+}
+
+func (s *RiskScoringService) GetRiskScore(ctx context.Context, id string) (*models.RiskAssessment, error) {
+	// PII repo doesn't have GetRiskAssessment by ID? Let's check.
+	// Actually, I can search in GetRiskAssessments.
+	assessments, err := s.piiRepo.GetRiskAssessments(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	for _, a := range assessments {
+		if a.ID == id {
+			return &a, nil
+		}
+	}
+	return nil, fmt.Errorf("risk assessment not found: %s", id)
+}
+
+func (s *RiskScoringService) CreateMitigationPlan(ctx context.Context, plan *models.MitigationPlan) error {
+	return s.piiRepo.CreateMitigationPlan(ctx, plan)
+}
+
+func (s *RiskScoringService) GetMitigationPlan(ctx context.Context, id string) (*models.MitigationPlan, error) {
+	return s.piiRepo.GetMitigationPlan(ctx, id)
+}
+
+func (s *RiskScoringService) UpdateMitigationPlan(ctx context.Context, plan *models.MitigationPlan) error {
+	return s.piiRepo.UpdateMitigationPlan(ctx, plan)
+}
+
+func (s *RiskScoringService) DeleteMitigationPlan(ctx context.Context, id string) error {
+	return s.piiRepo.DeleteMitigationPlan(ctx, id)
+}
+
+func (s *RiskScoringService) GetRiskAssessments(ctx context.Context, filter *models.RiskScoreFilter) ([]models.RiskAssessment, error) {
+	return s.piiRepo.GetRiskAssessments(ctx, filter)
 }

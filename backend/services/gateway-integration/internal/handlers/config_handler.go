@@ -2,20 +2,20 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"scopeapi.local/backend/services/gateway-integration/internal/models"
 	"scopeapi.local/backend/services/gateway-integration/internal/services"
-	"scopeapi.local/backend/shared/monitoring/metrics"
 )
 
 // ConfigHandler handles HTTP requests for configuration management
 type ConfigHandler struct {
-	configService services.ConfigService
+	configService *services.ConfigService
 }
 
 // NewConfigHandler creates a new ConfigHandler instance
-func NewConfigHandler(configService services.ConfigService) *ConfigHandler {
+func NewConfigHandler(configService *services.ConfigService) *ConfigHandler {
 	return &ConfigHandler{
 		configService: configService,
 	}
@@ -30,14 +30,20 @@ func (h *ConfigHandler) GetConfigs(c *gin.Context) {
 	var integrationID int64
 	var err error
 	if integrationIDStr != "" {
+		integrationID, err = strconv.ParseInt(integrationIDStr, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id"})
+			return
 		}
 	}
 
 	// Get configurations
 	configs, err := h.configService.GetConfigs(c.Request.Context(), integrationID, configType)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{
 		"configs": configs,
 		"count":   len(configs),
@@ -46,20 +52,26 @@ func (h *ConfigHandler) GetConfigs(c *gin.Context) {
 
 // GetConfig retrieves a specific configuration by ID
 func (h *ConfigHandler) GetConfig(c *gin.Context) {
-	// Extract ID parameter
-	id := c.Param("id")
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid configuration id"})
+		return
+	}
 
 	// Get configuration
 	config, err := h.configService.GetConfig(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 
 	if config == nil {
-		
+
 		c.JSON(http.StatusNotFound, gin.H{"error": "configuration not found"})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{"config": config})
 }
 
@@ -73,12 +85,11 @@ func (h *ConfigHandler) CreateConfig(c *gin.Context) {
 
 	// Create configuration
 	if err := h.configService.CreateConfig(c.Request.Context(), &config); err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Configuration created successfully",
 		"config":  config,
@@ -88,7 +99,11 @@ func (h *ConfigHandler) CreateConfig(c *gin.Context) {
 // UpdateConfig updates an existing configuration
 func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 	// Extract ID parameter
-	id := c.Param("id")
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid configuration id"})
+		return
 	}
 
 	var config models.GatewayConfig
@@ -102,12 +117,11 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 
 	// Update configuration
 	if err := h.configService.UpdateConfig(c.Request.Context(), &config); err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Configuration updated successfully",
 		"config":  config,
@@ -116,18 +130,20 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 
 // DeleteConfig deletes a configuration
 func (h *ConfigHandler) DeleteConfig(c *gin.Context) {
-	// Extract ID parameter
-	id := c.Param("id")
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid configuration id"})
+		return
 	}
 
 	// Delete configuration
 	if err := h.configService.DeleteConfig(c.Request.Context(), id); err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{"message": "Configuration deleted successfully"})
 }
 
@@ -141,28 +157,29 @@ func (h *ConfigHandler) ValidateConfig(c *gin.Context) {
 
 	// Validate configuration
 	if err := h.configService.ValidateConfig(c.Request.Context(), &config); err != nil {
-		
+
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{"message": "Configuration validation successful"})
 }
 
 // DeployConfig deploys a configuration
 func (h *ConfigHandler) DeployConfig(c *gin.Context) {
-	// Extract ID parameter
-	id := c.Param("id")
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid configuration id"})
+		return
 	}
 
 	// Deploy configuration
 	if err := h.configService.DeployConfig(c.Request.Context(), id); err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{"message": "Configuration deployed successfully"})
-} 
+}

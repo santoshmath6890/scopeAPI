@@ -24,12 +24,13 @@ type IntegrationServiceInterface interface {
 	SyncIntegration(ctx context.Context, id string) (*models.SyncResult, error)
 	ProcessGatewayEvent(ctx context.Context, eventData []byte) error
 	ProcessSecurityEvent(ctx context.Context, eventData []byte) error
+	GetIntegrationStats(ctx context.Context) (*models.IntegrationStats, error)
 }
 
 // IntegrationService implements the integration service
 type IntegrationService struct {
-	repo           repository.IntegrationRepository
-	kafkaProducer  kafka.Producer
+	repo           *repository.IntegrationRepository
+	kafkaProducer  kafka.ProducerInterface
 	logger         logging.Logger
 	gatewayClients map[models.GatewayType]GatewayClient
 }
@@ -42,11 +43,11 @@ type GatewayClient interface {
 }
 
 // NewIntegrationService creates a new integration service
-func NewIntegrationService(repo repository.IntegrationRepository, kafkaProducer kafka.Producer, logger logging.Logger) *IntegrationService {
+func NewIntegrationService(repo *repository.IntegrationRepository, kafkaProducer kafka.ProducerInterface, logger logging.Logger) *IntegrationService {
 	service := &IntegrationService{
-		repo:          repo,
-		kafkaProducer: kafkaProducer,
-		logger:        logger,
+		repo:           repo,
+		kafkaProducer:  kafkaProducer,
+		logger:         logger,
 		gatewayClients: make(map[models.GatewayType]GatewayClient),
 	}
 
@@ -263,6 +264,11 @@ func (s *IntegrationService) SyncIntegration(ctx context.Context, id string) (*m
 	return result, nil
 }
 
+// GetIntegrationStats retrieves statistics about integrations
+func (s *IntegrationService) GetIntegrationStats(ctx context.Context) (*models.IntegrationStats, error) {
+	return s.repo.GetIntegrationStats(ctx)
+}
+
 // ProcessGatewayEvent processes gateway events from Kafka
 func (s *IntegrationService) ProcessGatewayEvent(ctx context.Context, eventData []byte) error {
 	var event models.IntegrationEvent
@@ -424,4 +430,4 @@ func (s *IntegrationService) handleSecurityEvent(ctx context.Context, event map[
 	eventType, _ := event["type"].(string)
 	s.logger.Info("Handling security event for gateway integration", "event_type", eventType)
 	return nil
-} 
+}

@@ -8,9 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"data-protection/internal/models"
 	"data-protection/internal/repository"
+
+	"github.com/google/uuid"
 	"scopeapi.local/backend/shared/logging"
 	"scopeapi.local/backend/shared/messaging/kafka"
 )
@@ -18,9 +19,13 @@ import (
 type PIIDetectionServiceInterface interface {
 	DetectPII(ctx context.Context, request *models.PIIDetectionRequest) (*models.PIIDetectionResult, error)
 	ScanData(ctx context.Context, data map[string]interface{}) ([]models.PIIFinding, error)
-	GetPIIPatterns(ctx context.Context) ([]models.PIIPattern, error)
-	CreateCustomPattern(ctx context.Context, pattern *models.PIIPattern) error
-	UpdatePattern(ctx context.Context, patternID string, pattern *models.PIIPattern) error
+	GetPIIPatterns(ctx context.Context, filter *models.PIIPatternFilter) ([]models.PIIPattern, error)
+	GetPIIPattern(ctx context.Context, id string) (*models.PIIPattern, error)
+	CreatePIIPattern(ctx context.Context, pattern *models.PIIPattern) error
+	UpdatePIIPattern(ctx context.Context, pattern *models.PIIPattern) error
+	DeletePIIPattern(ctx context.Context, id string) error
+	ScanForPII(ctx context.Context, request *models.PIIScanRequest) (*models.PIIDetectionResult, error)
+	GetPIIReport(ctx context.Context, filter *models.PIIReportFilter) (*models.PIIDetectionResult, error) // Handler expects result
 	ValidateDataCompliance(ctx context.Context, data map[string]interface{}, regulations []string) (*models.ComplianceValidationResult, error)
 }
 
@@ -59,7 +64,7 @@ func (s *PIIDetectionService) loadDefaultPatterns() {
 			Type:        models.PIITypeSSN,
 			Category:    models.PIICategoryIdentifier,
 			Pattern:     `\b\d{3}-?\d{2}-?\d{4}\b`,
-			Sensitivity: models.SensitivityHigh,
+			Sensitivity: models.PIISensitivityHigh,
 			Confidence:  0.9,
 			Enabled:     true,
 			Description: "US Social Security Number pattern",
@@ -70,7 +75,7 @@ func (s *PIIDetectionService) loadDefaultPatterns() {
 			Type:        models.PIITypeEmail,
 			Category:    models.PIICategoryContact,
 			Pattern:     `\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b`,
-			Sensitivity: models.SensitivityMedium,
+			Sensitivity: models.PIISensitivityMedium,
 			Confidence:  0.8,
 			Enabled:     true,
 			Description: "Email address pattern",
@@ -81,7 +86,7 @@ func (s *PIIDetectionService) loadDefaultPatterns() {
 			Type:        models.PIITypePhone,
 			Category:    models.PIICategoryContact,
 			Pattern:     `\b(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b`,
-			Sensitivity: models.SensitivityMedium,
+			Sensitivity: models.PIISensitivityMedium,
 			Confidence:  0.7,
 			Enabled:     true,
 			Description: "US phone number pattern",
@@ -92,7 +97,7 @@ func (s *PIIDetectionService) loadDefaultPatterns() {
 			Type:        models.PIITypeCreditCard,
 			Category:    models.PIICategoryFinancial,
 			Pattern:     `\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|3[0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b`,
-			Sensitivity: models.SensitivityHigh,
+			Sensitivity: models.PIISensitivityHigh,
 			Confidence:  0.9,
 			Enabled:     true,
 			Description: "Credit card number pattern (Visa, MasterCard, Amex, Discover)",
@@ -103,7 +108,7 @@ func (s *PIIDetectionService) loadDefaultPatterns() {
 			Type:        models.PIITypeIPAddress,
 			Category:    models.PIICategoryTechnical,
 			Pattern:     `\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b`,
-			Sensitivity: models.SensitivityLow,
+			Sensitivity: models.PIISensitivityLow,
 			Confidence:  0.8,
 			Enabled:     true,
 			Description: "IPv4 address pattern",
@@ -114,7 +119,7 @@ func (s *PIIDetectionService) loadDefaultPatterns() {
 			Type:        models.PIITypeDateOfBirth,
 			Category:    models.PIICategoryPersonal,
 			Pattern:     `\b(?:0[1-9]|1[0-2])[-/](?:0[1-9]|[12][0-9]|3[01])[-/](?:19|20)\d{2}\b`,
-			Sensitivity: models.SensitivityHigh,
+			Sensitivity: models.PIISensitivityHigh,
 			Confidence:  0.7,
 			Enabled:     true,
 			Description: "Date of birth pattern (MM/DD/YYYY or MM-DD-YYYY)",
@@ -125,7 +130,7 @@ func (s *PIIDetectionService) loadDefaultPatterns() {
 			Type:        models.PIITypePassport,
 			Category:    models.PIICategoryIdentifier,
 			Pattern:     `\b[A-Z]{1,2}[0-9]{6,9}\b`,
-			Sensitivity: models.SensitivityHigh,
+			Sensitivity: models.PIISensitivityHigh,
 			Confidence:  0.6,
 			Enabled:     true,
 			Description: "Passport number pattern",
@@ -133,10 +138,10 @@ func (s *PIIDetectionService) loadDefaultPatterns() {
 		{
 			ID:          "driver_license",
 			Name:        "Driver License",
-			Type:        models.PIITypeDriverLicense,
+			Type:        models.PIITypeDriversLicense,
 			Category:    models.PIICategoryIdentifier,
 			Pattern:     `\b[A-Z]{1,2}[0-9]{6,8}\b`,
-			Sensitivity: models.SensitivityHigh,
+			Sensitivity: models.PIISensitivityHigh,
 			Confidence:  0.5,
 			Enabled:     true,
 			Description: "Driver license number pattern",
@@ -161,15 +166,15 @@ func (s *PIIDetectionService) DetectPII(ctx context.Context, request *models.PII
 	startTime := time.Now()
 
 	result := &models.PIIDetectionResult{
-		RequestID:      request.RequestID,
-		PIIFindings:    []models.PIIFinding{},
-		TotalPatterns:  len(s.patterns),
-		MatchedCount:   0,
-		ProcessingTime: 0,
-		RiskScore:      0.0,
+		RequestID:        request.RequestID,
+		PIIFindings:      []models.PIIFinding{},
+		TotalPatterns:    len(s.patterns),
+		MatchedCount:     0,
+		ProcessingTime:   0,
+		RiskScore:        0.0,
 		ComplianceIssues: []models.ComplianceIssue{},
 		Recommendations:  []string{},
-		ScannedAt:       time.Now(),
+		ScannedAt:        time.Now(),
 	}
 
 	// Scan the data for PII
@@ -192,7 +197,7 @@ func (s *PIIDetectionService) DetectPII(ctx context.Context, request *models.PII
 			s.logger.Warn("Failed to validate compliance", "error", err)
 		} else {
 			result.ComplianceIssues = complianceResult.Issues
-			result.Recommendations = append(result.Recommendations, complianceResult.Recommendations...)
+			result.Recommendations = append(result.Recommendations, complianceResult.RecommendationStrings...)
 		}
 	}
 
@@ -203,26 +208,26 @@ func (s *PIIDetectionService) DetectPII(ctx context.Context, request *models.PII
 	if result.RiskScore > 5.0 {
 		for _, finding := range findings {
 			piiData := &models.PIIData{
-				ID:           uuid.New().String(),
-				RequestID:    request.RequestID,
-				DataType:     finding.Type,
-				Category:     finding.Category,
-				Sensitivity:  finding.Sensitivity,
-				Location:     finding.Location,
-				Value:        finding.MaskedValue,
-				RiskScore:    finding.RiskScore,
-				Confidence:   finding.Confidence,
-				APIID:        request.APIID,
-				EndpointID:   request.EndpointID,
-				IPAddress:    request.IPAddress,
-				UserAgent:    request.UserAgent,
-				DetectedAt:   time.Now(),
+				ID:          uuid.New().String(),
+				RequestID:   request.RequestID,
+				Type:        finding.Type,
+				Category:    finding.Category,
+				Sensitivity: finding.Sensitivity,
+				FieldPath:   finding.Location,
+				Value:       finding.MaskedValue,
+				RiskScore:   finding.RiskScore,
+				Confidence:  finding.Confidence,
+				APIID:       request.APIID,
+				EndpointID:  request.EndpointID,
+				IPAddress:   request.IPAddress,
+				UserAgent:   request.UserAgent,
+				DetectedAt:  time.Now(),
 				Metadata: map[string]interface{}{
-					"pattern_id":     finding.PatternID,
-					"pattern_name":   finding.PatternName,
-					"field_name":     finding.FieldName,
-					"data_source":    request.DataSource,
-					"regulations":    request.Regulations,
+					"pattern_id":   finding.PatternID,
+					"pattern_name": finding.PatternName,
+					"field_name":   finding.FieldName,
+					"data_source":  request.DataSource,
+					"regulations":  request.Regulations,
 				},
 			}
 
@@ -292,19 +297,19 @@ func (s *PIIDetectionService) scanStringValue(value, location string) []models.P
 			// Additional validation for certain PII types
 			if s.validatePIIMatch(pattern.Type, match) {
 				finding := models.PIIFinding{
-					ID:           uuid.New().String(),
-					PatternID:    patternID,
-					PatternName:  pattern.Name,
-					Type:         pattern.Type,
-					Category:     pattern.Category,
-					Sensitivity:  pattern.Sensitivity,
-					Location:     location,
-					FieldName:    s.extractFieldName(location),
-					Value:        match,
-					MaskedValue:  s.maskValue(match, pattern.Type),
-					RiskScore:    s.calculateFindingRiskScore(pattern, match),
-					Confidence:   pattern.Confidence,
-					DetectedAt:   time.Now(),
+					ID:          uuid.New().String(),
+					PatternID:   patternID,
+					PatternName: pattern.Name,
+					Type:        pattern.Type,
+					Category:    pattern.Category,
+					Sensitivity: pattern.Sensitivity,
+					Location:    location,
+					FieldName:   s.extractFieldName(location),
+					Value:       match,
+					MaskedValue: s.maskValue(match, pattern.Type),
+					RiskScore:   s.calculateFindingRiskScore(pattern, match),
+					Confidence:  pattern.Confidence,
+					DetectedAt:  time.Now(),
 					Metadata: map[string]interface{}{
 						"pattern_description": pattern.Description,
 						"match_length":        len(match),
@@ -319,7 +324,7 @@ func (s *PIIDetectionService) scanStringValue(value, location string) []models.P
 	return findings
 }
 
-func (s *PIIDetectionService) validatePIIMatch(piiType, value string) bool {
+func (s *PIIDetectionService) validatePIIMatch(piiType models.PIIType, value string) bool {
 	switch piiType {
 	case models.PIITypeCreditCard:
 		return s.validateCreditCard(value)
@@ -337,7 +342,7 @@ func (s *PIIDetectionService) validatePIIMatch(piiType, value string) bool {
 func (s *PIIDetectionService) validateCreditCard(number string) bool {
 	// Remove non-digits
 	cleaned := regexp.MustCompile(`\D`).ReplaceAllString(number, "")
-	
+
 	// Check length
 	if len(cleaned) < 13 || len(cleaned) > 19 {
 		return false
@@ -353,14 +358,14 @@ func (s *PIIDetectionService) luhnCheck(number string) bool {
 
 	for i := len(number) - 1; i >= 0; i-- {
 		digit := int(number[i] - '0')
-		
+
 		if alternate {
 			digit *= 2
 			if digit > 9 {
 				digit = (digit % 10) + 1
 			}
 		}
-		
+
 		sum += digit
 		alternate = !alternate
 	}
@@ -371,7 +376,7 @@ func (s *PIIDetectionService) luhnCheck(number string) bool {
 func (s *PIIDetectionService) validateSSN(ssn string) bool {
 	// Remove non-digits
 	cleaned := regexp.MustCompile(`\D`).ReplaceAllString(ssn, "")
-	
+
 	// Check length
 	if len(cleaned) != 9 {
 		return false
@@ -419,7 +424,7 @@ func (s *PIIDetectionService) validateEmail(email string) bool {
 	}
 
 	local, domain := parts[0], parts[1]
-	
+
 	// Check local part
 	if len(local) == 0 || len(local) > 64 {
 		return false
@@ -441,7 +446,7 @@ func (s *PIIDetectionService) validateEmail(email string) bool {
 func (s *PIIDetectionService) validatePhone(phone string) bool {
 	// Remove non-digits
 	cleaned := regexp.MustCompile(`\D`).ReplaceAllString(phone, "")
-	
+
 	// US phone numbers should be 10 or 11 digits (with country code)
 	if len(cleaned) == 10 {
 		return true
@@ -453,7 +458,7 @@ func (s *PIIDetectionService) validatePhone(phone string) bool {
 	return false
 }
 
-func (s *PIIDetectionService) maskValue(value, piiType string) string {
+func (s *PIIDetectionService) maskValue(value string, piiType models.PIIType) string {
 	switch piiType {
 	case models.PIITypeSSN:
 		if len(value) >= 4 {
@@ -488,11 +493,11 @@ func (s *PIIDetectionService) calculateFindingRiskScore(pattern *models.PIIPatte
 
 	// Base score from sensitivity level
 	switch pattern.Sensitivity {
-	case models.SensitivityHigh:
+	case models.PIISensitivityHigh:
 		baseScore = 8.0
-	case models.SensitivityMedium:
+	case models.PIISensitivityMedium:
 		baseScore = 5.0
-	case models.SensitivityLow:
+	case models.PIISensitivityLow:
 		baseScore = 2.0
 	}
 
@@ -503,7 +508,7 @@ func (s *PIIDetectionService) calculateFindingRiskScore(pattern *models.PIIPatte
 	switch pattern.Type {
 	case models.PIITypeSSN, models.PIITypeCreditCard, models.PIITypePassport:
 		baseScore *= 1.2
-	case models.PIITypeDateOfBirth, models.PIITypeDriverLicense:
+	case models.PIITypeDateOfBirth, models.PIITypeDriversLicense:
 		baseScore *= 1.1
 	case models.PIITypeEmail, models.PIITypePhone:
 		baseScore *= 0.9
@@ -526,13 +531,13 @@ func (s *PIIDetectionService) calculateRiskScore(findings []models.PIIFinding) f
 
 	totalScore := 0.0
 	highSensitivityCount := 0
-	uniqueTypes := make(map[string]bool)
+	uniqueTypes := make(map[models.PIIType]bool)
 
 	for _, finding := range findings {
 		totalScore += finding.RiskScore
 		uniqueTypes[finding.Type] = true
-		
-		if finding.Sensitivity == models.SensitivityHigh {
+
+		if finding.Sensitivity == models.PIISensitivityHigh {
 			highSensitivityCount++
 		}
 	}
@@ -570,19 +575,19 @@ func (s *PIIDetectionService) extractFieldName(location string) string {
 
 func (s *PIIDetectionService) getFieldContext(location string) string {
 	fieldName := strings.ToLower(s.extractFieldName(location))
-	
+
 	// Determine context based on field name
 	contexts := map[string]string{
-		"email":     "contact_information",
-		"phone":     "contact_information",
-		"address":   "address_information",
-		"name":      "personal_information",
-		"ssn":       "identification",
-		"id":        "identification",
-		"card":      "financial_information",
-		"account":   "financial_information",
-		"password":  "authentication",
-		"token":     "authentication",
+		"email":    "contact_information",
+		"phone":    "contact_information",
+		"address":  "address_information",
+		"name":     "personal_information",
+		"ssn":      "identification",
+		"id":       "identification",
+		"card":     "financial_information",
+		"account":  "financial_information",
+		"password": "authentication",
+		"token":    "authentication",
 	}
 
 	for keyword, context := range contexts {
@@ -596,7 +601,7 @@ func (s *PIIDetectionService) getFieldContext(location string) string {
 
 func (s *PIIDetectionService) generateRecommendations(findings []models.PIIFinding) []string {
 	var recommendations []string
-	
+
 	if len(findings) == 0 {
 		return []string{"No PII detected - continue monitoring"}
 	}
@@ -607,7 +612,7 @@ func (s *PIIDetectionService) generateRecommendations(findings []models.PIIFindi
 	recommendations = append(recommendations, "Review data retention policies")
 
 	// Type-specific recommendations
-	typeCount := make(map[string]int)
+	typeCount := make(map[models.PIIType]int)
 	for _, finding := range findings {
 		typeCount[finding.Type]++
 	}
@@ -630,7 +635,7 @@ func (s *PIIDetectionService) generateRecommendations(findings []models.PIIFindi
 	// Sensitivity-based recommendations
 	highSensitivityCount := 0
 	for _, finding := range findings {
-		if finding.Sensitivity == models.SensitivityHigh {
+		if finding.Sensitivity == models.PIISensitivityHigh {
 			highSensitivityCount++
 		}
 	}
@@ -643,12 +648,89 @@ func (s *PIIDetectionService) generateRecommendations(findings []models.PIIFindi
 	return recommendations
 }
 
-func (s *PIIDetectionService) GetPIIPatterns(ctx context.Context) ([]models.PIIPattern, error) {
-	var patterns []models.PIIPattern
-	for _, pattern := range s.patterns {
-		patterns = append(patterns, *pattern)
+func (s *PIIDetectionService) GetPIIPatterns(ctx context.Context, filter *models.PIIPatternFilter) ([]models.PIIPattern, error) {
+	return s.piiRepo.GetPIIPatterns(ctx, filter)
+}
+
+func (s *PIIDetectionService) GetPIIPattern(ctx context.Context, id string) (*models.PIIPattern, error) {
+	return s.piiRepo.GetPIIPattern(ctx, id)
+}
+
+func (s *PIIDetectionService) CreatePIIPattern(ctx context.Context, pattern *models.PIIPattern) error {
+	// Set metadata
+	pattern.ID = uuid.New().String()
+	pattern.CreatedAt = time.Now()
+	pattern.UpdatedAt = time.Now()
+
+	// Store in repository
+	if err := s.piiRepo.CreatePIIPattern(ctx, pattern); err != nil {
+		return fmt.Errorf("failed to create PII pattern: %w", err)
 	}
-	return patterns, nil
+
+	// Update memory
+	s.patterns[pattern.ID] = pattern
+	if regex, err := regexp.Compile(pattern.Pattern); err == nil {
+		s.compiledRegex[pattern.ID] = regex
+	}
+
+	return nil
+}
+
+func (s *PIIDetectionService) UpdatePIIPattern(ctx context.Context, pattern *models.PIIPattern) error {
+	pattern.UpdatedAt = time.Now()
+
+	// Store in repository
+	if err := s.piiRepo.UpdatePIIPattern(ctx, pattern); err != nil {
+		return fmt.Errorf("failed to update PII pattern: %w", err)
+	}
+
+	// Update memory
+	s.patterns[pattern.ID] = pattern
+	if regex, err := regexp.Compile(pattern.Pattern); err == nil {
+		s.compiledRegex[pattern.ID] = regex
+	}
+
+	return nil
+}
+
+func (s *PIIDetectionService) DeletePIIPattern(ctx context.Context, id string) error {
+	// Delete from repository
+	if err := s.piiRepo.DeletePIIPattern(ctx, id); err != nil {
+		return fmt.Errorf("failed to delete PII pattern: %w", err)
+	}
+
+	// Remove from memory
+	delete(s.patterns, id)
+	delete(s.compiledRegex, id)
+
+	return nil
+}
+
+func (s *PIIDetectionService) ScanForPII(ctx context.Context, request *models.PIIScanRequest) (*models.PIIDetectionResult, error) {
+	// Implementation calling ScanData
+	data := map[string]interface{}{
+		"content": request.Content,
+	}
+	findings, err := s.ScanData(ctx, data)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &models.PIIDetectionResult{
+		RequestID:    request.RequestID,
+		PIIFindings:  findings,
+		MatchedCount: len(findings),
+		ScannedAt:    time.Now(),
+	}
+
+	return result, nil
+}
+
+func (s *PIIDetectionService) GetPIIReport(ctx context.Context, filter *models.PIIReportFilter) (*models.PIIDetectionResult, error) {
+	// Placeholder implementation for report
+	return &models.PIIDetectionResult{
+		ScannedAt: time.Now(),
+	}, nil
 }
 
 func (s *PIIDetectionService) CreateCustomPattern(ctx context.Context, pattern *models.PIIPattern) error {
@@ -695,7 +777,7 @@ func (s *PIIDetectionService) UpdatePattern(ctx context.Context, patternID strin
 
 	// Update in repository
 	pattern.UpdatedAt = time.Now()
-	if err := s.piiRepo.UpdatePIIPattern(ctx, patternID, pattern); err != nil {
+	if err := s.piiRepo.UpdatePIIPattern(ctx, pattern); err != nil {
 		return fmt.Errorf("failed to update pattern: %w", err)
 	}
 
@@ -733,10 +815,10 @@ func (s *PIIDetectionService) validatePattern(pattern *models.PIIPattern) error 
 		return fmt.Errorf("pattern sensitivity is required")
 	}
 
-	validSensitivities := map[string]bool{
-		models.SensitivityHigh:   true,
-		models.SensitivityMedium: true,
-		models.SensitivityLow:    true,
+	validSensitivities := map[models.PIISensitivityLevel]bool{
+		models.PIISensitivityHigh:   true,
+		models.PIISensitivityMedium: true,
+		models.PIISensitivityLow:    true,
 	}
 
 	if !validSensitivities[pattern.Sensitivity] {
@@ -752,11 +834,12 @@ func (s *PIIDetectionService) validatePattern(pattern *models.PIIPattern) error 
 
 func (s *PIIDetectionService) ValidateDataCompliance(ctx context.Context, data map[string]interface{}, regulations []string) (*models.ComplianceValidationResult, error) {
 	result := &models.ComplianceValidationResult{
-		Regulations:     regulations,
-		Issues:          []models.ComplianceIssue{},
-		Recommendations: []string{},
-		OverallStatus:   models.ComplianceStatusCompliant,
-		ValidatedAt:     time.Now(),
+		Regulations:           regulations,
+		Issues:                []models.ComplianceIssue{},
+		Recommendations:       []models.ComplianceRecommendation{},
+		RecommendationStrings: []string{},
+		OverallStatus:         models.ComplianceStatusCompliant,
+		ValidatedAt:           time.Now(),
 	}
 
 	// Scan for PII first
@@ -780,7 +863,7 @@ func (s *PIIDetectionService) ValidateDataCompliance(ctx context.Context, data m
 				break
 			}
 		}
-		
+
 		if hasViolations {
 			result.OverallStatus = models.ComplianceStatusViolation
 		} else {
@@ -789,7 +872,7 @@ func (s *PIIDetectionService) ValidateDataCompliance(ctx context.Context, data m
 	}
 
 	// Generate recommendations
-	result.Recommendations = s.generateComplianceRecommendations(result.Issues, regulations)
+	result.RecommendationStrings = s.generateComplianceRecommendations(result.Issues, regulations)
 
 	return result, nil
 }
@@ -817,12 +900,12 @@ func (s *PIIDetectionService) checkGDPRCompliance(findings []models.PIIFinding, 
 	var issues []models.ComplianceIssue
 
 	// Check for personal data without consent indicators
-	personalDataTypes := []string{
+	personalDataTypes := []models.PIIType{
 		models.PIITypeEmail,
 		models.PIITypePhone,
 		models.PIITypeDateOfBirth,
 		models.PIITypePassport,
-		models.PIITypeDriverLicense,
+		models.PIITypeDriversLicense,
 	}
 
 	hasPersonalData := false
@@ -839,7 +922,7 @@ func (s *PIIDetectionService) checkGDPRCompliance(findings []models.PIIFinding, 
 		// Check for consent indicators
 		consentFields := []string{"consent", "agreement", "opt_in", "permission"}
 		hasConsent := false
-		
+
 		for field := range data {
 			fieldLower := strings.ToLower(field)
 			for _, consentField := range consentFields {
@@ -885,12 +968,12 @@ func (s *PIIDetectionService) checkCCPACompliance(findings []models.PIIFinding, 
 	var issues []models.ComplianceIssue
 
 	// Check for personal information categories under CCPA
-	ccpaCategories := map[string]bool{
-		models.PIITypeEmail:         true,
-		models.PIITypePhone:         true,
-		models.PIITypeSSN:           true,
-		models.PIITypeDriverLicense: true,
-		models.PIITypeIPAddress:     true,
+	ccpaCategories := map[models.PIIType]bool{
+		models.PIITypeEmail:          true,
+		models.PIITypePhone:          true,
+		models.PIITypeSSN:            true,
+		models.PIITypeDriversLicense: true,
+		models.PIITypeIPAddress:      true,
 	}
 
 	hasCCPAData := false
@@ -905,7 +988,7 @@ func (s *PIIDetectionService) checkCCPACompliance(findings []models.PIIFinding, 
 		// Check for privacy notice indicators
 		privacyFields := []string{"privacy_notice", "privacy_policy", "data_usage", "opt_out"}
 		hasPrivacyNotice := false
-		
+
 		for field := range data {
 			fieldLower := strings.ToLower(field)
 			for _, privacyField := range privacyFields {
@@ -1084,7 +1167,7 @@ func (s *PIIDetectionService) generateComplianceRecommendations(issues []models.
 	}
 
 	// Issue-specific recommendations
-	categoryCount := make(map[string]int)
+	categoryCount := make(map[models.ComplianceCategory]int)
 	for _, issue := range issues {
 		categoryCount[issue.Category]++
 	}
@@ -1103,27 +1186,27 @@ func (s *PIIDetectionService) generateComplianceRecommendations(issues []models.
 func (s *PIIDetectionService) publishPIIEvents(ctx context.Context, findings []models.PIIFinding, request *models.PIIDetectionRequest) error {
 	for _, finding := range findings {
 		eventData := map[string]interface{}{
-			"event_type":     "pii_detected",
-			"finding_id":     finding.ID,
-			"pattern_id":     finding.PatternID,
-			"pattern_name":   finding.PatternName,
-			"pii_type":       finding.Type,
-			"category":       finding.Category,
-			"sensitivity":    finding.Sensitivity,
-			"location":       finding.Location,
-			"field_name":     finding.FieldName,
-			"masked_value":   finding.MaskedValue,
-			"risk_score":     finding.RiskScore,
-			"confidence":     finding.Confidence,
-			"request_id":     request.RequestID,
-			"api_id":         request.APIID,
-			"endpoint_id":    request.EndpointID,
-			"ip_address":     request.IPAddress,
-			"user_agent":     request.UserAgent,
-			"data_source":    request.DataSource,
-			"regulations":    request.Regulations,
-			"timestamp":      finding.DetectedAt,
-			"metadata":       finding.Metadata,
+			"event_type":   "pii_detected",
+			"finding_id":   finding.ID,
+			"pattern_id":   finding.PatternID,
+			"pattern_name": finding.PatternName,
+			"pii_type":     finding.Type,
+			"category":     finding.Category,
+			"sensitivity":  finding.Sensitivity,
+			"location":     finding.Location,
+			"field_name":   finding.FieldName,
+			"masked_value": finding.MaskedValue,
+			"risk_score":   finding.RiskScore,
+			"confidence":   finding.Confidence,
+			"request_id":   request.RequestID,
+			"api_id":       request.APIID,
+			"endpoint_id":  request.EndpointID,
+			"ip_address":   request.IPAddress,
+			"user_agent":   request.UserAgent,
+			"data_source":  request.DataSource,
+			"regulations":  request.Regulations,
+			"timestamp":    finding.DetectedAt,
+			"metadata":     finding.Metadata,
 		}
 
 		eventJSON, err := json.Marshal(eventData)
@@ -1133,7 +1216,7 @@ func (s *PIIDetectionService) publishPIIEvents(ctx context.Context, findings []m
 
 		message := kafka.Message{
 			Topic: "pii_events",
-			Key:   finding.ID,
+			Key:   []byte(finding.ID),
 			Value: eventJSON,
 		}
 
@@ -1144,5 +1227,3 @@ func (s *PIIDetectionService) publishPIIEvents(ctx context.Context, findings []m
 
 	return nil
 }
-
-

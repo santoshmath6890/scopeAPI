@@ -5,21 +5,22 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"data-protection/internal/models"
 	"data-protection/internal/services"
+
+	"github.com/gin-gonic/gin"
 	"scopeapi.local/backend/shared/logging"
 )
 
 type ClassificationHandler struct {
 	classificationService services.DataClassificationServiceInterface
-	logger               logging.Logger
+	logger                logging.Logger
 }
 
 func NewClassificationHandler(service services.DataClassificationServiceInterface, logger logging.Logger) *ClassificationHandler {
 	return &ClassificationHandler{
 		classificationService: service,
-		logger:               logger,
+		logger:                logger,
 	}
 }
 
@@ -79,10 +80,10 @@ func (h *ClassificationHandler) GetClassificationRules(c *gin.Context) {
 
 	// Parse query parameters
 	if category := c.Query("category"); category != "" {
-		filter.Category = models.DataCategory(category)
+		filter.Category = category
 	}
 	if method := c.Query("method"); method != "" {
-		filter.Method = models.ClassificationMethod(method)
+		filter.Method = method
 	}
 	if enabledStr := c.Query("enabled"); enabledStr != "" {
 		if enabled, err := strconv.ParseBool(enabledStr); err == nil {
@@ -240,7 +241,7 @@ func (h *ClassificationHandler) UpdateClassificationRule(c *gin.Context) {
 	rule.ID = id
 	rule.UpdatedAt = time.Now()
 
-	err := h.classificationService.UpdateClassificationRule(c.Request.Context(), &rule)
+	err := h.classificationService.UpdateClassificationRule(c.Request.Context(), id, &rule)
 	if err != nil {
 		h.logger.Error("Failed to update classification rule", "error", err, "rule_id", id)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -379,7 +380,7 @@ func (h *ClassificationHandler) GetClassificationReport(c *gin.Context) {
 		}
 	}
 	if category := c.Query("category"); category != "" {
-		filter.Category = models.DataCategory(category)
+		filter.Category = category
 	}
 
 	report, err := h.classificationService.GetDataClassificationReport(c.Request.Context(), filter)

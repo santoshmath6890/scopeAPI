@@ -23,6 +23,10 @@ type SignatureDetectionServiceInterface interface {
 	GetSignatures(ctx context.Context, filter *models.SignatureFilter) ([]models.ThreatSignature, error)
 	CreateCustomSignature(ctx context.Context, signature *models.ThreatSignature) error
 	TestSignature(ctx context.Context, signatureID string, testData []map[string]interface{}) (*models.SignatureTestResult, error)
+	ImportSignatureSet(ctx context.Context, data []byte, set string) error
+	ExportSignatureSet(ctx context.Context, set string) ([]byte, error)
+	GetSignatureStatistics(ctx context.Context, timeRange time.Duration) (*models.SignatureStatistics, error)
+	OptimizeSignatures(ctx context.Context) (*models.SignatureOptimizationResult, error)
 }
 
 type SignatureDetectionService struct {
@@ -49,14 +53,14 @@ func NewSignatureDetectionService(
 
 func (s *SignatureDetectionService) DetectSignatures(ctx context.Context, request *models.SignatureDetectionRequest) (*models.SignatureDetectionResult, error) {
 	result := &models.SignatureDetectionResult{
-		ResultID:   "",
+		ResultID:    "",
 		SignatureID: "",
-		Matched:    false,
-		Details:    "",
-		DetectedAt: time.Now(),
+		Matched:     false,
+		Details:     "",
+		DetectedAt:  time.Now(),
 	}
 
-	targets := s.extractDetectionTargets(request.Payload)
+	targets := s.extractDetectionTargets(request.TrafficData)
 
 	for signatureID, signature := range s.signatures {
 		match, err := s.checkSignature(signature, targets, request)
@@ -149,7 +153,7 @@ func (s *SignatureDetectionService) checkSignature(signature *models.ThreatSigna
 			s.logger.Warn("Rule check failed", "signature_id", signature.ID, "rule_id", rule.ID, "error", err)
 			continue
 		}
-		
+
 		if match != nil && match.Matched {
 			// Found a matching rule, return the match
 			return match, nil
@@ -189,12 +193,12 @@ func (s *SignatureDetectionService) checkRule(rule models.SignatureRule, targets
 		matched = targetValue == rule.Value
 		matchedValue = targetValue
 		details = fmt.Sprintf("Field '%s' equals '%s'", rule.Field, rule.Value)
-		
+
 	case "contains":
 		matched = strings.Contains(strings.ToLower(targetValue), strings.ToLower(rule.Value))
 		matchedValue = targetValue
 		details = fmt.Sprintf("Field '%s' contains '%s'", rule.Field, rule.Value)
-		
+
 	case "regex":
 		// Use compiled regex if available
 		ruleKey := fmt.Sprintf("%s_%s", signature.ID, rule.ID)
@@ -212,17 +216,17 @@ func (s *SignatureDetectionService) checkRule(rule models.SignatureRule, targets
 				return nil, fmt.Errorf("invalid regex pattern '%s': %w", rule.Value, err)
 			}
 		}
-		
+
 	case "starts_with":
 		matched = strings.HasPrefix(strings.ToLower(targetValue), strings.ToLower(rule.Value))
 		matchedValue = targetValue
 		details = fmt.Sprintf("Field '%s' starts with '%s'", rule.Field, rule.Value)
-		
+
 	case "ends_with":
 		matched = strings.HasSuffix(strings.ToLower(targetValue), strings.ToLower(rule.Value))
 		matchedValue = targetValue
 		details = fmt.Sprintf("Field '%s' ends with '%s'", rule.Field, rule.Value)
-		
+
 	case "greater_than":
 		if rule.IntValue > 0 {
 			if intVal, err := strconv.Atoi(targetValue); err == nil {
@@ -231,7 +235,7 @@ func (s *SignatureDetectionService) checkRule(rule models.SignatureRule, targets
 				details = fmt.Sprintf("Field '%s' value %d is greater than %d", rule.Field, intVal, rule.IntValue)
 			}
 		}
-		
+
 	case "less_than":
 		if rule.IntValue > 0 {
 			if intVal, err := strconv.Atoi(targetValue); err == nil {
@@ -240,21 +244,21 @@ func (s *SignatureDetectionService) checkRule(rule models.SignatureRule, targets
 				details = fmt.Sprintf("Field '%s' value %d is less than %d", rule.Field, intVal, rule.IntValue)
 			}
 		}
-		
+
 	case "length_greater":
 		if rule.IntValue > 0 {
 			matched = len(targetValue) > rule.IntValue
 			matchedValue = targetValue
 			details = fmt.Sprintf("Field '%s' length %d is greater than %d", rule.Field, len(targetValue), rule.IntValue)
 		}
-		
+
 	case "length_less":
 		if rule.IntValue > 0 {
 			matched = len(targetValue) < rule.IntValue
 			matchedValue = targetValue
 			details = fmt.Sprintf("Field '%s' length %d is less than %d", rule.Field, len(targetValue), rule.IntValue)
 		}
-		
+
 	default:
 		return nil, fmt.Errorf("unsupported operator: %s", rule.Operator)
 	}
@@ -278,9 +282,9 @@ func (s *SignatureDetectionService) checkRule(rule models.SignatureRule, targets
 		MatchedAt:     time.Now(),
 		Details:       details,
 		Metadata: map[string]interface{}{
-			"rule_name": rule.Name,
+			"rule_name":    rule.Name,
 			"rule_pattern": rule.Pattern,
-			"rule_weight": rule.Weight,
+			"rule_weight":  rule.Weight,
 		},
 	}
 
@@ -306,7 +310,7 @@ func (s *SignatureDetectionService) LoadSignatures(ctx context.Context, signatur
 	// Load new signatures
 	for _, signature := range signatures {
 		s.signatures[signature.ID] = &signature
-		
+
 		// Pre-compile regex rules
 		for _, rule := range signature.Rules {
 			if rule.Operator == "regex" {
@@ -530,24 +534,24 @@ func (s *SignatureDetectionService) getDetectionCategories() []string {
 func (s *SignatureDetectionService) publishSignatureEvents(ctx context.Context, matches []models.SignatureMatch, request *models.SignatureDetectionRequest) error {
 	for _, match := range matches {
 		eventData := map[string]interface{}{
-			"event_type":      "signature_match",
-			"signature_id":    match.SignatureID,
-			"signature_name":  match.SignatureName,
-			"signature_type":  match.SignatureType,
-			"category":        match.Category,
-			"severity":        match.Severity,
-			"risk_score":      match.RiskScore,
-			"confidence":      match.Confidence,
-			"matched_field":   match.MatchedField,
-			"matched_value":   match.MatchedValue,
-			"rule_matched":    match.RuleMatched,
-			"request_id":      request.RequestID,
-			"ip_address":      request.IPAddress,
-			"user_agent":      request.UserAgent,
-			"api_id":          request.APIID,
-			"endpoint_id":     request.EndpointID,
-			"timestamp":       match.MatchedAt,
-			"metadata":        match.Metadata,
+			"event_type":     "signature_match",
+			"signature_id":   match.SignatureID,
+			"signature_name": match.SignatureName,
+			"signature_type": match.SignatureType,
+			"category":       match.Category,
+			"severity":       match.Severity,
+			"risk_score":     match.RiskScore,
+			"confidence":     match.Confidence,
+			"matched_field":  match.MatchedField,
+			"matched_value":  match.MatchedValue,
+			"rule_matched":   match.RuleMatched,
+			"request_id":     request.RequestID,
+			"ip_address":     request.IPAddress,
+			"user_agent":     request.UserAgent,
+			"api_id":         request.APIID,
+			"endpoint_id":    request.EndpointID,
+			"timestamp":      match.MatchedAt,
+			"metadata":       match.Metadata,
 		}
 
 		eventJSON, err := json.Marshal(eventData)
@@ -630,18 +634,18 @@ func (s *SignatureDetectionService) ExportSignatureSet(ctx context.Context, sign
 
 func (s *SignatureDetectionService) GetSignatureStatistics(ctx context.Context, timeRange time.Duration) (*models.SignatureStatistics, error) {
 	stats := &models.SignatureStatistics{
-		TotalSignatures:    len(s.signatures),
-		EnabledSignatures:  0,
-		DisabledSignatures: 0,
-		SignaturesByType:   make(map[string]int),
+		TotalSignatures:      len(s.signatures),
+		EnabledSignatures:    0,
+		DisabledSignatures:   0,
+		SignaturesByType:     make(map[string]int),
 		SignaturesByCategory: make(map[string]int),
-		MatchStatistics:    &models.SignatureMatchStats{
+		MatchStatistics: &models.SignatureMatchStats{
 			TotalMatches:      0,
 			MatchesByType:     make(map[string]int),
 			MatchesByCategory: make(map[string]int),
 			MatchesBySeverity: make(map[string]int),
 		},
-		GeneratedAt:        time.Now(),
+		GeneratedAt: time.Now(),
 	}
 
 	// Count signatures by status, type, and category
@@ -691,15 +695,15 @@ func (s *SignatureDetectionService) OptimizeSignatures(ctx context.Context) (*mo
 		// Check for signatures that are very old but low confidence
 		if signature.Confidence < 0.5 && time.Since(signature.CreatedAt) > 30*24*time.Hour {
 			result.UpdatedSignatures = append(result.UpdatedSignatures, signatureID)
-			result.Recommendations = append(result.Recommendations, 
-				fmt.Sprintf("Signature '%s' has low confidence - consider tuning", 
+			result.Recommendations = append(result.Recommendations,
+				fmt.Sprintf("Signature '%s' has low confidence - consider tuning",
 					signature.Name))
 		}
 
 		// Check for signatures that are very old and might need review
 		if time.Since(signature.CreatedAt) > 90*24*time.Hour {
-			result.Recommendations = append(result.Recommendations, 
-				fmt.Sprintf("Signature '%s' is over 90 days old - consider reviewing", 
+			result.Recommendations = append(result.Recommendations,
+				fmt.Sprintf("Signature '%s' is over 90 days old - consider reviewing",
 					signature.Name))
 		}
 	}
@@ -711,7 +715,7 @@ func (s *SignatureDetectionService) OptimizeSignatures(ctx context.Context) (*mo
 			// Keep the most recent one, mark others for removal
 			for i := 1; i < len(duplicateGroup); i++ {
 				result.RemovedSignatures = append(result.RemovedSignatures, duplicateGroup[i])
-				result.Recommendations = append(result.Recommendations, 
+				result.Recommendations = append(result.Recommendations,
 					fmt.Sprintf("Duplicate signature detected - removing '%s'", s.signatures[duplicateGroup[i]].Name))
 			}
 		}

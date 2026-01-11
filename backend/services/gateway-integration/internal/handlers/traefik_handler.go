@@ -4,21 +4,19 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"scopeapi.local/backend/services/gateway-integration/internal/models"
 	"scopeapi.local/backend/services/gateway-integration/internal/services"
-	"scopeapi.local/backend/shared/monitoring/metrics"
 )
 
 // TraefikHandler handles HTTP requests for Traefik gateway integration
 type TraefikHandler struct {
-	traefikService services.TraefikIntegrationService
-	
+	traefikService *services.TraefikIntegrationService
 }
 
 // NewTraefikHandler creates a new TraefikHandler instance
-func NewTraefikHandler(traefikService services.TraefikIntegrationService, ) *TraefikHandler {
+func NewTraefikHandler(traefikService *services.TraefikIntegrationService) *TraefikHandler {
 	return &TraefikHandler{
 		traefikService: traefikService,
-		metrics:        metrics,
 	}
 }
 
@@ -32,19 +30,14 @@ func (h *TraefikHandler) GetStatus(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	status, err := h.traefikService.GetStatus(c.Request.Context(), integrationID)
 	if err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{"status": status})
 }
 
@@ -58,19 +51,14 @@ func (h *TraefikHandler) GetProviders(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	providers, err := h.traefikService.GetProviders(c.Request.Context(), integrationID)
 	if err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{
 		"providers": providers,
 		"count":     len(providers),
@@ -87,19 +75,14 @@ func (h *TraefikHandler) GetMiddlewares(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	middlewares, err := h.traefikService.GetMiddlewares(c.Request.Context(), integrationID)
 	if err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{
 		"middlewares": middlewares,
 		"count":       len(middlewares),
@@ -116,28 +99,23 @@ func (h *TraefikHandler) CreateMiddleware(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
-	var middlewareData map[string]interface{}
-	if err := c.ShouldBindJSON(&middlewareData); err != nil {
+	var middleware models.TraefikMiddleware
+	if err := c.ShouldBindJSON(&middleware); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
 		return
 	}
 
-	middleware, err := h.traefikService.CreateMiddleware(c.Request.Context(), integrationID, middlewareData)
+	createdMiddleware, err := h.traefikService.CreateMiddleware(c.Request.Context(), integrationID, &middleware)
 	if err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusCreated, gin.H{
 		"message":    "Middleware created successfully",
-		"middleware": middleware,
+		"middleware": createdMiddleware,
 	})
 }
 
@@ -151,10 +129,6 @@ func (h *TraefikHandler) UpdateMiddleware(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	// Extract middleware ID from URL parameter
 	middlewareID := c.Param("id")
@@ -163,23 +137,22 @@ func (h *TraefikHandler) UpdateMiddleware(c *gin.Context) {
 		return
 	}
 
-	var middlewareData map[string]interface{}
-	if err := c.ShouldBindJSON(&middlewareData); err != nil {
+	var middleware models.TraefikMiddleware
+	if err := c.ShouldBindJSON(&middleware); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
 		return
 	}
 
-	middleware, err := h.traefikService.UpdateMiddleware(c.Request.Context(), integrationID, middlewareID, middlewareData)
+	updatedMiddleware, err := h.traefikService.UpdateMiddleware(c.Request.Context(), integrationID, middlewareID, &middleware)
 	if err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{
 		"message":    "Middleware updated successfully",
-		"middleware": middleware,
+		"middleware": updatedMiddleware,
 	})
 }
 
@@ -193,10 +166,6 @@ func (h *TraefikHandler) DeleteMiddleware(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	// Extract middleware ID from URL parameter
 	middlewareID := c.Param("id")
@@ -206,12 +175,11 @@ func (h *TraefikHandler) DeleteMiddleware(c *gin.Context) {
 	}
 
 	if err := h.traefikService.DeleteMiddleware(c.Request.Context(), integrationID, middlewareID); err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{"message": "Middleware deleted successfully"})
 }
 
@@ -225,17 +193,15 @@ func (h *TraefikHandler) SyncConfiguration(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
-	if err := h.traefikService.SyncConfiguration(c.Request.Context(), integrationID); err != nil {
-		
+	result, err := h.traefikService.SyncConfiguration(c.Request.Context(), integrationID)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
-	c.JSON(http.StatusOK, gin.H{"message": "Traefik configuration synchronized successfully"})
-} 
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Traefik configuration synchronized successfully",
+		"result":  result,
+	})
+}

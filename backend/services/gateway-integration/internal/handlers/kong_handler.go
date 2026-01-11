@@ -4,21 +4,19 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"scopeapi.local/backend/services/gateway-integration/internal/models"
 	"scopeapi.local/backend/services/gateway-integration/internal/services"
-	"scopeapi.local/backend/shared/monitoring/metrics"
 )
 
 // KongHandler handles HTTP requests for Kong gateway integration
 type KongHandler struct {
-	kongService services.KongIntegrationService
-	
+	kongService *services.KongIntegrationService
 }
 
 // NewKongHandler creates a new KongHandler instance
-func NewKongHandler(kongService services.KongIntegrationService, ) *KongHandler {
+func NewKongHandler(kongService *services.KongIntegrationService) *KongHandler {
 	return &KongHandler{
 		kongService: kongService,
-		metrics:     metrics,
 	}
 }
 
@@ -32,19 +30,14 @@ func (h *KongHandler) GetStatus(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	status, err := h.kongService.GetStatus(c.Request.Context(), integrationID)
 	if err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{"status": status})
 }
 
@@ -58,19 +51,14 @@ func (h *KongHandler) GetServices(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	services, err := h.kongService.GetServices(c.Request.Context(), integrationID)
 	if err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{
 		"services": services,
 		"count":    len(services),
@@ -87,19 +75,14 @@ func (h *KongHandler) GetRoutes(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	routes, err := h.kongService.GetRoutes(c.Request.Context(), integrationID)
 	if err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{
 		"routes": routes,
 		"count":  len(routes),
@@ -116,19 +99,14 @@ func (h *KongHandler) GetPlugins(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	plugins, err := h.kongService.GetPlugins(c.Request.Context(), integrationID)
 	if err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{
 		"plugins": plugins,
 		"count":   len(plugins),
@@ -145,28 +123,23 @@ func (h *KongHandler) CreatePlugin(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
-	var pluginData map[string]interface{}
-	if err := c.ShouldBindJSON(&pluginData); err != nil {
+	var plugin models.KongPlugin
+	if err := c.ShouldBindJSON(&plugin); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
 		return
 	}
 
-	plugin, err := h.kongService.CreatePlugin(c.Request.Context(), integrationID, pluginData)
+	createdPlugin, err := h.kongService.CreatePlugin(c.Request.Context(), integrationID, &plugin)
 	if err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Plugin created successfully",
-		"plugin":  plugin,
+		"plugin":  createdPlugin,
 	})
 }
 
@@ -180,10 +153,6 @@ func (h *KongHandler) UpdatePlugin(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	// Extract plugin ID from URL parameter
 	pluginID := c.Param("id")
@@ -192,23 +161,22 @@ func (h *KongHandler) UpdatePlugin(c *gin.Context) {
 		return
 	}
 
-	var pluginData map[string]interface{}
-	if err := c.ShouldBindJSON(&pluginData); err != nil {
+	var plugin models.KongPlugin
+	if err := c.ShouldBindJSON(&plugin); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
 		return
 	}
 
-	plugin, err := h.kongService.UpdatePlugin(c.Request.Context(), integrationID, pluginID, pluginData)
+	updatedPlugin, err := h.kongService.UpdatePlugin(c.Request.Context(), integrationID, pluginID, &plugin)
 	if err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Plugin updated successfully",
-		"plugin":  plugin,
+		"plugin":  updatedPlugin,
 	})
 }
 
@@ -222,10 +190,6 @@ func (h *KongHandler) DeletePlugin(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	// Extract plugin ID from URL parameter
 	pluginID := c.Param("id")
@@ -235,12 +199,11 @@ func (h *KongHandler) DeletePlugin(c *gin.Context) {
 	}
 
 	if err := h.kongService.DeletePlugin(c.Request.Context(), integrationID, pluginID); err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{"message": "Plugin deleted successfully"})
 }
 
@@ -254,17 +217,16 @@ func (h *KongHandler) SyncConfiguration(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
-	if err := h.kongService.SyncConfiguration(c.Request.Context(), integrationID); err != nil {
-		
+	result, err := h.kongService.SyncConfiguration(c.Request.Context(), integrationID)
+	if err != nil {
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
-	c.JSON(http.StatusOK, gin.H{"message": "Kong configuration synchronized successfully"})
-} 
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Kong configuration synchronized successfully",
+		"result":  result,
+	})
+}

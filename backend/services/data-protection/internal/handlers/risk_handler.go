@@ -2,12 +2,12 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"data-protection/internal/models"
 	"data-protection/internal/services"
+
+	"github.com/gin-gonic/gin"
 	"scopeapi.local/backend/shared/logging"
 )
 

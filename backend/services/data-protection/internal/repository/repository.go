@@ -44,6 +44,11 @@ type PIIRepositoryInterface interface {
 	CreateRiskProfile(ctx context.Context, profile *models.RiskProfile) error
 	UpdateRiskProfile(ctx context.Context, profileID string, profile *models.RiskProfile) error
 	CreatePIIData(ctx context.Context, data *models.PIIData) error
+	CreateMitigationPlan(ctx context.Context, plan *models.MitigationPlan) error
+	GetMitigationPlan(ctx context.Context, id string) (*models.MitigationPlan, error)
+	UpdateMitigationPlan(ctx context.Context, plan *models.MitigationPlan) error
+	DeleteMitigationPlan(ctx context.Context, id string) error
+	GetRiskAssessments(ctx context.Context, filter *models.RiskScoreFilter) ([]models.RiskAssessment, error)
 }
 
 type ComplianceRepositoryInterface interface {
@@ -61,8 +66,12 @@ type ComplianceRepositoryInterface interface {
 	StoreAuditLog(ctx context.Context, entry *models.AuditLogEntry) error
 	GetComplianceStatistics(ctx context.Context, timeRange *models.TimeRange) (*models.ComplianceStatistics, error)
 	CreateComplianceValidation(ctx context.Context, validation *models.ComplianceValidation) error
+	GetComplianceValidations(ctx context.Context, filter *models.ComplianceValidationFilter) ([]models.ComplianceValidation, error)
 	CreateComplianceRule(ctx context.Context, rule *models.ComplianceRule) error
 	UpdateComplianceRule(ctx context.Context, ruleID string, rule *models.ComplianceRule) error
+	GetRecentViolations(ctx context.Context, since time.Time) ([]models.ComplianceViolation, error)
+	GetActiveViolations(ctx context.Context) ([]models.ComplianceViolation, error)
+	CreateComplianceViolation(ctx context.Context, violation *models.ComplianceViolation) error
 }
 
 // =============================================================================
@@ -283,6 +292,7 @@ type MemoryPIIRepository struct {
 	piiData         map[string]*models.PIIData
 	riskAssessments map[string]*models.RiskAssessment
 	riskProfiles    map[string]*models.RiskProfile
+	mitigationPlans map[string]*models.MitigationPlan
 	mutex           sync.RWMutex
 }
 
@@ -293,6 +303,7 @@ func NewPIIRepository(db *postgresql.Connection) PIIRepositoryInterface {
 		piiData:         make(map[string]*models.PIIData),
 		riskAssessments: make(map[string]*models.RiskAssessment),
 		riskProfiles:    make(map[string]*models.RiskProfile),
+		mitigationPlans: make(map[string]*models.MitigationPlan),
 	}
 
 	// Load default PII patterns
@@ -379,7 +390,7 @@ func (r *MemoryPIIRepository) GetPIIPatterns(ctx context.Context, filter *models
 			if filter.PIIType != "" && pattern.PIIType != filter.PIIType {
 				continue
 			}
-			if filter.Type != "" && pattern.Type != filter.Type {
+			if filter.Type != "" && string(pattern.Type) != filter.Type {
 				continue
 			}
 			if filter.Enabled != nil && pattern.Enabled != *filter.Enabled {
@@ -508,7 +519,7 @@ func (r *MemoryPIIRepository) GetPIIStatistics(ctx context.Context, timeRange *m
 		stats.TotalPIIDetected++
 		// Note: PIIType conversion would need to be handled properly
 		// For now, using a default type
-		stats.PIIByType["unknown"]++
+		stats.PIIByType[models.PIIType("unknown")]++
 	}
 
 	return stats, nil
@@ -546,6 +557,79 @@ func (r *MemoryPIIRepository) CreatePIIData(ctx context.Context, data *models.PI
 	return nil
 }
 
+func (r *MemoryPIIRepository) CreateMitigationPlan(ctx context.Context, plan *models.MitigationPlan) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	if plan.ID == "" {
+		plan.ID = fmt.Sprintf("plan_%d", time.Now().UnixNano())
+	}
+	plan.CreatedAt = time.Now()
+	plan.UpdatedAt = time.Now()
+
+	r.mitigationPlans[plan.ID] = plan
+	return nil
+}
+
+func (r *MemoryPIIRepository) GetMitigationPlan(ctx context.Context, id string) (*models.MitigationPlan, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	plan, exists := r.mitigationPlans[id]
+	if !exists {
+		return nil, fmt.Errorf("mitigation plan not found: %s", id)
+	}
+	return plan, nil
+}
+
+func (r *MemoryPIIRepository) UpdateMitigationPlan(ctx context.Context, plan *models.MitigationPlan) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	if _, exists := r.mitigationPlans[plan.ID]; !exists {
+		return fmt.Errorf("mitigation plan not found: %s", plan.ID)
+	}
+
+	plan.UpdatedAt = time.Now()
+	r.mitigationPlans[plan.ID] = plan
+	return nil
+}
+
+func (r *MemoryPIIRepository) DeleteMitigationPlan(ctx context.Context, id string) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	if _, exists := r.mitigationPlans[id]; !exists {
+		return fmt.Errorf("mitigation plan not found: %s", id)
+	}
+
+	delete(r.mitigationPlans, id)
+	return nil
+}
+
+func (r *MemoryPIIRepository) GetRiskAssessments(ctx context.Context, filter *models.RiskScoreFilter) ([]models.RiskAssessment, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	var assessments []models.RiskAssessment
+	for _, assessment := range r.riskAssessments {
+		if filter != nil {
+			// DataSource isn't in RiskAssessment yet, but we'll filter what we can
+			if filter.RiskLevel != "" && string(assessment.RiskLevel) != filter.RiskLevel {
+				continue
+			}
+			if filter.Since != nil && assessment.AssessedAt.Before(*filter.Since) {
+				continue
+			}
+			if filter.Until != nil && assessment.AssessedAt.After(*filter.Until) {
+				continue
+			}
+		}
+		assessments = append(assessments, *assessment)
+	}
+	return assessments, nil
+}
+
 func (r *MemoryComplianceRepository) CreateComplianceValidation(ctx context.Context, validation *models.ComplianceValidation) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
@@ -580,6 +664,7 @@ type MemoryComplianceRepository struct {
 	auditLogs   map[string]*models.AuditLogEntry
 	validations map[string]*models.ComplianceValidation
 	rules       map[string]*models.ComplianceRule
+	violations  map[string]*models.ComplianceViolation
 	mutex       sync.RWMutex
 }
 
@@ -590,6 +675,7 @@ func NewComplianceRepository(db *postgresql.Connection) ComplianceRepositoryInte
 		auditLogs:   make(map[string]*models.AuditLogEntry),
 		validations: make(map[string]*models.ComplianceValidation),
 		rules:       make(map[string]*models.ComplianceRule),
+		violations:  make(map[string]*models.ComplianceViolation),
 	}
 
 	// Load default compliance frameworks
@@ -882,4 +968,134 @@ func (r *MemoryComplianceRepository) GetComplianceStatistics(ctx context.Context
 	}
 
 	return stats, nil
+}
+
+// GetComplianceValidations retrieves compliance validations based on filter criteria
+func (r *MemoryComplianceRepository) GetComplianceValidations(ctx context.Context, filter *models.ComplianceValidationFilter) ([]models.ComplianceValidation, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	var validations []models.ComplianceValidation
+	for _, validation := range r.validations {
+		if filter != nil {
+			// Filter by date range
+			if filter.StartDate != nil && validation.ValidatedAt.Before(*filter.StartDate) {
+				continue
+			}
+			if filter.EndDate != nil && validation.ValidatedAt.After(*filter.EndDate) {
+				continue
+			}
+
+			// Filter by frameworks
+			if len(filter.Frameworks) > 0 {
+				found := false
+				for _, framework := range filter.Frameworks {
+					for _, vFramework := range validation.Frameworks {
+						if framework == vFramework {
+							found = true
+							break
+						}
+					}
+					if found {
+						break
+					}
+				}
+				if !found {
+					continue
+				}
+			}
+
+			// Filter by API IDs
+			if len(filter.APIIDs) > 0 {
+				found := false
+				for _, apiID := range filter.APIIDs {
+					if apiID == validation.APIID {
+						found = true
+						break
+					}
+				}
+				if !found {
+					continue
+				}
+			}
+
+			// Filter by endpoint IDs
+			if len(filter.EndpointIDs) > 0 {
+				found := false
+				for _, endpointID := range filter.EndpointIDs {
+					if endpointID == validation.EndpointID {
+						found = true
+						break
+					}
+				}
+				if !found {
+					continue
+				}
+			}
+
+			// Filter by statuses
+			if len(filter.Statuses) > 0 {
+				found := false
+				for _, status := range filter.Statuses {
+					if status == string(validation.OverallStatus) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					continue
+				}
+			}
+		}
+
+		validations = append(validations, *validation)
+	}
+
+	return validations, nil
+}
+
+// GetRecentViolations retrieves violations that occurred after a specific time
+func (r *MemoryComplianceRepository) GetRecentViolations(ctx context.Context, since time.Time) ([]models.ComplianceViolation, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	var violations []models.ComplianceViolation
+	for _, violation := range r.violations {
+		if violation.DetectedAt.After(since) {
+			violations = append(violations, *violation)
+		}
+	}
+
+	return violations, nil
+}
+
+// GetActiveViolations retrieves all violations with status "open" or "in_progress"
+func (r *MemoryComplianceRepository) GetActiveViolations(ctx context.Context) ([]models.ComplianceViolation, error) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	var violations []models.ComplianceViolation
+	for _, violation := range r.violations {
+		if violation.Status == models.ViolationStatusOpen || violation.Status == models.ViolationStatusInProgress {
+			violations = append(violations, *violation)
+		}
+	}
+
+	return violations, nil
+}
+
+// CreateComplianceViolation stores a new compliance violation
+func (r *MemoryComplianceRepository) CreateComplianceViolation(ctx context.Context, violation *models.ComplianceViolation) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	if violation.ID == "" {
+		violation.ID = fmt.Sprintf("violation_%d", time.Now().UnixNano())
+	}
+
+	violation.CreatedAt = time.Now()
+	violation.UpdatedAt = time.Now()
+
+	r.violations[violation.ID] = violation
+	return nil
 }

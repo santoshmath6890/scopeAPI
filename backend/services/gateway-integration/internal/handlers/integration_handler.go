@@ -7,20 +7,17 @@ import (
 	"github.com/gin-gonic/gin"
 	"scopeapi.local/backend/services/gateway-integration/internal/models"
 	"scopeapi.local/backend/services/gateway-integration/internal/services"
-	"scopeapi.local/backend/shared/monitoring/metrics"
 )
 
 // IntegrationHandler handles HTTP requests for integration management
 type IntegrationHandler struct {
 	integrationService services.IntegrationServiceInterface
-	
 }
 
 // NewIntegrationHandler creates a new integration handler
-func NewIntegrationHandler(integrationService services.IntegrationServiceInterface, ) *IntegrationHandler {
+func NewIntegrationHandler(integrationService services.IntegrationServiceInterface) *IntegrationHandler {
 	return &IntegrationHandler{
 		integrationService: integrationService,
-		metrics:            metrics,
 	}
 }
 
@@ -41,16 +38,11 @@ func (h *IntegrationHandler) GetIntegrations(c *gin.Context) {
 	}
 
 	// Parse pagination parameters
-	if page < 1 {
-		page = 1
-	}
-	if limit < 1 || limit > 100 {
-		limit = 50
-	}
+	page := 1
+	limit := 50
 
 	integrations, err := h.integrationService.GetIntegrations(ctx, filters)
 	if err != nil {
-		h.metrics.IncrementCounter("gateway_integration_errors", map[string]string{"operation": "get_integrations"})
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to retrieve integrations",
 			"message": err.Error(),
@@ -58,7 +50,6 @@ func (h *IntegrationHandler) GetIntegrations(c *gin.Context) {
 		return
 	}
 
-	h.metrics.IncrementCounter("gateway_integration_requests", map[string]string{"operation": "get_integrations"})
 	c.JSON(http.StatusOK, gin.H{
 		"integrations": integrations,
 		"pagination": gin.H{
@@ -83,7 +74,6 @@ func (h *IntegrationHandler) GetIntegration(c *gin.Context) {
 
 	integration, err := h.integrationService.GetIntegration(ctx, integrationID)
 	if err != nil {
-		h.metrics.IncrementCounter("gateway_integration_errors", map[string]string{"operation": "get_integration"})
 		c.JSON(http.StatusNotFound, gin.H{
 			"error":   "Integration not found",
 			"message": err.Error(),
@@ -91,7 +81,6 @@ func (h *IntegrationHandler) GetIntegration(c *gin.Context) {
 		return
 	}
 
-	h.metrics.IncrementCounter("gateway_integration_requests", map[string]string{"operation": "get_integration"})
 	c.JSON(http.StatusOK, gin.H{
 		"integration": integration,
 	})
@@ -144,9 +133,7 @@ func (h *IntegrationHandler) CreateIntegration(c *gin.Context) {
 		return
 	}
 
-	createdIntegration, err := h.integrationService.CreateIntegration(ctx, integration)
-	if err != nil {
-		h.metrics.IncrementCounter("gateway_integration_errors", map[string]string{"operation": "create_integration"})
+	if err := h.integrationService.CreateIntegration(ctx, integration); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to create integration",
 			"message": err.Error(),
@@ -154,9 +141,8 @@ func (h *IntegrationHandler) CreateIntegration(c *gin.Context) {
 		return
 	}
 
-	h.metrics.IncrementCounter("gateway_integration_requests", map[string]string{"operation": "create_integration"})
 	c.JSON(http.StatusCreated, gin.H{
-		"integration": createdIntegration,
+		"integration": integration,
 		"message":     "Integration created successfully",
 	})
 }
@@ -174,12 +160,12 @@ func (h *IntegrationHandler) UpdateIntegration(c *gin.Context) {
 	}
 
 	var request struct {
-		Name        string                 `json:"name,omitempty"`
-		Type        models.GatewayType     `json:"type,omitempty"`
+		Name        string                   `json:"name,omitempty"`
+		Type        models.GatewayType       `json:"type,omitempty"`
 		Status      models.IntegrationStatus `json:"status,omitempty"`
-		Config      map[string]interface{} `json:"config,omitempty"`
-		Credentials *models.Credentials    `json:"credentials,omitempty"`
-		Endpoints   []models.Endpoint      `json:"endpoints,omitempty"`
+		Config      map[string]interface{}   `json:"config,omitempty"`
+		Credentials *models.Credentials      `json:"credentials,omitempty"`
+		Endpoints   []models.Endpoint        `json:"endpoints,omitempty"`
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -193,7 +179,6 @@ func (h *IntegrationHandler) UpdateIntegration(c *gin.Context) {
 	// Get existing integration
 	existingIntegration, err := h.integrationService.GetIntegration(ctx, integrationID)
 	if err != nil {
-		h.metrics.IncrementCounter("gateway_integration_errors", map[string]string{"operation": "update_integration"})
 		c.JSON(http.StatusNotFound, gin.H{
 			"error":   "Integration not found",
 			"message": err.Error(),
@@ -236,9 +221,7 @@ func (h *IntegrationHandler) UpdateIntegration(c *gin.Context) {
 		return
 	}
 
-	updatedIntegration, err := h.integrationService.UpdateIntegration(ctx, existingIntegration)
-	if err != nil {
-		h.metrics.IncrementCounter("gateway_integration_errors", map[string]string{"operation": "update_integration"})
+	if err := h.integrationService.UpdateIntegration(ctx, existingIntegration); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to update integration",
 			"message": err.Error(),
@@ -246,9 +229,8 @@ func (h *IntegrationHandler) UpdateIntegration(c *gin.Context) {
 		return
 	}
 
-	h.metrics.IncrementCounter("gateway_integration_requests", map[string]string{"operation": "update_integration"})
 	c.JSON(http.StatusOK, gin.H{
-		"integration": updatedIntegration,
+		"integration": existingIntegration,
 		"message":     "Integration updated successfully",
 	})
 }
@@ -267,7 +249,6 @@ func (h *IntegrationHandler) DeleteIntegration(c *gin.Context) {
 
 	err := h.integrationService.DeleteIntegration(ctx, integrationID)
 	if err != nil {
-		h.metrics.IncrementCounter("gateway_integration_errors", map[string]string{"operation": "delete_integration"})
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to delete integration",
 			"message": err.Error(),
@@ -275,7 +256,6 @@ func (h *IntegrationHandler) DeleteIntegration(c *gin.Context) {
 		return
 	}
 
-	h.metrics.IncrementCounter("gateway_integration_requests", map[string]string{"operation": "delete_integration"})
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Integration deleted successfully",
 	})
@@ -295,7 +275,6 @@ func (h *IntegrationHandler) TestIntegration(c *gin.Context) {
 
 	health, err := h.integrationService.TestIntegration(ctx, integrationID)
 	if err != nil {
-		h.metrics.IncrementCounter("gateway_integration_errors", map[string]string{"operation": "test_integration"})
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to test integration",
 			"message": err.Error(),
@@ -303,7 +282,6 @@ func (h *IntegrationHandler) TestIntegration(c *gin.Context) {
 		return
 	}
 
-	h.metrics.IncrementCounter("gateway_integration_requests", map[string]string{"operation": "test_integration"})
 	c.JSON(http.StatusOK, gin.H{
 		"health":  health,
 		"message": "Integration test completed",
@@ -324,7 +302,6 @@ func (h *IntegrationHandler) SyncIntegration(c *gin.Context) {
 
 	result, err := h.integrationService.SyncIntegration(ctx, integrationID)
 	if err != nil {
-		h.metrics.IncrementCounter("gateway_integration_errors", map[string]string{"operation": "sync_integration"})
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to sync integration",
 			"message": err.Error(),
@@ -332,7 +309,6 @@ func (h *IntegrationHandler) SyncIntegration(c *gin.Context) {
 		return
 	}
 
-	h.metrics.IncrementCounter("gateway_integration_requests", map[string]string{"operation": "sync_integration"})
 	c.JSON(http.StatusOK, gin.H{
 		"result":  result,
 		"message": "Integration sync completed",
@@ -345,7 +321,6 @@ func (h *IntegrationHandler) GetIntegrationStats(c *gin.Context) {
 
 	stats, err := h.integrationService.GetIntegrationStats(ctx)
 	if err != nil {
-		h.metrics.IncrementCounter("gateway_integration_errors", map[string]string{"operation": "get_stats"})
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to retrieve integration statistics",
 			"message": err.Error(),
@@ -353,7 +328,6 @@ func (h *IntegrationHandler) GetIntegrationStats(c *gin.Context) {
 		return
 	}
 
-	h.metrics.IncrementCounter("gateway_integration_requests", map[string]string{"operation": "get_stats"})
 	c.JSON(http.StatusOK, gin.H{
 		"stats": stats,
 	})
@@ -410,4 +384,4 @@ func (h *IntegrationHandler) validateIntegration(integration *models.Integration
 	}
 
 	return nil
-} 
+}

@@ -29,13 +29,13 @@ type MLModel struct {
 
 // MLPrediction represents a prediction from an ML model
 type MLPrediction struct {
-	ModelID     string
-	ModelType   string
-	Prediction  float64
-	Confidence  float64
-	Features    map[string]float64
+	ModelID      string
+	ModelType    string
+	Prediction   float64
+	Confidence   float64
+	Features     map[string]float64
 	AnomalyScore float64
-	IsAnomaly   bool
+	IsAnomaly    bool
 }
 
 // MLFeatureExtractor extracts features from traffic data for ML models
@@ -65,7 +65,7 @@ type ThreatDetectionServiceInterface interface {
 	GetThreatStatistics(ctx context.Context, timeRange time.Duration) (*models.ThreatStatistics, error)
 	CreateThreat(ctx context.Context, threat *models.Threat) error
 	ProcessSecurityEvent(ctx context.Context, event map[string]interface{}) error
-	
+
 	// ML Integration methods
 	TrainMLModel(ctx context.Context, modelType string, trainingData []byte) error
 	UpdateMLModel(ctx context.Context, modelID string, newData []byte) error
@@ -74,13 +74,13 @@ type ThreatDetectionServiceInterface interface {
 }
 
 type ThreatDetectionService struct {
-	threatRepo        repository.ThreatRepositoryInterface
-	kafkaProducer     kafka.ProducerInterface
-	logger            logging.Logger
-	featureExtractor  *MLFeatureExtractor
-	anomalyDetector   *MLAnomalyDetector
+	threatRepo         repository.ThreatRepositoryInterface
+	kafkaProducer      kafka.ProducerInterface
+	logger             logging.Logger
+	featureExtractor   *MLFeatureExtractor
+	anomalyDetector    *MLAnomalyDetector
 	behavioralAnalyzer *MLBehavioralAnalyzer
-	mlModels          map[string]*MLModel
+	mlModels           map[string]*MLModel
 }
 
 func NewThreatDetectionService(
@@ -90,22 +90,22 @@ func NewThreatDetectionService(
 ) *ThreatDetectionService {
 	// Initialize ML models
 	mlModels := initializeMLModels()
-	
+
 	return &ThreatDetectionService{
-		threatRepo:        threatRepo,
-		kafkaProducer:     kafkaProducer,
-		logger:            logger,
-		featureExtractor:  NewMLFeatureExtractor(logger),
-		anomalyDetector:   NewMLAnomalyDetector(logger, mlModels),
+		threatRepo:         threatRepo,
+		kafkaProducer:      kafkaProducer,
+		logger:             logger,
+		featureExtractor:   NewMLFeatureExtractor(logger),
+		anomalyDetector:    NewMLAnomalyDetector(logger, mlModels),
 		behavioralAnalyzer: NewMLBehavioralAnalyzer(logger, mlModels),
-		mlModels:          mlModels,
+		mlModels:           mlModels,
 	}
 }
 
 // initializeMLModels sets up default ML models
 func initializeMLModels() map[string]*MLModel {
 	models := make(map[string]*MLModel)
-	
+
 	// Anomaly Detection Model
 	models["anomaly_detection"] = &MLModel{
 		ID:          "anomaly_detection_v1",
@@ -117,7 +117,7 @@ func initializeMLModels() map[string]*MLModel {
 		Features:    []string{"request_rate", "response_time", "payload_size", "error_rate", "unique_ips", "user_agent_diversity"},
 		Threshold:   0.75,
 	}
-	
+
 	// Behavioral Analysis Model
 	models["behavioral_analysis"] = &MLModel{
 		ID:          "behavioral_analysis_v1",
@@ -129,7 +129,7 @@ func initializeMLModels() map[string]*MLModel {
 		Features:    []string{"session_pattern", "request_sequence", "timing_pattern", "resource_access", "data_volume"},
 		Threshold:   0.70,
 	}
-	
+
 	// Pattern Recognition Model
 	models["pattern_recognition"] = &MLModel{
 		ID:          "pattern_recognition_v1",
@@ -141,7 +141,7 @@ func initializeMLModels() map[string]*MLModel {
 		Features:    []string{"url_pattern", "parameter_pattern", "header_pattern", "payload_pattern", "response_pattern"},
 		Threshold:   0.80,
 	}
-	
+
 	return models
 }
 
@@ -176,14 +176,14 @@ func (s *ThreatDetectionService) AnalyzeTraffic(ctx context.Context, trafficData
 
 	requestID := uuid.New().String()
 	result := &models.ThreatAnalysisResult{
-		RequestID:      requestID,
-		ThreatDetected: false,
-		Confidence:     0.0,
-		RiskScore:      0.0,
-		Indicators:     []models.ThreatIndicator{},
+		RequestID:       requestID,
+		ThreatDetected:  false,
+		Confidence:      0.0,
+		RiskScore:       0.0,
+		Indicators:      []models.ThreatIndicator{},
 		Recommendations: []string{},
-		Metadata:       make(map[string]interface{}),
-		AnalyzedAt:     time.Now(),
+		Metadata:        make(map[string]interface{}),
+		AnalyzedAt:      time.Now(),
 	}
 
 	// Perform various threat detection analyses
@@ -272,40 +272,40 @@ func (s *ThreatDetectionService) AnalyzeTraffic(ctx context.Context, trafficData
 	// Process detected threats
 	if len(threats) > 0 {
 		result.ThreatDetected = true
-		
+
 		// Calculate overall risk score and confidence
 		totalRiskScore := 0.0
 		totalConfidence := 0.0
 		highestSeverity := ""
-		
+
 		for _, threat := range threats {
 			totalRiskScore += threat.RiskScore
 			totalConfidence += threat.Confidence
-			
+
 			// Determine highest severity
 			if s.getSeverityWeight(threat.Severity) > s.getSeverityWeight(highestSeverity) {
 				highestSeverity = threat.Severity
 				result.ThreatType = threat.Type
 			}
-			
+
 			// Add indicators
 			result.Indicators = append(result.Indicators, threat.Indicators...)
 		}
-		
+
 		result.RiskScore = totalRiskScore / float64(len(threats))
 		result.Confidence = totalConfidence / float64(len(threats))
 		result.Severity = highestSeverity
-		
+
 		// Store threats in database
 		for _, threat := range threats {
 			if err := s.CreateThreat(ctx, &threat); err != nil {
 				s.logger.Error("Failed to store threat", "threat_id", threat.ID, "error", err)
 			}
 		}
-		
+
 		// Generate recommendations
 		result.Recommendations = s.generateRecommendations(threats)
-		
+
 		// Publish threat event to Kafka
 		if err := s.publishThreatEvent(ctx, threats); err != nil {
 			s.logger.Error("Failed to publish threat event", "error", err)
@@ -315,11 +315,11 @@ func (s *ThreatDetectionService) AnalyzeTraffic(ctx context.Context, trafficData
 	result.ProcessingTime = time.Since(startTime)
 	result.Metadata["threats_analyzed"] = len(threats)
 	result.Metadata["analysis_methods"] = []string{
-		"sql_injection", "xss", "ddos", "brute_force", "data_exfiltration", 
-		"path_traversal", "command_injection", "ml_anomaly", "ml_behavioral", "ml_pattern"
+		"sql_injection", "xss", "ddos", "brute_force", "data_exfiltration",
+		"path_traversal", "command_injection", "ml_anomaly", "ml_behavioral", "ml_pattern",
 	}
 	result.Metadata["ml_models_used"] = []string{
-		"anomaly_detection_v1", "behavioral_analysis_v1", "pattern_recognition_v1"
+		"anomaly_detection_v1", "behavioral_analysis_v1", "pattern_recognition_v1",
 	}
 
 	return result, nil
@@ -327,13 +327,13 @@ func (s *ThreatDetectionService) AnalyzeTraffic(ctx context.Context, trafficData
 
 func (s *ThreatDetectionService) detectSQLInjection(ctx context.Context, traffic map[string]interface{}) ([]models.Threat, error) {
 	var threats []models.Threat
-	
+
 	// Extract request data
 	requestData, ok := traffic["request"].(map[string]interface{})
 	if !ok {
 		return threats, nil
 	}
-	
+
 	// SQL Injection patterns to detect
 	sqlPatterns := []string{
 		"';", "--", "/*", "*/", "xp_", "sp_", "exec", "execute", "union", "select", "insert", "update", "delete", "drop", "create", "alter",
@@ -343,7 +343,7 @@ func (s *ThreatDetectionService) detectSQLInjection(ctx context.Context, traffic
 		"union select", "union select 1", "union select 1,2", "union select 1,2,3", "union select 1,2,3,4",
 		"waitfor delay", "waitfor time", "benchmark", "sleep", "pg_sleep", "dbms_pipe.receive_message",
 	}
-	
+
 	// Check URL parameters
 	if params, ok := requestData["parameters"].(map[string]interface{}); ok {
 		for key, value := range params {
@@ -367,25 +367,25 @@ func (s *ThreatDetectionService) detectSQLInjection(ctx context.Context, traffic
 							Confidence:  0.85,
 						},
 					},
-					RequestData:  requestData,
-					FirstSeen:    time.Now(),
-					LastSeen:     time.Now(),
-					Count:        1,
-					CreatedAt:    time.Now(),
-					UpdatedAt:    time.Now(),
+					RequestData: requestData,
+					FirstSeen:   time.Now(),
+					LastSeen:    time.Now(),
+					Count:       1,
+					CreatedAt:   time.Now(),
+					UpdatedAt:   time.Now(),
 				}
-				
+
 				// Extract IP address if available
 				if ip, ok := requestData["ip_address"].(string); ok {
 					threat.IPAddress = ip
 					threat.SourceIP = ip
 				}
-				
+
 				// Extract user agent if available
 				if ua, ok := requestData["user_agent"].(string); ok {
 					threat.UserAgent = ua
 				}
-				
+
 				// Extract API and endpoint information
 				if apiID, ok := requestData["api_id"].(string); ok {
 					threat.APIID = apiID
@@ -393,12 +393,12 @@ func (s *ThreatDetectionService) detectSQLInjection(ctx context.Context, traffic
 				if endpointID, ok := requestData["endpoint_id"].(string); ok {
 					threat.EndpointID = endpointID
 				}
-				
+
 				threats = append(threats, threat)
 			}
 		}
 	}
-	
+
 	// Check request body
 	if body, ok := requestData["body"].(string); ok {
 		if s.containsSQLInjectionPattern(body, sqlPatterns) {
@@ -421,24 +421,24 @@ func (s *ThreatDetectionService) detectSQLInjection(ctx context.Context, traffic
 						Confidence:  0.80,
 					},
 				},
-				RequestData:  requestData,
-				FirstSeen:    time.Now(),
-				LastSeen:     time.Now(),
-				Count:        1,
-				CreatedAt:    time.Now(),
-				UpdatedAt:    time.Now(),
+				RequestData: requestData,
+				FirstSeen:   time.Now(),
+				LastSeen:    time.Now(),
+				Count:       1,
+				CreatedAt:   time.Now(),
+				UpdatedAt:   time.Now(),
 			}
-			
+
 			// Extract additional context
 			if ip, ok := requestData["ip_address"].(string); ok {
 				threat.IPAddress = ip
 				threat.SourceIP = ip
 			}
-			
+
 			threats = append(threats, threat)
 		}
 	}
-	
+
 	// Check headers for suspicious content
 	if headers, ok := requestData["headers"].(map[string]interface{}); ok {
 		for headerName, headerValue := range headers {
@@ -462,19 +462,19 @@ func (s *ThreatDetectionService) detectSQLInjection(ctx context.Context, traffic
 							Confidence:  0.75,
 						},
 					},
-					RequestData:  requestData,
-					FirstSeen:    time.Now(),
-					LastSeen:     time.Now(),
-					Count:        1,
-					CreatedAt:    time.Now(),
-					UpdatedAt:    time.Now(),
+					RequestData: requestData,
+					FirstSeen:   time.Now(),
+					LastSeen:    time.Now(),
+					Count:       1,
+					CreatedAt:   time.Now(),
+					UpdatedAt:   time.Now(),
 				}
-				
+
 				threats = append(threats, threat)
 			}
 		}
 	}
-	
+
 	return threats, nil
 }
 
@@ -490,12 +490,12 @@ func (s *ThreatDetectionService) containsSQLInjectionPattern(input string, patte
 
 func (s *ThreatDetectionService) detectXSS(ctx context.Context, traffic map[string]interface{}) ([]models.Threat, error) {
 	var threats []models.Threat
-	
+
 	requestData, ok := traffic["request"].(map[string]interface{})
 	if !ok {
 		return threats, nil
 	}
-	
+
 	// Enhanced XSS patterns to detect
 	xssPatterns := []string{
 		"<script", "</script>", "javascript:", "vbscript:", "onload=", "onerror=", "onclick=", "onmouseover=",
@@ -509,7 +509,7 @@ func (s *ThreatDetectionService) detectXSS(ctx context.Context, traffic map[stri
 		"<base", "<bdo", "<noscript", "<noframes", "<frameset", "<frame", "<noframe",
 		"<xss", "<xss>", "expression(", "url(", "behavior:", "binding:", "mocha:",
 	}
-	
+
 	// Check URL parameters
 	if params, ok := requestData["parameters"].(map[string]interface{}); ok {
 		for key, value := range params {
@@ -533,14 +533,14 @@ func (s *ThreatDetectionService) detectXSS(ctx context.Context, traffic map[stri
 							Confidence:  0.90,
 						},
 					},
-					RequestData:  requestData,
-					FirstSeen:    time.Now(),
-					LastSeen:     time.Now(),
-					Count:        1,
-					CreatedAt:    time.Now(),
-					UpdatedAt:    time.Now(),
+					RequestData: requestData,
+					FirstSeen:   time.Now(),
+					LastSeen:    time.Now(),
+					Count:       1,
+					CreatedAt:   time.Now(),
+					UpdatedAt:   time.Now(),
 				}
-				
+
 				// Extract additional context
 				if ip, ok := requestData["ip_address"].(string); ok {
 					threat.IPAddress = ip
@@ -555,12 +555,12 @@ func (s *ThreatDetectionService) detectXSS(ctx context.Context, traffic map[stri
 				if endpointID, ok := requestData["endpoint_id"].(string); ok {
 					threat.EndpointID = endpointID
 				}
-				
+
 				threats = append(threats, threat)
 			}
 		}
 	}
-	
+
 	// Check request body
 	if body, ok := requestData["body"].(string); ok {
 		if s.containsXSSPattern(body, xssPatterns) {
@@ -583,24 +583,24 @@ func (s *ThreatDetectionService) detectXSS(ctx context.Context, traffic map[stri
 						Confidence:  0.85,
 					},
 				},
-				RequestData:  requestData,
-				FirstSeen:    time.Now(),
-				LastSeen:     time.Now(),
-				Count:        1,
-				CreatedAt:    time.Now(),
-				UpdatedAt:    time.Now(),
+				RequestData: requestData,
+				FirstSeen:   time.Now(),
+				LastSeen:    time.Now(),
+				Count:       1,
+				CreatedAt:   time.Now(),
+				UpdatedAt:   time.Now(),
 			}
-			
+
 			// Extract additional context
 			if ip, ok := requestData["ip_address"].(string); ok {
 				threat.IPAddress = ip
 				threat.SourceIP = ip
 			}
-			
+
 			threats = append(threats, threat)
 		}
 	}
-	
+
 	// Check headers for suspicious content
 	if headers, ok := requestData["headers"].(map[string]interface{}); ok {
 		for headerName, headerValue := range headers {
@@ -624,19 +624,19 @@ func (s *ThreatDetectionService) detectXSS(ctx context.Context, traffic map[stri
 							Confidence:  0.80,
 						},
 					},
-					RequestData:  requestData,
-					FirstSeen:    time.Now(),
-					LastSeen:     time.Now(),
-					Count:        1,
-					CreatedAt:    time.Now(),
-					UpdatedAt:    time.Now(),
+					RequestData: requestData,
+					FirstSeen:   time.Now(),
+					LastSeen:    time.Now(),
+					Count:       1,
+					CreatedAt:   time.Now(),
+					UpdatedAt:   time.Now(),
 				}
-				
+
 				threats = append(threats, threat)
 			}
 		}
 	}
-	
+
 	return threats, nil
 }
 
@@ -652,19 +652,19 @@ func (s *ThreatDetectionService) containsXSSPattern(input string, patterns []str
 
 func (s *ThreatDetectionService) detectDDoS(ctx context.Context, traffic map[string]interface{}) ([]models.Threat, error) {
 	var threats []models.Threat
-	
+
 	// Extract IP address and timestamp
 	ipAddr, ok := traffic["ip_address"].(string)
 	if !ok {
 		return threats, nil
 	}
-	
+
 	timestamp, ok := traffic["timestamp"].(time.Time)
 	if !ok {
 		// If timestamp is not available, use current time
 		timestamp = time.Now()
 	}
-	
+
 	// Enhanced DDoS detection with multiple thresholds
 	thresholds := []struct {
 		duration time.Duration
@@ -672,31 +672,31 @@ func (s *ThreatDetectionService) detectDDoS(ctx context.Context, traffic map[str
 		severity string
 		score    float64
 	}{
-		{time.Minute, 100, "high", 9.0},      // 100 req/min = high severity
-		{time.Minute, 50, "medium", 7.5},     // 50 req/min = medium severity
-		{time.Minute, 25, "low", 6.0},        // 25 req/min = low severity
+		{time.Minute, 100, "high", 9.0},     // 100 req/min = high severity
+		{time.Minute, 50, "medium", 7.5},    // 50 req/min = medium severity
+		{time.Minute, 25, "low", 6.0},       // 25 req/min = low severity
 		{time.Second * 10, 20, "high", 9.5}, // 20 req/10sec = very high severity
 		{time.Second * 5, 10, "high", 9.0},  // 10 req/5sec = high severity
 	}
-	
+
 	for _, threshold := range thresholds {
 		requestCount, err := s.threatRepo.GetRequestCountByIP(ctx, ipAddr, threshold.duration)
 		if err != nil {
 			s.logger.Warn("Failed to get request count for DDoS detection", "ip", ipAddr, "duration", threshold.duration, "error", err)
 			continue
 		}
-		
+
 		if requestCount > threshold.limit {
 			// Calculate request rate
 			rate := float64(requestCount) / threshold.duration.Seconds()
-			
+
 			threat := models.Threat{
-				ID:              uuid.New().String(),
-				Type:            "ddos",
-				Severity:        threshold.severity,
-				Status:          "new",
-				Title:           "Potential DDoS Attack Detected",
-				Description:     fmt.Sprintf("High request rate detected from IP %s: %d requests in %v (%.2f req/sec)", 
+				ID:       uuid.New().String(),
+				Type:     "ddos",
+				Severity: threshold.severity,
+				Status:   "new",
+				Title:    "Potential DDoS Attack Detected",
+				Description: fmt.Sprintf("High request rate detected from IP %s: %d requests in %v (%.2f req/sec)",
 					ipAddr, requestCount, threshold.duration, rate),
 				IPAddress:       ipAddr,
 				SourceIP:        ipAddr,
@@ -719,14 +719,14 @@ func (s *ThreatDetectionService) detectDDoS(ctx context.Context, traffic map[str
 						Confidence:  0.85,
 					},
 				},
-				RequestData:  traffic,
-				FirstSeen:    timestamp,
-				LastSeen:     timestamp,
-				Count:        requestCount,
-				CreatedAt:    time.Now(),
-				UpdatedAt:    time.Now(),
+				RequestData: traffic,
+				FirstSeen:   timestamp,
+				LastSeen:    timestamp,
+				Count:       requestCount,
+				CreatedAt:   time.Now(),
+				UpdatedAt:   time.Now(),
 			}
-			
+
 			// Extract additional context
 			if apiID, ok := traffic["api_id"].(string); ok {
 				threat.APIID = apiID
@@ -737,61 +737,61 @@ func (s *ThreatDetectionService) detectDDoS(ctx context.Context, traffic map[str
 			if userAgent, ok := traffic["user_agent"].(string); ok {
 				threat.UserAgent = userAgent
 			}
-			
+
 			threats = append(threats, threat)
-			
+
 			// Only create one threat per IP, so break after first threshold exceeded
 			break
 		}
 	}
-	
+
 	return threats, nil
 }
 
 func (s *ThreatDetectionService) detectBruteForce(ctx context.Context, traffic map[string]interface{}) ([]models.Threat, error) {
 	var threats []models.Threat
-	
+
 	requestData, ok := traffic["request"].(map[string]interface{})
 	if !ok {
 		return threats, nil
 	}
-	
+
 	responseData, ok := traffic["response"].(map[string]interface{})
 	if !ok {
 		return threats, nil
 	}
-	
+
 	// Check if this is an authentication endpoint
 	path, ok := requestData["path"].(string)
 	if !ok {
 		return threats, nil
 	}
-	
+
 	isAuthEndpoint := strings.Contains(strings.ToLower(path), "login") ||
 		strings.Contains(strings.ToLower(path), "auth") ||
 		strings.Contains(strings.ToLower(path), "signin")
-	
+
 	if !isAuthEndpoint {
 		return threats, nil
 	}
-	
+
 	// Check for failed authentication (401, 403 status codes)
 	statusCode, ok := responseData["status_code"].(float64)
 	if !ok || (statusCode != 401 && statusCode != 403) {
 		return threats, nil
 	}
-	
+
 	ipAddr, ok := traffic["ip_address"].(string)
 	if !ok {
 		return threats, nil
 	}
-	
+
 	// Count failed authentication attempts from this IP in the last 5 minutes
 	failedAttempts, err := s.threatRepo.GetFailedAuthAttempts(ctx, ipAddr, 5*time.Minute)
 	if err != nil {
 		return threats, fmt.Errorf("failed to get failed auth attempts: %w", err)
 	}
-	
+
 	// Brute force threshold: more than 10 failed attempts in 5 minutes
 	if failedAttempts > 10 {
 		threat := models.Threat{
@@ -822,38 +822,38 @@ func (s *ThreatDetectionService) detectBruteForce(ctx context.Context, traffic m
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
 		}
-		
+
 		if apiID, ok := traffic["api_id"].(string); ok {
 			threat.APIID = apiID
 		}
 		if userAgent, ok := requestData["user_agent"].(string); ok {
 			threat.UserAgent = userAgent
 		}
-		
+
 		threats = append(threats, threat)
 	}
-	
+
 	return threats, nil
 }
 
 func (s *ThreatDetectionService) detectDataExfiltration(ctx context.Context, traffic map[string]interface{}) ([]models.Threat, error) {
 	var threats []models.Threat
-	
+
 	responseData, ok := traffic["response"].(map[string]interface{})
 	if !ok {
 		return threats, nil
 	}
-	
+
 	// Check response size
 	responseSize, ok := responseData["size"].(float64)
 	if !ok {
 		return threats, nil
 	}
-	
+
 	// Large response threshold: more than 10MB
 	if responseSize > 10*1024*1024 {
 		requestData, _ := traffic["request"].(map[string]interface{})
-		
+
 		threat := models.Threat{
 			ID:              uuid.New().String(),
 			Type:            models.ThreatTypeDataExfiltration,
@@ -881,7 +881,7 @@ func (s *ThreatDetectionService) detectDataExfiltration(ctx context.Context, tra
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
 		}
-		
+
 		if ipAddr, ok := traffic["ip_address"].(string); ok {
 			threat.IPAddress = ipAddr
 		}
@@ -891,10 +891,10 @@ func (s *ThreatDetectionService) detectDataExfiltration(ctx context.Context, tra
 		if userAgent, ok := requestData["user_agent"].(string); ok {
 			threat.UserAgent = userAgent
 		}
-		
+
 		threats = append(threats, threat)
 	}
-	
+
 	return threats, nil
 }
 
@@ -918,105 +918,105 @@ func (s *ThreatDetectionService) getSeverityWeight(severity string) int {
 func (s *ThreatDetectionService) generateRecommendations(threats []models.Threat) []string {
 	recommendations := []string{}
 	threatTypes := make(map[string]bool)
-	
+
 	for _, threat := range threats {
 		threatTypes[threat.Type] = true
 	}
-	
+
 	if threatTypes[models.ThreatTypeInjection] {
 		recommendations = append(recommendations, "Implement input validation and parameterized queries")
 		recommendations = append(recommendations, "Enable Web Application Firewall (WAF) rules for SQL injection")
 	}
-	
+
 	if threatTypes[models.ThreatTypeXSS] {
 		recommendations = append(recommendations, "Implement output encoding and Content Security Policy (CSP)")
 		recommendations = append(recommendations, "Sanitize user inputs and validate data types")
 	}
-	
+
 	if threatTypes[models.ThreatTypeDDoS] {
 		recommendations = append(recommendations, "Implement rate limiting and IP blocking")
 		recommendations = append(recommendations, "Consider using DDoS protection services")
 	}
-	
+
 	if threatTypes[models.ThreatTypeBruteForce] {
 		recommendations = append(recommendations, "Implement account lockout policies")
 		recommendations = append(recommendations, "Enable multi-factor authentication (MFA)")
 		recommendations = append(recommendations, "Implement CAPTCHA for repeated failed attempts")
 	}
-	
+
 	if threatTypes[models.ThreatTypeDataExfiltration] {
 		recommendations = append(recommendations, "Review data access permissions and implement data loss prevention (DLP)")
 		recommendations = append(recommendations, "Monitor and alert on large data transfers")
 	}
-	
+
 	if threatTypes["path_traversal"] {
 		recommendations = append(recommendations, "Implement strict path validation and sanitization")
 		recommendations = append(recommendations, "Use allowlist approach for file paths and directories")
 		recommendations = append(recommendations, "Implement proper URL encoding/decoding validation")
 	}
-	
+
 	if threatTypes["command_injection"] {
 		recommendations = append(recommendations, "Avoid using system() or exec() functions with user input")
 		recommendations = append(recommendations, "Implement strict input validation and sanitization")
 		recommendations = append(recommendations, "Use parameterized APIs instead of shell commands")
 		recommendations = append(recommendations, "Implement proper escaping for shell commands if necessary")
 	}
-	
+
 	// ML-based threat recommendations
 	if threatTypes["ml_anomaly"] {
 		recommendations = append(recommendations, "Review ML model performance and retrain if necessary")
 		recommendations = append(recommendations, "Adjust anomaly detection thresholds based on false positive rates")
 		recommendations = append(recommendations, "Implement adaptive learning for improved anomaly detection")
 	}
-	
+
 	if threatTypes["ml_behavioral"] {
 		recommendations = append(recommendations, "Analyze behavioral patterns to identify new threat indicators")
 		recommendations = append(recommendations, "Update behavioral baseline models with new data")
 		recommendations = append(recommendations, "Implement user behavior analytics for enhanced detection")
 	}
-	
+
 	if threatTypes["ml_pattern"] {
 		recommendations = append(recommendations, "Update pattern recognition models with new threat signatures")
 		recommendations = append(recommendations, "Implement ensemble learning for improved pattern detection")
 		recommendations = append(recommendations, "Use transfer learning for cross-domain threat pattern recognition")
 	}
-	
+
 	return recommendations
 }
 
 func (s *ThreatDetectionService) publishThreatEvent(ctx context.Context, threats []models.Threat) error {
 	for _, threat := range threats {
 		eventData := map[string]interface{}{
-			"event_type":    "threat_detected",
-			"threat_id":     threat.ID,
-			"threat_type":   threat.Type,
-			"severity":      threat.Severity,
-			"risk_score":    threat.RiskScore,
-			"confidence":    threat.Confidence,
-			"ip_address":    threat.IPAddress,
-			"api_id":        threat.APIID,
-			"endpoint_id":   threat.EndpointID,
-			"timestamp":     threat.CreatedAt,
-			"indicators":    threat.Indicators,
-			"description":   threat.Description,
+			"event_type":  "threat_detected",
+			"threat_id":   threat.ID,
+			"threat_type": threat.Type,
+			"severity":    threat.Severity,
+			"risk_score":  threat.RiskScore,
+			"confidence":  threat.Confidence,
+			"ip_address":  threat.IPAddress,
+			"api_id":      threat.APIID,
+			"endpoint_id": threat.EndpointID,
+			"timestamp":   threat.CreatedAt,
+			"indicators":  threat.Indicators,
+			"description": threat.Description,
 		}
-		
+
 		eventJSON, err := json.Marshal(eventData)
 		if err != nil {
 			return fmt.Errorf("failed to marshal threat event: %w", err)
 		}
-		
+
 		message := kafka.Message{
 			Topic: "threat_events",
 			Key:   []byte(threat.ID),
 			Value: eventJSON,
 		}
-		
+
 		if err := s.kafkaProducer.Produce(ctx, message); err != nil {
 			return fmt.Errorf("failed to produce threat event: %w", err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -1025,7 +1025,7 @@ func (s *ThreatDetectionService) AnalyzeThreat(ctx context.Context, request *mod
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal traffic data: %w", err)
 	}
-	
+
 	return s.AnalyzeTraffic(ctx, trafficJSON)
 }
 
@@ -1043,13 +1043,13 @@ func (s *ThreatDetectionService) UpdateThreatStatus(ctx context.Context, threatI
 	if err != nil {
 		return err
 	}
-	
+
 	// Update fields from request
 	if update.Status != "" {
 		threat.Status = update.Status
 	}
 	// Note: Additional update logic can be added here for other fields
-	
+
 	return s.threatRepo.UpdateThreat(ctx, threatID, threat)
 }
 
@@ -1071,31 +1071,31 @@ func (s *ThreatDetectionService) ProcessSecurityEvent(ctx context.Context, event
 	if err != nil {
 		return fmt.Errorf("failed to marshal security event: %w", err)
 	}
-	
+
 	result, err := s.AnalyzeTraffic(ctx, eventJSON)
 	if err != nil {
 		return fmt.Errorf("failed to analyze security event: %w", err)
 	}
-	
+
 	if result.ThreatDetected {
-		s.logger.Info("Threat detected from security event", 
-			"threat_type", result.ThreatType, 
+		s.logger.Info("Threat detected from security event",
+			"threat_type", result.ThreatType,
 			"severity", result.Severity,
 			"risk_score", result.RiskScore)
 	}
-	
+
 	return nil
 }
 
 // detectPathTraversal detects path traversal attacks
 func (s *ThreatDetectionService) detectPathTraversal(ctx context.Context, traffic map[string]interface{}) ([]models.Threat, error) {
 	var threats []models.Threat
-	
+
 	requestData, ok := traffic["request"].(map[string]interface{})
 	if !ok {
 		return threats, nil
 	}
-	
+
 	// Path traversal patterns to detect
 	pathTraversalPatterns := []string{
 		"../", "..\\", "..%2f", "..%5c", "..%2F", "..%5C",
@@ -1108,7 +1108,7 @@ func (s *ThreatDetectionService) detectPathTraversal(ctx context.Context, traffi
 		"..%c0%af", "..%c0%AF", "..%c1%9c", "..%c1%9C",
 		"..%c0%af", "..%c0%AF", "..%c1%9c", "..%c1%9C",
 	}
-	
+
 	// Check URL path
 	if path, ok := requestData["path"].(string); ok {
 		if s.containsPathTraversalPattern(path, pathTraversalPatterns) {
@@ -1131,14 +1131,14 @@ func (s *ThreatDetectionService) detectPathTraversal(ctx context.Context, traffi
 						Confidence:  0.95,
 					},
 				},
-				RequestData:  requestData,
-				FirstSeen:    time.Now(),
-				LastSeen:     time.Now(),
-				Count:        1,
-				CreatedAt:    time.Now(),
-				UpdatedAt:    time.Now(),
+				RequestData: requestData,
+				FirstSeen:   time.Now(),
+				LastSeen:    time.Now(),
+				Count:       1,
+				CreatedAt:   time.Now(),
+				UpdatedAt:   time.Now(),
 			}
-			
+
 			// Extract additional context
 			if ip, ok := requestData["ip_address"].(string); ok {
 				threat.IPAddress = ip
@@ -1153,11 +1153,11 @@ func (s *ThreatDetectionService) detectPathTraversal(ctx context.Context, traffi
 			if endpointID, ok := requestData["endpoint_id"].(string); ok {
 				threat.EndpointID = endpointID
 			}
-			
+
 			threats = append(threats, threat)
 		}
 	}
-	
+
 	// Check URL parameters for path traversal
 	if params, ok := requestData["parameters"].(map[string]interface{}); ok {
 		for key, value := range params {
@@ -1181,14 +1181,14 @@ func (s *ThreatDetectionService) detectPathTraversal(ctx context.Context, traffi
 							Confidence:  0.90,
 						},
 					},
-					RequestData:  requestData,
-					FirstSeen:    time.Now(),
-					LastSeen:     time.Now(),
-					Count:        1,
-					CreatedAt:    time.Now(),
-					UpdatedAt:    time.Now(),
+					RequestData: requestData,
+					FirstSeen:   time.Now(),
+					LastSeen:    time.Now(),
+					Count:       1,
+					CreatedAt:   time.Now(),
+					UpdatedAt:   time.Now(),
 				}
-				
+
 				// Extract additional context
 				if ip, ok := requestData["ip_address"].(string); ok {
 					threat.IPAddress = ip
@@ -1203,12 +1203,12 @@ func (s *ThreatDetectionService) detectPathTraversal(ctx context.Context, traffi
 				if endpointID, ok := requestData["endpoint_id"].(string); ok {
 					threat.EndpointID = endpointID
 				}
-				
+
 				threats = append(threats, threat)
 			}
 		}
 	}
-	
+
 	return threats, nil
 }
 
@@ -1225,12 +1225,12 @@ func (s *ThreatDetectionService) containsPathTraversalPattern(input string, patt
 // detectCommandInjection detects command injection attacks
 func (s *ThreatDetectionService) detectCommandInjection(ctx context.Context, traffic map[string]interface{}) ([]models.Threat, error) {
 	var threats []models.Threat
-	
+
 	requestData, ok := traffic["request"].(map[string]interface{})
 	if !ok {
 		return threats, nil
 	}
-	
+
 	// Command injection patterns to detect
 	commandInjectionPatterns := []string{
 		";", "|", "&", "&&", "||", "`", "$(", "$(((", "eval", "exec", "system",
@@ -1246,7 +1246,7 @@ func (s *ThreatDetectionService) detectCommandInjection(ctx context.Context, tra
 		"logrotate", "rsyslog", "syslog", "journalctl", "dmesg", "last",
 		"who", "w", "uptime", "top", "htop", "iotop", "iotop", "iotop",
 	}
-	
+
 	// Check URL parameters
 	if params, ok := requestData["parameters"].(map[string]interface{}); ok {
 		for key, value := range params {
@@ -1270,14 +1270,14 @@ func (s *ThreatDetectionService) detectCommandInjection(ctx context.Context, tra
 							Confidence:  0.95,
 						},
 					},
-					RequestData:  requestData,
-					FirstSeen:    time.Now(),
-					LastSeen:     time.Now(),
-					Count:        1,
-					CreatedAt:    time.Now(),
-					UpdatedAt:    time.Now(),
+					RequestData: requestData,
+					FirstSeen:   time.Now(),
+					LastSeen:    time.Now(),
+					Count:       1,
+					CreatedAt:   time.Now(),
+					UpdatedAt:   time.Now(),
 				}
-				
+
 				// Extract additional context
 				if ip, ok := requestData["ip_address"].(string); ok {
 					threat.IPAddress = ip
@@ -1292,12 +1292,12 @@ func (s *ThreatDetectionService) detectCommandInjection(ctx context.Context, tra
 				if endpointID, ok := requestData["endpoint_id"].(string); ok {
 					threat.EndpointID = endpointID
 				}
-				
+
 				threats = append(threats, threat)
 			}
 		}
 	}
-	
+
 	// Check request body
 	if body, ok := requestData["body"].(string); ok {
 		if s.containsCommandInjectionPattern(body, commandInjectionPatterns) {
@@ -1320,24 +1320,24 @@ func (s *ThreatDetectionService) detectCommandInjection(ctx context.Context, tra
 						Confidence:  0.90,
 					},
 				},
-				RequestData:  requestData,
-				FirstSeen:    time.Now(),
-				LastSeen:     time.Now(),
-				Count:        1,
-				CreatedAt:    time.Now(),
-				UpdatedAt:    time.Now(),
+				RequestData: requestData,
+				FirstSeen:   time.Now(),
+				LastSeen:    time.Now(),
+				Count:       1,
+				CreatedAt:   time.Now(),
+				UpdatedAt:   time.Now(),
 			}
-			
+
 			// Extract additional context
 			if ip, ok := requestData["ip_address"].(string); ok {
 				threat.IPAddress = ip
 				threat.SourceIP = ip
 			}
-			
+
 			threats = append(threats, threat)
 		}
 	}
-	
+
 	return threats, nil
 }
 
@@ -1354,17 +1354,17 @@ func (s *ThreatDetectionService) containsCommandInjectionPattern(input string, p
 // detectMLAnomalies uses ML models to detect anomalies
 func (s *ThreatDetectionService) detectMLAnomalies(ctx context.Context, traffic map[string]interface{}) ([]models.Threat, error) {
 	var threats []models.Threat
-	
+
 	// Extract features for ML analysis
 	features := s.featureExtractor.ExtractAnomalyFeatures(traffic)
-	
+
 	// Get ML prediction
 	prediction, err := s.PredictThreat(ctx, traffic)
 	if err != nil {
 		s.logger.Warn("ML prediction failed for anomaly detection", "error", err)
 		return threats, nil
 	}
-	
+
 	// Check if anomaly is detected
 	if prediction.IsAnomaly && prediction.AnomalyScore > s.mlModels["anomaly_detection"].Threshold {
 		threat := models.Threat{
@@ -1393,14 +1393,14 @@ func (s *ThreatDetectionService) detectMLAnomalies(ctx context.Context, traffic 
 					Confidence:  prediction.Confidence,
 				},
 			},
-			RequestData:  traffic,
-			FirstSeen:    time.Now(),
-			LastSeen:     time.Now(),
-			Count:        1,
-			CreatedAt:    time.Now(),
-			UpdatedAt:    time.Now(),
+			RequestData: traffic,
+			FirstSeen:   time.Now(),
+			LastSeen:    time.Now(),
+			Count:       1,
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
 		}
-		
+
 		// Extract additional context
 		if ip, ok := traffic["ip_address"].(string); ok {
 			threat.IPAddress = ip
@@ -1412,37 +1412,37 @@ func (s *ThreatDetectionService) detectMLAnomalies(ctx context.Context, traffic 
 		if endpointID, ok := traffic["endpoint_id"].(string); ok {
 			threat.EndpointID = endpointID
 		}
-		
+
 		// Add ML-specific metadata
 		threat.Metadata = map[string]interface{}{
-			"ml_model_id":     prediction.ModelID,
-			"ml_model_type":   prediction.ModelType,
-			"ml_features":     features,
-			"ml_prediction":   prediction.Prediction,
-			"ml_confidence":   prediction.Confidence,
+			"ml_model_id":      prediction.ModelID,
+			"ml_model_type":    prediction.ModelType,
+			"ml_features":      features,
+			"ml_prediction":    prediction.Prediction,
+			"ml_confidence":    prediction.Confidence,
 			"ml_anomaly_score": prediction.AnomalyScore,
 		}
-		
+
 		threats = append(threats, threat)
 	}
-	
+
 	return threats, nil
 }
 
 // detectMLBehavioral uses ML models to analyze behavioral patterns
 func (s *ThreatDetectionService) detectMLBehavioral(ctx context.Context, traffic map[string]interface{}) ([]models.Threat, error) {
 	var threats []models.Threat
-	
+
 	// Extract behavioral features
 	features := s.featureExtractor.ExtractBehavioralFeatures(traffic)
-	
+
 	// Get ML prediction for behavioral analysis
 	prediction, err := s.PredictThreat(ctx, traffic)
 	if err != nil {
 		s.logger.Warn("ML prediction failed for behavioral analysis", "error", err)
 		return threats, nil
 	}
-	
+
 	// Check if suspicious behavior is detected
 	if prediction.Prediction > s.mlModels["behavioral_analysis"].Threshold {
 		threat := models.Threat{
@@ -1471,14 +1471,14 @@ func (s *ThreatDetectionService) detectMLBehavioral(ctx context.Context, traffic
 					Confidence:  prediction.Confidence,
 				},
 			},
-			RequestData:  traffic,
-			FirstSeen:    time.Now(),
-			LastSeen:     time.Now(),
-			Count:        1,
-			CreatedAt:    time.Now(),
-			UpdatedAt:    time.Now(),
+			RequestData: traffic,
+			FirstSeen:   time.Now(),
+			LastSeen:    time.Now(),
+			Count:       1,
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
 		}
-		
+
 		// Extract additional context
 		if ip, ok := traffic["ip_address"].(string); ok {
 			threat.IPAddress = ip
@@ -1490,37 +1490,37 @@ func (s *ThreatDetectionService) detectMLBehavioral(ctx context.Context, traffic
 		if endpointID, ok := traffic["endpoint_id"].(string); ok {
 			threat.EndpointID = endpointID
 		}
-		
+
 		// Add ML-specific metadata
 		threat.Metadata = map[string]interface{}{
-			"ml_model_id":     prediction.ModelID,
-			"ml_model_type":   prediction.ModelType,
-			"ml_features":     features,
-			"ml_prediction":   prediction.Prediction,
-			"ml_confidence":   prediction.Confidence,
+			"ml_model_id":         prediction.ModelID,
+			"ml_model_type":       prediction.ModelType,
+			"ml_features":         features,
+			"ml_prediction":       prediction.Prediction,
+			"ml_confidence":       prediction.Confidence,
 			"ml_behavioral_score": prediction.Prediction,
 		}
-		
+
 		threats = append(threats, threat)
 	}
-	
+
 	return threats, nil
 }
 
 // detectMLPatterns uses ML models to recognize threat patterns
 func (s *ThreatDetectionService) detectMLPatterns(ctx context.Context, traffic map[string]interface{}) ([]models.Threat, error) {
 	var threats []models.Threat
-	
+
 	// Extract pattern features
 	features := s.featureExtractor.ExtractPatternFeatures(traffic)
-	
+
 	// Get ML prediction for pattern recognition
 	prediction, err := s.PredictThreat(ctx, traffic)
 	if err != nil {
 		s.logger.Warn("ML prediction failed for pattern recognition", "error", err)
 		return threats, nil
 	}
-	
+
 	// Check if threat pattern is detected
 	if prediction.Prediction > s.mlModels["pattern_recognition"].Threshold {
 		threat := models.Threat{
@@ -1549,14 +1549,14 @@ func (s *ThreatDetectionService) detectMLPatterns(ctx context.Context, traffic m
 					Confidence:  prediction.Confidence,
 				},
 			},
-			RequestData:  traffic,
-			FirstSeen:    time.Now(),
-			LastSeen:     time.Now(),
-			Count:        1,
-			CreatedAt:    time.Now(),
-			UpdatedAt:    time.Now(),
+			RequestData: traffic,
+			FirstSeen:   time.Now(),
+			LastSeen:    time.Now(),
+			Count:       1,
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
 		}
-		
+
 		// Extract additional context
 		if ip, ok := traffic["ip_address"].(string); ok {
 			threat.IPAddress = ip
@@ -1568,20 +1568,20 @@ func (s *ThreatDetectionService) detectMLPatterns(ctx context.Context, traffic m
 		if endpointID, ok := traffic["endpoint_id"].(string); ok {
 			threat.EndpointID = endpointID
 		}
-		
+
 		// Add ML-specific metadata
 		threat.Metadata = map[string]interface{}{
-			"ml_model_id":     prediction.ModelID,
-			"ml_model_type":   prediction.ModelType,
-			"ml_features":     features,
-			"ml_prediction":   prediction.Prediction,
-			"ml_confidence":   prediction.Confidence,
+			"ml_model_id":      prediction.ModelID,
+			"ml_model_type":    prediction.ModelType,
+			"ml_features":      features,
+			"ml_prediction":    prediction.Prediction,
+			"ml_confidence":    prediction.Confidence,
 			"ml_pattern_score": prediction.Prediction,
 		}
-		
+
 		threats = append(threats, threat)
 	}
-	
+
 	return threats, nil
 }
 
@@ -1604,9 +1604,9 @@ func (s *ThreatDetectionService) calculateMLSeverity(score float64) string {
 // ExtractAnomalyFeatures extracts features for anomaly detection
 func (e *MLFeatureExtractor) ExtractAnomalyFeatures(traffic map[string]interface{}) map[string]float64 {
 	features := make(map[string]float64)
-	
+
 	// Request rate features - calculate actual rates instead of placeholders
-	if ip, ok := traffic["ip_address"].(string); ok {
+	if _, ok := traffic["ip_address"].(string); ok {
 		// Calculate request rate based on timestamp and request count
 		if timestamp, ok := traffic["timestamp"].(time.Time); ok {
 			// In a real system, this would query historical data for this IP
@@ -1615,30 +1615,30 @@ func (e *MLFeatureExtractor) ExtractAnomalyFeatures(traffic map[string]interface
 			if hour >= 9 && hour <= 17 {
 				features["request_rate"] = 15.0 // Business hours: higher rate
 			} else {
-				features["request_rate"] = 5.0  // Off hours: lower rate
+				features["request_rate"] = 5.0 // Off hours: lower rate
 			}
 		} else {
 			features["request_rate"] = 10.0 // Default rate
 		}
-		
+
 		// Calculate unique IPs (in a real system, this would be from historical data)
 		features["unique_ips"] = 1.0 // Single IP for current request
 	}
-	
+
 	// Response time features
 	if response, ok := traffic["response"].(map[string]interface{}); ok {
 		if responseTime, ok := response["response_time"].(float64); ok {
 			features["response_time"] = responseTime
 		}
 	}
-	
+
 	// Payload size features
 	if request, ok := traffic["request"].(map[string]interface{}); ok {
 		if body, ok := request["body"].(string); ok {
 			features["payload_size"] = float64(len(body))
 		}
 	}
-	
+
 	// Error rate features
 	if response, ok := traffic["response"].(map[string]interface{}); ok {
 		if statusCode, ok := response["status_code"].(float64); ok {
@@ -1649,7 +1649,7 @@ func (e *MLFeatureExtractor) ExtractAnomalyFeatures(traffic map[string]interface
 			}
 		}
 	}
-	
+
 	// User agent diversity - calculate actual diversity score
 	if request, ok := traffic["request"].(map[string]interface{}); ok {
 		if userAgent, ok := request["user_agent"].(string); ok {
@@ -1673,14 +1673,14 @@ func (e *MLFeatureExtractor) ExtractAnomalyFeatures(traffic map[string]interface
 			features["user_agent_diversity"] = diversity
 		}
 	}
-	
+
 	return features
 }
 
 // ExtractBehavioralFeatures extracts features for behavioral analysis
 func (e *MLFeatureExtractor) ExtractBehavioralFeatures(traffic map[string]interface{}) map[string]float64 {
 	features := make(map[string]float64)
-	
+
 	// Session pattern features
 	if request, ok := traffic["request"].(map[string]interface{}); ok {
 		if path, ok := request["path"].(string); ok {
@@ -1690,33 +1690,33 @@ func (e *MLFeatureExtractor) ExtractBehavioralFeatures(traffic map[string]interf
 			features["request_sequence"] = float64(len(method))
 		}
 	}
-	
+
 	// Timing pattern features
 	if timestamp, ok := traffic["timestamp"].(time.Time); ok {
 		features["timing_pattern"] = float64(timestamp.Hour())
 	}
-	
+
 	// Resource access features
 	if request, ok := traffic["request"].(map[string]interface{}); ok {
 		if path, ok := request["path"].(string); ok {
 			features["resource_access"] = float64(len(path))
 		}
 	}
-	
+
 	// Data volume features
 	if request, ok := traffic["request"].(map[string]interface{}); ok {
 		if body, ok := request["body"].(string); ok {
 			features["data_volume"] = float64(len(body))
 		}
 	}
-	
+
 	return features
 }
 
 // ExtractPatternFeatures extracts features for pattern recognition
 func (e *MLFeatureExtractor) ExtractPatternFeatures(traffic map[string]interface{}) map[string]float64 {
 	features := make(map[string]float64)
-	
+
 	// URL pattern features
 	if request, ok := traffic["request"].(map[string]interface{}); ok {
 		if path, ok := request["path"].(string); ok {
@@ -1724,21 +1724,21 @@ func (e *MLFeatureExtractor) ExtractPatternFeatures(traffic map[string]interface
 			features["url_complexity"] = float64(strings.Count(path, "/"))
 		}
 	}
-	
+
 	// Parameter pattern features
 	if request, ok := traffic["request"].(map[string]interface{}); ok {
 		if params, ok := request["parameters"].(map[string]interface{}); ok {
 			features["parameter_pattern"] = float64(len(params))
 		}
 	}
-	
+
 	// Header pattern features
 	if request, ok := traffic["request"].(map[string]interface{}); ok {
 		if headers, ok := request["headers"].(map[string]interface{}); ok {
 			features["header_pattern"] = float64(len(headers))
 		}
 	}
-	
+
 	// Payload pattern features
 	if request, ok := traffic["request"].(map[string]interface{}); ok {
 		if body, ok := request["body"].(string); ok {
@@ -1746,14 +1746,14 @@ func (e *MLFeatureExtractor) ExtractPatternFeatures(traffic map[string]interface
 			features["payload_complexity"] = float64(strings.Count(body, " "))
 		}
 	}
-	
+
 	// Response pattern features
 	if response, ok := traffic["response"].(map[string]interface{}); ok {
 		if statusCode, ok := response["status_code"].(float64); ok {
 			features["response_pattern"] = statusCode
 		}
 	}
-	
+
 	return features
 }
 
@@ -1761,27 +1761,27 @@ func (e *MLFeatureExtractor) ExtractPatternFeatures(traffic map[string]interface
 func (s *ThreatDetectionService) PredictThreat(ctx context.Context, traffic map[string]interface{}) (*MLPrediction, error) {
 	// This is a simplified ML prediction implementation
 	// In a real system, this would call actual ML models or APIs
-	
+
 	// Extract features
 	anomalyFeatures := s.featureExtractor.ExtractAnomalyFeatures(traffic)
 	behavioralFeatures := s.featureExtractor.ExtractBehavioralFeatures(traffic)
 	patternFeatures := s.featureExtractor.ExtractPatternFeatures(traffic)
-	
+
 	// Calculate anomaly score (simplified)
 	anomalyScore := s.calculateAnomalyScore(anomalyFeatures)
-	
+
 	// Calculate behavioral score (simplified)
 	behavioralScore := s.calculateBehavioralScore(behavioralFeatures)
-	
+
 	// Calculate pattern score (simplified)
 	patternScore := s.calculatePatternScore(patternFeatures)
-	
+
 	// Combine scores
 	combinedScore := (anomalyScore + behavioralScore + patternScore) / 3.0
-	
+
 	// Determine if anomaly
 	isAnomaly := combinedScore > 0.7
-	
+
 	return &MLPrediction{
 		ModelID:      "combined_ml_models",
 		ModelType:    "ensemble",
@@ -1789,7 +1789,7 @@ func (s *ThreatDetectionService) PredictThreat(ctx context.Context, traffic map[
 		Confidence:   math.Min(combinedScore+0.1, 1.0),
 		Features:     anomalyFeatures, // Use anomaly features as primary
 		AnomalyScore: anomalyScore,
-		IsAnomaly:   isAnomaly,
+		IsAnomaly:    isAnomaly,
 	}, nil
 }
 
@@ -1797,7 +1797,7 @@ func (s *ThreatDetectionService) PredictThreat(ctx context.Context, traffic map[
 func (s *ThreatDetectionService) calculateAnomalyScore(features map[string]float64) float64 {
 	score := 0.0
 	count := 0.0
-	
+
 	// Request rate anomaly
 	if rate, ok := features["request_rate"]; ok {
 		if rate > 100 { // High request rate
@@ -1805,7 +1805,7 @@ func (s *ThreatDetectionService) calculateAnomalyScore(features map[string]float
 		}
 		count++
 	}
-	
+
 	// Response time anomaly
 	if responseTime, ok := features["response_time"]; ok {
 		if responseTime > 5000 { // High response time
@@ -1813,7 +1813,7 @@ func (s *ThreatDetectionService) calculateAnomalyScore(features map[string]float
 		}
 		count++
 	}
-	
+
 	// Payload size anomaly
 	if payloadSize, ok := features["payload_size"]; ok {
 		if payloadSize > 10000 { // Large payload
@@ -1821,7 +1821,7 @@ func (s *ThreatDetectionService) calculateAnomalyScore(features map[string]float
 		}
 		count++
 	}
-	
+
 	// Error rate anomaly
 	if errorRate, ok := features["error_rate"]; ok {
 		if errorRate > 0.5 { // High error rate
@@ -1829,7 +1829,7 @@ func (s *ThreatDetectionService) calculateAnomalyScore(features map[string]float
 		}
 		count++
 	}
-	
+
 	if count > 0 {
 		return score / count
 	}
@@ -1840,7 +1840,7 @@ func (s *ThreatDetectionService) calculateAnomalyScore(features map[string]float
 func (s *ThreatDetectionService) calculateBehavioralScore(features map[string]float64) float64 {
 	score := 0.0
 	count := 0.0
-	
+
 	// Session pattern anomaly
 	if sessionPattern, ok := features["session_pattern"]; ok {
 		if sessionPattern > 100 { // Complex session
@@ -1848,7 +1848,7 @@ func (s *ThreatDetectionService) calculateBehavioralScore(features map[string]fl
 		}
 		count++
 	}
-	
+
 	// Request sequence anomaly
 	if requestSequence, ok := features["request_sequence"]; ok {
 		if requestSequence > 10 { // Long request sequence
@@ -1856,7 +1856,7 @@ func (s *ThreatDetectionService) calculateBehavioralScore(features map[string]fl
 		}
 		count++
 	}
-	
+
 	// Timing pattern anomaly
 	if timingPattern, ok := features["timing_pattern"]; ok {
 		if timingPattern < 6 || timingPattern > 22 { // Off-hours activity
@@ -1864,7 +1864,7 @@ func (s *ThreatDetectionService) calculateBehavioralScore(features map[string]fl
 		}
 		count++
 	}
-	
+
 	// Resource access anomaly
 	if resourceAccess, ok := features["resource_access"]; ok {
 		if resourceAccess > 50 { // Many resources accessed
@@ -1872,7 +1872,7 @@ func (s *ThreatDetectionService) calculateBehavioralScore(features map[string]fl
 		}
 		count++
 	}
-	
+
 	if count > 0 {
 		return score / count
 	}
@@ -1883,7 +1883,7 @@ func (s *ThreatDetectionService) calculateBehavioralScore(features map[string]fl
 func (s *ThreatDetectionService) calculatePatternScore(features map[string]float64) float64 {
 	score := 0.0
 	count := 0.0
-	
+
 	// URL pattern anomaly
 	if urlPattern, ok := features["url_pattern"]; ok {
 		if urlPattern > 200 { // Very long URL
@@ -1891,7 +1891,7 @@ func (s *ThreatDetectionService) calculatePatternScore(features map[string]float
 		}
 		count++
 	}
-	
+
 	// URL complexity anomaly
 	if urlComplexity, ok := features["url_complexity"]; ok {
 		if urlComplexity > 10 { // Very complex URL
@@ -1899,7 +1899,7 @@ func (s *ThreatDetectionService) calculatePatternScore(features map[string]float
 		}
 		count++
 	}
-	
+
 	// Parameter pattern anomaly
 	if parameterPattern, ok := features["parameter_pattern"]; ok {
 		if parameterPattern > 20 { // Many parameters
@@ -1907,7 +1907,7 @@ func (s *ThreatDetectionService) calculatePatternScore(features map[string]float
 		}
 		count++
 	}
-	
+
 	// Header pattern anomaly
 	if headerPattern, ok := features["header_pattern"]; ok {
 		if headerPattern > 15 { // Many headers
@@ -1915,7 +1915,7 @@ func (s *ThreatDetectionService) calculatePatternScore(features map[string]float
 		}
 		count++
 	}
-	
+
 	// Payload pattern anomaly
 	if payloadPattern, ok := features["payload_pattern"]; ok {
 		if payloadPattern > 50000 { // Very large payload
@@ -1923,7 +1923,7 @@ func (s *ThreatDetectionService) calculatePatternScore(features map[string]float
 		}
 		count++
 	}
-	
+
 	// Payload complexity anomaly
 	if payloadComplexity, ok := features["payload_complexity"]; ok {
 		if payloadComplexity > 1000 { // Very complex payload
@@ -1931,7 +1931,7 @@ func (s *ThreatDetectionService) calculatePatternScore(features map[string]float
 		}
 		count++
 	}
-	
+
 	if count > 0 {
 		return score / count
 	}
@@ -1941,7 +1941,7 @@ func (s *ThreatDetectionService) calculatePatternScore(features map[string]float
 // TrainMLModel trains a new ML model
 func (s *ThreatDetectionService) TrainMLModel(ctx context.Context, modelType string, trainingData []byte) error {
 	s.logger.Info("Training new ML model", "model_type", modelType)
-	
+
 	// In a real implementation, this would:
 	// 1. Parse training data
 	// 2. Preprocess features
@@ -1949,31 +1949,31 @@ func (s *ThreatDetectionService) TrainMLModel(ctx context.Context, modelType str
 	// 4. Validate performance
 	// 5. Save the model
 	// 6. Update model registry
-	
+
 	// For now, just log the training request
-	s.logger.Info("ML model training requested", 
-		"model_type", modelType, 
+	s.logger.Info("ML model training requested",
+		"model_type", modelType,
 		"training_data_size", len(trainingData))
-	
+
 	return nil
 }
 
 // UpdateMLModel updates an existing ML model
 func (s *ThreatDetectionService) UpdateMLModel(ctx context.Context, modelID string, newData []byte) error {
 	s.logger.Info("Updating ML model", "model_id", modelID)
-	
+
 	// In a real implementation, this would:
 	// 1. Load existing model
 	// 2. Apply incremental learning
 	// 3. Validate performance
 	// 4. Update model version
 	// 5. Save updated model
-	
+
 	// For now, just log the update request
-	s.logger.Info("ML model update requested", 
-		"model_id", modelID, 
+	s.logger.Info("ML model update requested",
+		"model_id", modelID,
 		"new_data_size", len(newData))
-	
+
 	return nil
 }
 
@@ -1982,13 +1982,13 @@ func (s *ThreatDetectionService) GetMLModelMetrics(ctx context.Context, modelID 
 	if model, ok := s.mlModels[modelID]; ok {
 		return model, nil
 	}
-	
+
 	// Check if it's a specific model type
 	for _, model := range s.mlModels {
 		if model.ID == modelID {
 			return model, nil
 		}
 	}
-	
+
 	return nil, fmt.Errorf("ML model not found: %s", modelID)
 }

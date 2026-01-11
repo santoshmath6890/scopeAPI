@@ -13,12 +13,12 @@ import (
 
 // ConfigService handles business logic for gateway configurations
 type ConfigService struct {
-	configRepo repository.ConfigRepository
+	configRepo *repository.ConfigRepository
 	logger     logging.Logger
 }
 
 // NewConfigService creates a new ConfigService instance
-func NewConfigService(configRepo repository.ConfigRepository, logger logging.Logger) *ConfigService {
+func NewConfigService(configRepo *repository.ConfigRepository, logger logging.Logger) *ConfigService {
 	return &ConfigService{
 		configRepo: configRepo,
 		logger:     logger,
@@ -27,8 +27,8 @@ func NewConfigService(configRepo repository.ConfigRepository, logger logging.Log
 
 // CreateConfig creates a new gateway configuration
 func (s *ConfigService) CreateConfig(ctx context.Context, config *models.GatewayConfig) error {
-	s.logger.Info("Creating new gateway configuration", 
-		"integration_id", config.IntegrationID, 
+	s.logger.Info("Creating new gateway configuration",
+		"integration_id", config.IntegrationID,
 		"config_type", config.ConfigType)
 
 	// Validate configuration data
@@ -48,8 +48,8 @@ func (s *ConfigService) CreateConfig(ctx context.Context, config *models.Gateway
 		return fmt.Errorf("failed to create configuration: %w", err)
 	}
 
-	s.logger.Info("Successfully created gateway configuration", 
-		"config_id", config.ID, 
+	s.logger.Info("Successfully created gateway configuration",
+		"config_id", config.ID,
 		"integration_id", config.IntegrationID)
 
 	return nil
@@ -70,8 +70,8 @@ func (s *ConfigService) GetConfig(ctx context.Context, id int64) (*models.Gatewa
 		return nil, nil
 	}
 
-	s.logger.Info("Successfully retrieved gateway configuration", 
-		"config_id", config.ID, 
+	s.logger.Info("Successfully retrieved gateway configuration",
+		"config_id", config.ID,
 		"integration_id", config.IntegrationID)
 
 	return config, nil
@@ -79,19 +79,19 @@ func (s *ConfigService) GetConfig(ctx context.Context, id int64) (*models.Gatewa
 
 // GetConfigs retrieves all configurations for a given integration
 func (s *ConfigService) GetConfigs(ctx context.Context, integrationID int64, configType string) ([]*models.GatewayConfig, error) {
-	s.logger.Info("Retrieving gateway configurations", 
-		"integration_id", integrationID, 
+	s.logger.Info("Retrieving gateway configurations",
+		"integration_id", integrationID,
 		"config_type", configType)
 
 	configs, err := s.configRepo.GetConfigs(ctx, integrationID, configType)
 	if err != nil {
-		s.logger.Error("Failed to retrieve configurations", 
+		s.logger.Error("Failed to retrieve configurations",
 			"integration_id", integrationID, "error", err)
 		return nil, fmt.Errorf("failed to retrieve configurations: %w", err)
 	}
 
-	s.logger.Info("Successfully retrieved gateway configurations", 
-		"integration_id", integrationID, 
+	s.logger.Info("Successfully retrieved gateway configurations",
+		"integration_id", integrationID,
 		"count", len(configs))
 
 	return configs, nil
@@ -99,8 +99,8 @@ func (s *ConfigService) GetConfigs(ctx context.Context, integrationID int64, con
 
 // UpdateConfig updates an existing gateway configuration
 func (s *ConfigService) UpdateConfig(ctx context.Context, config *models.GatewayConfig) error {
-	s.logger.Info("Updating gateway configuration", 
-		"config_id", config.ID, 
+	s.logger.Info("Updating gateway configuration",
+		"config_id", config.ID,
 		"integration_id", config.IntegrationID)
 
 	// Validate configuration data
@@ -130,8 +130,8 @@ func (s *ConfigService) UpdateConfig(ctx context.Context, config *models.Gateway
 		return fmt.Errorf("failed to update configuration: %w", err)
 	}
 
-	s.logger.Info("Successfully updated gateway configuration", 
-		"config_id", config.ID, 
+	s.logger.Info("Successfully updated gateway configuration",
+		"config_id", config.ID,
 		"version", config.Version)
 
 	return nil
@@ -159,8 +159,8 @@ func (s *ConfigService) DeleteConfig(ctx context.Context, id int64) error {
 		return fmt.Errorf("failed to delete configuration: %w", err)
 	}
 
-	s.logger.Info("Successfully deleted gateway configuration", 
-		"config_id", id, 
+	s.logger.Info("Successfully deleted gateway configuration",
+		"config_id", id,
 		"integration_id", existingConfig.IntegrationID)
 
 	return nil
@@ -168,16 +168,16 @@ func (s *ConfigService) DeleteConfig(ctx context.Context, id int64) error {
 
 // ValidateConfig validates a configuration without saving it
 func (s *ConfigService) ValidateConfig(ctx context.Context, config *models.GatewayConfig) error {
-	s.logger.Info("Validating gateway configuration", 
-		"integration_id", config.IntegrationID, 
+	s.logger.Info("Validating gateway configuration",
+		"integration_id", config.IntegrationID,
 		"config_type", config.ConfigType)
 
 	if err := s.validateConfigData(config); err != nil {
 		return fmt.Errorf("configuration validation failed: %w", err)
 	}
 
-	s.logger.Info("Configuration validation successful", 
-		"integration_id", config.IntegrationID, 
+	s.logger.Info("Configuration validation successful",
+		"integration_id", config.IntegrationID,
 		"config_type", config.ConfigType)
 
 	return nil
@@ -199,8 +199,8 @@ func (s *ConfigService) DeployConfig(ctx context.Context, id int64) error {
 
 // RollbackConfig rolls back a configuration to a previous version
 func (s *ConfigService) RollbackConfig(ctx context.Context, id int64, targetVersion int) error {
-	s.logger.Info("Rolling back gateway configuration", 
-		"config_id", id, 
+	s.logger.Info("Rolling back gateway configuration",
+		"config_id", id,
 		"target_version", targetVersion)
 
 	// Get the target version configuration
@@ -220,8 +220,8 @@ func (s *ConfigService) RollbackConfig(ctx context.Context, id int64, targetVers
 	}
 
 	if targetConfig == nil {
-		s.logger.Warn("Target version not found for rollback", 
-			"config_id", id, 
+		s.logger.Warn("Target version not found for rollback",
+			"config_id", id,
 			"target_version", targetVersion)
 		return fmt.Errorf("target version not found")
 	}
@@ -239,9 +239,9 @@ func (s *ConfigService) RollbackConfig(ctx context.Context, id int64, targetVers
 		return fmt.Errorf("failed to create rollback configuration: %w", err)
 	}
 
-	s.logger.Info("Successfully rolled back gateway configuration", 
-		"config_id", id, 
-		"new_config_id", newConfig.ID, 
+	s.logger.Info("Successfully rolled back gateway configuration",
+		"config_id", id,
+		"new_config_id", newConfig.ID,
 		"target_version", targetVersion)
 
 	return nil
@@ -267,4 +267,4 @@ func (s *ConfigService) validateConfigData(config *models.GatewayConfig) error {
 	}
 
 	return nil
-} 
+}

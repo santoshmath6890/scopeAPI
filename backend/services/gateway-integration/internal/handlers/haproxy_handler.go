@@ -4,21 +4,19 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"scopeapi.local/backend/services/gateway-integration/internal/models"
 	"scopeapi.local/backend/services/gateway-integration/internal/services"
-	"scopeapi.local/backend/shared/monitoring/metrics"
 )
 
 // HAProxyHandler handles HTTP requests for HAProxy gateway integration
 type HAProxyHandler struct {
-	haproxyService services.HAProxyIntegrationService
-	
+	haproxyService *services.HAProxyIntegrationService
 }
 
 // NewHAProxyHandler creates a new HAProxyHandler instance
-func NewHAProxyHandler(haproxyService services.HAProxyIntegrationService, ) *HAProxyHandler {
+func NewHAProxyHandler(haproxyService *services.HAProxyIntegrationService) *HAProxyHandler {
 	return &HAProxyHandler{
 		haproxyService: haproxyService,
-		metrics:        metrics,
 	}
 }
 
@@ -32,19 +30,14 @@ func (h *HAProxyHandler) GetStatus(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	status, err := h.haproxyService.GetStatus(c.Request.Context(), integrationID)
 	if err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{"status": status})
 }
 
@@ -58,19 +51,14 @@ func (h *HAProxyHandler) GetConfig(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	config, err := h.haproxyService.GetConfig(c.Request.Context(), integrationID)
 	if err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{"config": config})
 }
 
@@ -84,24 +72,21 @@ func (h *HAProxyHandler) UpdateConfig(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
-	var configData map[string]interface{}
-	if err := c.ShouldBindJSON(&configData); err != nil {
+	var request struct {
+		Config string `json:"config"`
+	}
+	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
 		return
 	}
 
-	if err := h.haproxyService.UpdateConfig(c.Request.Context(), integrationID, configData); err != nil {
-		
+	if err := h.haproxyService.UpdateConfig(c.Request.Context(), integrationID, request.Config); err != nil {
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{"message": "HAProxy configuration updated successfully"})
 }
 
@@ -115,18 +100,13 @@ func (h *HAProxyHandler) ReloadConfig(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	if err := h.haproxyService.ReloadConfig(c.Request.Context(), integrationID); err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{"message": "HAProxy configuration reloaded successfully"})
 }
 
@@ -140,19 +120,14 @@ func (h *HAProxyHandler) GetBackends(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	backends, err := h.haproxyService.GetBackends(c.Request.Context(), integrationID)
 	if err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{
 		"backends": backends,
 		"count":    len(backends),
@@ -169,25 +144,24 @@ func (h *HAProxyHandler) UpdateBackend(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
-	var backendData map[string]interface{}
-	if err := c.ShouldBindJSON(&backendData); err != nil {
+	var backend models.HAProxyBackend
+	if err := c.ShouldBindJSON(&backend); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
 		return
 	}
 
-	if err := h.haproxyService.UpdateBackend(c.Request.Context(), integrationID, backendData); err != nil {
-		
+	updatedBackend, err := h.haproxyService.UpdateBackend(c.Request.Context(), integrationID, &backend)
+	if err != nil {
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
-	c.JSON(http.StatusOK, gin.H{"message": "Backend configuration updated successfully"})
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Backend updated successfully",
+		"backend": updatedBackend,
+	})
 }
 
 // SyncConfiguration synchronizes HAProxy configuration
@@ -200,17 +174,15 @@ func (h *HAProxyHandler) SyncConfiguration(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
-	if err := h.haproxyService.SyncConfiguration(c.Request.Context(), integrationID); err != nil {
-		
+	result, err := h.haproxyService.SyncConfiguration(c.Request.Context(), integrationID)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
-	c.JSON(http.StatusOK, gin.H{"message": "HAProxy configuration synchronized successfully"})
-} 
+	c.JSON(http.StatusOK, gin.H{
+		"message": "HAProxy configuration synchronized successfully",
+		"result":  result,
+	})
+}

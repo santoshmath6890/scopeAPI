@@ -10,9 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"data-protection/internal/models"
 	"data-protection/internal/repository"
+
+	"github.com/google/uuid"
 	"scopeapi.local/backend/shared/logging"
 	"scopeapi.local/backend/shared/messaging/kafka"
 )
@@ -23,8 +24,25 @@ type ComplianceServiceInterface interface {
 	UpdateComplianceRule(ctx context.Context, ruleID string, rule *models.ComplianceRule) error
 	GetComplianceRules(ctx context.Context, filter *models.ComplianceRuleFilter) ([]models.ComplianceRule, error)
 	GenerateComplianceReport(ctx context.Context, filter *models.ComplianceReportFilter) (*models.ComplianceReport, error)
-	GetComplianceStatus(ctx context.Context, filter *models.ComplianceStatusFilter) (*models.ComplianceStatus, error)
+	GetComplianceStatus(ctx context.Context, filter *models.ComplianceStatusFilter) (*models.ComplianceStatusInfo, error)
 	TrackComplianceViolation(ctx context.Context, violation *models.ComplianceViolation) error
+
+	// Framework methods
+	GetComplianceFrameworks(ctx context.Context, filter *models.ComplianceFrameworkFilter) ([]models.ComplianceFrameworkData, error)
+	GetComplianceFramework(ctx context.Context, id string) (*models.ComplianceFrameworkData, error)
+	CreateComplianceFramework(ctx context.Context, framework *models.ComplianceFrameworkData) error
+	UpdateComplianceFramework(ctx context.Context, framework *models.ComplianceFrameworkData) error
+	DeleteComplianceFramework(ctx context.Context, id string) error
+
+	// Report methods
+	GetComplianceReports(ctx context.Context, filter *models.ComplianceReportFilter) ([]models.ComplianceReport, error)
+	GetComplianceReport(ctx context.Context, id string) (*models.ComplianceReport, error)
+	CreateComplianceReport(ctx context.Context, report *models.ComplianceReport) error
+	UpdateComplianceReport(ctx context.Context, report *models.ComplianceReport) error
+	DeleteComplianceReport(ctx context.Context, id string) error
+
+	// Audit log methods
+	GetAuditLog(ctx context.Context, filter *models.AuditLogFilter) ([]models.AuditLogEntry, error)
 }
 
 type ComplianceService struct {
@@ -35,8 +53,7 @@ type ComplianceService struct {
 	frameworks     map[string]*models.ComplianceFrameworkData
 }
 
-
-	func NewComplianceService(
+func NewComplianceService(
 	complianceRepo repository.ComplianceRepositoryInterface,
 	kafkaProducer kafka.ProducerInterface,
 	logger logging.Logger,
@@ -125,7 +142,7 @@ func (s *ComplianceService) loadDefaultRules() {
 			Framework:   "gdpr",
 			Category:    "data_protection",
 			Severity:    models.ComplianceSeverityHigh,
-			Conditions: []models.RuleCondition{
+			Conditions: []models.ComplianceCondition{
 				{
 					Field:    "contains_pii",
 					Operator: "equals",
@@ -137,7 +154,7 @@ func (s *ComplianceService) loadDefaultRules() {
 					Value:    "false",
 				},
 			},
-			Actions: []models.RuleAction{
+			Actions: []models.ComplianceAction{
 				{
 					Type: "violation",
 					Config: map[string]interface{}{
@@ -162,7 +179,7 @@ func (s *ComplianceService) loadDefaultRules() {
 			Framework:   "ccpa",
 			Category:    "data_retention",
 			Severity:    models.ComplianceSeverityMedium,
-			Conditions: []models.RuleCondition{
+			Conditions: []models.ComplianceCondition{
 				{
 					Field:    "data_age_days",
 					Operator: "greater_than",
@@ -174,7 +191,7 @@ func (s *ComplianceService) loadDefaultRules() {
 					Value:    "false",
 				},
 			},
-			Actions: []models.RuleAction{
+			Actions: []models.ComplianceAction{
 				{
 					Type: "violation",
 					Config: map[string]interface{}{
@@ -192,7 +209,7 @@ func (s *ComplianceService) loadDefaultRules() {
 			Framework:   "hipaa",
 			Category:    "access_control",
 			Severity:    models.ComplianceSeverityCritical,
-			Conditions: []models.RuleCondition{
+			Conditions: []models.ComplianceCondition{
 				{
 					Field:    "contains_phi",
 					Operator: "equals",
@@ -204,7 +221,7 @@ func (s *ComplianceService) loadDefaultRules() {
 					Value:    "none,basic",
 				},
 			},
-			Actions: []models.RuleAction{
+			Actions: []models.ComplianceAction{
 				{
 					Type: "violation",
 					Config: map[string]interface{}{
@@ -228,7 +245,7 @@ func (s *ComplianceService) loadDefaultRules() {
 			Framework:   "pci_dss",
 			Category:    "cardholder_data_protection",
 			Severity:    models.ComplianceSeverityCritical,
-			Conditions: []models.RuleCondition{
+			Conditions: []models.ComplianceCondition{
 				{
 					Field:    "contains_cardholder_data",
 					Operator: "equals",
@@ -240,7 +257,7 @@ func (s *ComplianceService) loadDefaultRules() {
 					Value:    "AES-256,AES-192",
 				},
 			},
-			Actions: []models.RuleAction{
+			Actions: []models.ComplianceAction{
 				{
 					Type: "violation",
 					Config: map[string]interface{}{
@@ -264,13 +281,13 @@ func (s *ComplianceService) ValidateCompliance(ctx context.Context, request *mod
 	startTime := time.Now()
 
 	result := &models.ComplianceValidationResult{
-		RequestID:       request.RequestID,
-		OverallStatus:   models.ComplianceStatusCompliant,
-		Violations:      []models.ComplianceViolation{},
-		Warnings:        []models.ComplianceWarning{},
+		RequestID:        request.RequestID,
+		OverallStatus:    models.ComplianceStatusCompliant,
+		Violations:       []models.ComplianceViolation{},
+		Warnings:         []models.ComplianceWarning{},
 		FrameworkResults: make(map[string]models.FrameworkComplianceResult),
-		ProcessingTime:  0,
-		ValidatedAt:     time.Now(),
+		ProcessingTime:   0,
+		ValidatedAt:      time.Now(),
 	}
 
 	// Validate against specified frameworks or all if none specified
@@ -293,7 +310,7 @@ func (s *ComplianceService) ValidateCompliance(ctx context.Context, request *mod
 		// Update overall status
 		if frameworkResult.Status == models.ComplianceStatusNonCompliant {
 			result.OverallStatus = models.ComplianceStatusNonCompliant
-		} else if frameworkResult.Status == models.ComplianceStatusPartiallyCompliant && 
+		} else if frameworkResult.Status == models.ComplianceStatusPartiallyCompliant &&
 			result.OverallStatus == models.ComplianceStatusCompliant {
 			result.OverallStatus = models.ComplianceStatusPartiallyCompliant
 		}
@@ -352,9 +369,9 @@ func (s *ComplianceService) validateFrameworkCompliance(ctx context.Context, fra
 					DetectedAt:  time.Now(),
 				},
 			},
-			Warnings:       []models.ComplianceWarning{},
-			Score:          0.0,
-			RequirementsMet: 0,
+			Warnings:          []models.ComplianceWarning{},
+			Score:             0.0,
+			RequirementsMet:   0,
 			TotalRequirements: 0,
 		}
 	}
@@ -486,7 +503,7 @@ func (s *ComplianceService) evaluateComplianceCondition(condition models.Complia
 		return false
 	}
 
-	return s.evaluateConditionValue(value, condition.Operator, condition.Value)
+	return s.evaluateConditionValue(value, condition.Operator, fmt.Sprintf("%v", condition.Value))
 }
 
 func (s *ComplianceService) evaluateConditionValue(value interface{}, operator, expectedValue string) bool {
@@ -596,15 +613,15 @@ func (s *ComplianceService) executeComplianceActions(ctx context.Context, rule *
 
 func (s *ComplianceService) sendComplianceAlert(ctx context.Context, action models.ComplianceAction, violation models.ComplianceViolation, request *models.ComplianceValidationRequest) {
 	alert := map[string]interface{}{
-		"event_type":    "compliance_violation_alert",
-		"violation_id":  violation.ID,
-		"rule_id":       violation.RuleID,
-		"framework":     violation.Framework,
-		"severity":      violation.Severity,
-		"message":       violation.Message,
-		"api_id":        request.APIID,
-		"endpoint_id":   request.EndpointID,
-		"timestamp":     time.Now(),
+		"event_type":   "compliance_violation_alert",
+		"violation_id": violation.ID,
+		"rule_id":      violation.RuleID,
+		"framework":    violation.Framework,
+		"severity":     violation.Severity,
+		"message":      violation.Message,
+		"api_id":       request.APIID,
+		"endpoint_id":  request.EndpointID,
+		"timestamp":    time.Now(),
 	}
 
 	if level, exists := action.Config["level"]; exists {
@@ -623,7 +640,7 @@ func (s *ComplianceService) sendComplianceAlert(ctx context.Context, action mode
 
 	message := kafka.Message{
 		Topic: "compliance_alerts",
-		Key:   violation.ID,
+		Key:   []byte(violation.ID),
 		Value: alertJSON,
 	}
 
@@ -634,15 +651,15 @@ func (s *ComplianceService) sendComplianceAlert(ctx context.Context, action mode
 
 func (s *ComplianceService) blockRequest(ctx context.Context, action models.ComplianceAction, violation models.ComplianceViolation, request *models.ComplianceValidationRequest) {
 	blockEvent := map[string]interface{}{
-		"event_type":    "compliance_block_request",
-		"violation_id":  violation.ID,
-		"rule_id":       violation.RuleID,
-		"framework":     violation.Framework,
-		"api_id":        request.APIID,
-		"endpoint_id":   request.EndpointID,
-		"ip_address":    request.IPAddress,
-		"user_agent":    request.UserAgent,
-		"timestamp":     time.Now(),
+		"event_type":   "compliance_block_request",
+		"violation_id": violation.ID,
+		"rule_id":      violation.RuleID,
+		"framework":    violation.Framework,
+		"api_id":       request.APIID,
+		"endpoint_id":  request.EndpointID,
+		"ip_address":   request.IPAddress,
+		"user_agent":   request.UserAgent,
+		"timestamp":    time.Now(),
 	}
 
 	if reason, exists := action.Config["reason"]; exists {
@@ -657,7 +674,7 @@ func (s *ComplianceService) blockRequest(ctx context.Context, action models.Comp
 
 	message := kafka.Message{
 		Topic: "attack_blocking_events",
-		Key:   violation.ID,
+		Key:   []byte(violation.ID),
 		Value: blockJSON,
 	}
 
@@ -698,15 +715,15 @@ func (s *ComplianceService) logComplianceEvent(ctx context.Context, action model
 
 func (s *ComplianceService) callWebhook(ctx context.Context, action models.ComplianceAction, violation models.ComplianceViolation, request *models.ComplianceValidationRequest) {
 	webhookEvent := map[string]interface{}{
-		"event_type":    "compliance_webhook",
-		"violation_id":  violation.ID,
-		"rule_id":       violation.RuleID,
-		"framework":     violation.Framework,
-		"severity":      violation.Severity,
-		"message":       violation.Message,
-		"api_id":        request.APIID,
-		"endpoint_id":   request.EndpointID,
-		"timestamp":     time.Now(),
+		"event_type":   "compliance_webhook",
+		"violation_id": violation.ID,
+		"rule_id":      violation.RuleID,
+		"framework":    violation.Framework,
+		"severity":     violation.Severity,
+		"message":      violation.Message,
+		"api_id":       request.APIID,
+		"endpoint_id":  request.EndpointID,
+		"timestamp":    time.Now(),
 	}
 
 	webhookJSON, err := json.Marshal(webhookEvent)
@@ -717,7 +734,7 @@ func (s *ComplianceService) callWebhook(ctx context.Context, action models.Compl
 
 	message := kafka.Message{
 		Topic: "webhook_events",
-		Key:   violation.ID,
+		Key:   []byte(violation.ID),
 		Value: webhookJSON,
 	}
 
@@ -861,15 +878,15 @@ func (s *ComplianceService) GenerateComplianceReport(ctx context.Context, filter
 		GeneratedAt: time.Now(),
 		Filter:      filter,
 		Summary: models.ComplianceReportSummary{
-			TotalValidations:     0,
-			ComplianceRate:       0.0,
+			TotalValidations:      0,
+			ComplianceRate:        0.0,
 			ViolationsByFramework: make(map[string]int),
 			ViolationsBySeverity:  make(map[models.ComplianceSeverity]int),
-			TopViolations:        []models.TopViolation{},
+			TopViolations:         []models.TopViolation{},
 		},
 		FrameworkReports: make(map[string]models.FrameworkReport),
-		Trends:          []models.ComplianceTrend{},
-		Recommendations: []string{},
+		Trends:           []models.ComplianceTrend{},
+		Recommendations:  []models.ComplianceRecommendation{},
 	}
 
 	// Get compliance data from repository
@@ -927,7 +944,7 @@ func (s *ComplianceService) GenerateComplianceReport(ctx context.Context, filter
 
 func (s *ComplianceService) generateFrameworkReport(ctx context.Context, frameworkID string, validations []models.ComplianceValidation) models.FrameworkReport {
 	framework := s.frameworks[frameworkID]
-	
+
 	report := models.FrameworkReport{
 		FrameworkID:       frameworkID,
 		FrameworkName:     framework.Name,
@@ -971,12 +988,12 @@ func (s *ComplianceService) generateFrameworkReport(ctx context.Context, framewo
 	for ruleID, count := range violationCounts {
 		if rule, exists := s.rules[ruleID]; exists {
 			report.TopViolations = append(report.TopViolations, models.TopViolation{
-				RuleID:      ruleID,
-				RuleName:    rule.Name,
-				Count:       count,
-				Severity:    rule.Severity,
-				Category:    rule.Category,
-				Percentage:  float64(count) / float64(report.TotalValidations) * 100,
+				RuleID:     ruleID,
+				RuleName:   rule.Name,
+				Count:      count,
+				Severity:   rule.Severity,
+				Category:   rule.Category,
+				Percentage: float64(count) / float64(report.TotalValidations) * 100,
 			})
 		}
 	}
@@ -1000,7 +1017,7 @@ func (s *ComplianceService) generateComplianceTrends(ctx context.Context, valida
 
 	for _, validation := range validations {
 		dateKey := validation.ValidatedAt.Format("2006-01-02")
-		
+
 		if trend, exists := dailyData[dateKey]; exists {
 			trend.TotalValidations++
 			if validation.OverallStatus == models.ComplianceStatusCompliant {
@@ -1040,55 +1057,176 @@ func (s *ComplianceService) generateComplianceTrends(ctx context.Context, valida
 	return trends
 }
 
-func (s *ComplianceService) generateComplianceRecommendations(ctx context.Context, report *models.ComplianceReport) []string {
-	var recommendations []string
+func (s *ComplianceService) generateComplianceRecommendations(ctx context.Context, report *models.ComplianceReport) []models.ComplianceRecommendation {
+	var recommendations []models.ComplianceRecommendation
 
 	// Overall compliance rate recommendations
 	if report.Summary.ComplianceRate < 80 {
-		recommendations = append(recommendations, "Compliance rate is below 80% - immediate attention required")
-		recommendations = append(recommendations, "Review and strengthen compliance controls")
+		recommendations = append(recommendations, models.ComplianceRecommendation{
+			ID:          uuid.New().String(),
+			Type:        "compliance_improvement",
+			Priority:    "critical",
+			Title:       "Low Compliance Rate",
+			Description: "Compliance rate is below 80% - immediate attention required",
+			Category:    "overall",
+			Impact:      "high",
+			Effort:      "high",
+			Timeline:    "immediate",
+			Status:      "open",
+			CreatedAt:   time.Now(),
+		})
+		recommendations = append(recommendations, models.ComplianceRecommendation{
+			ID:          uuid.New().String(),
+			Type:        "compliance_improvement",
+			Priority:    "high",
+			Title:       "Strengthen Controls",
+			Description: "Review and strengthen compliance controls",
+			Category:    "overall",
+			Impact:      "high",
+			Effort:      "medium",
+			Timeline:    "short_term",
+			Status:      "open",
+			CreatedAt:   time.Now(),
+		})
 	} else if report.Summary.ComplianceRate < 95 {
-		recommendations = append(recommendations, "Good compliance rate - continue monitoring and improvement")
+		recommendations = append(recommendations, models.ComplianceRecommendation{
+			ID:          uuid.New().String(),
+			Type:        "compliance_monitoring",
+			Priority:    "medium",
+			Title:       "Continue Monitoring",
+			Description: "Good compliance rate - continue monitoring and improvement",
+			Category:    "overall",
+			Impact:      "medium",
+			Effort:      "low",
+			Timeline:    "ongoing",
+			Status:      "open",
+			CreatedAt:   time.Now(),
+		})
 	} else {
-		recommendations = append(recommendations, "Excellent compliance rate - maintain current practices")
+		recommendations = append(recommendations, models.ComplianceRecommendation{
+			ID:          uuid.New().String(),
+			Type:        "compliance_maintenance",
+			Priority:    "low",
+			Title:       "Maintain Practices",
+			Description: "Excellent compliance rate - maintain current practices",
+			Category:    "overall",
+			Impact:      "low",
+			Effort:      "low",
+			Timeline:    "ongoing",
+			Status:      "open",
+			CreatedAt:   time.Now(),
+		})
 	}
 
 	// Severity-based recommendations
 	if criticalCount, exists := report.Summary.ViolationsBySeverity[models.ComplianceSeverityCritical]; exists && criticalCount > 0 {
-		recommendations = append(recommendations, fmt.Sprintf("Address %d critical compliance violations immediately", criticalCount))
+		recommendations = append(recommendations, models.ComplianceRecommendation{
+			ID:          uuid.New().String(),
+			Type:        "violation_remediation",
+			Priority:    "critical",
+			Title:       "Critical Violations",
+			Description: fmt.Sprintf("Address %d critical compliance violations immediately", criticalCount),
+			Category:    "violations",
+			Impact:      "critical",
+			Effort:      "high",
+			Timeline:    "immediate",
+			Status:      "open",
+			CreatedAt:   time.Now(),
+		})
 	}
 
 	if highCount, exists := report.Summary.ViolationsBySeverity[models.ComplianceSeverityHigh]; exists && highCount > 5 {
-		recommendations = append(recommendations, fmt.Sprintf("High number of high-severity violations (%d) - prioritize remediation", highCount))
+		recommendations = append(recommendations, models.ComplianceRecommendation{
+			ID:          uuid.New().String(),
+			Type:        "violation_remediation",
+			Priority:    "high",
+			Title:       "High-Severity Violations",
+			Description: fmt.Sprintf("High number of high-severity violations (%d) - prioritize remediation", highCount),
+			Category:    "violations",
+			Impact:      "high",
+			Effort:      "high",
+			Timeline:    "short_term",
+			Status:      "open",
+			CreatedAt:   time.Now(),
+		})
 	}
 
 	// Framework-specific recommendations
 	for frameworkID, violationCount := range report.Summary.ViolationsByFramework {
 		if violationCount > 10 {
 			if framework, exists := s.frameworks[frameworkID]; exists {
-				recommendations = append(recommendations, fmt.Sprintf("High violation count for %s (%d) - review framework implementation", framework.Name, violationCount))
+				recommendations = append(recommendations, models.ComplianceRecommendation{
+					ID:          uuid.New().String(),
+					Type:        "framework_review",
+					Priority:    "high",
+					Title:       fmt.Sprintf("%s Framework Review", framework.Name),
+					Description: fmt.Sprintf("High violation count for %s (%d) - review framework implementation", framework.Name, violationCount),
+					Framework:   frameworkID,
+					Category:    "framework",
+					Impact:      "high",
+					Effort:      "medium",
+					Timeline:    "medium_term",
+					Status:      "open",
+					CreatedAt:   time.Now(),
+				})
 			}
 		}
 	}
 
 	// General recommendations
-	recommendations = append(recommendations, "Implement automated compliance monitoring")
-	recommendations = append(recommendations, "Regular compliance training for development teams")
-	recommendations = append(recommendations, "Consider compliance-as-code practices")
+	recommendations = append(recommendations, models.ComplianceRecommendation{
+		ID:          uuid.New().String(),
+		Type:        "automation",
+		Priority:    "medium",
+		Title:       "Automated Monitoring",
+		Description: "Implement automated compliance monitoring",
+		Category:    "automation",
+		Impact:      "medium",
+		Effort:      "medium",
+		Timeline:    "medium_term",
+		Status:      "open",
+		CreatedAt:   time.Now(),
+	})
+	recommendations = append(recommendations, models.ComplianceRecommendation{
+		ID:          uuid.New().String(),
+		Type:        "training",
+		Priority:    "medium",
+		Title:       "Compliance Training",
+		Description: "Regular compliance training for development teams",
+		Category:    "training",
+		Impact:      "medium",
+		Effort:      "low",
+		Timeline:    "ongoing",
+		Status:      "open",
+		CreatedAt:   time.Now(),
+	})
+	recommendations = append(recommendations, models.ComplianceRecommendation{
+		ID:          uuid.New().String(),
+		Type:        "best_practice",
+		Priority:    "low",
+		Title:       "Compliance-as-Code",
+		Description: "Consider compliance-as-code practices",
+		Category:    "best_practice",
+		Impact:      "medium",
+		Effort:      "high",
+		Timeline:    "long_term",
+		Status:      "open",
+		CreatedAt:   time.Now(),
+	})
 
 	return recommendations
 }
 
-func (s *ComplianceService) GetComplianceStatus(ctx context.Context, filter *models.ComplianceStatusFilter) (*models.ComplianceStatus, error) {
-	status := &models.ComplianceStatus{
+func (s *ComplianceService) GetComplianceStatus(ctx context.Context, filter *models.ComplianceStatusFilter) (*models.ComplianceStatusInfo, error) {
+	status := &models.ComplianceStatusInfo{
 		OverallStatus:     models.ComplianceStatusCompliant,
 		FrameworkStatuses: make(map[string]models.FrameworkStatus),
 		LastUpdated:       time.Now(),
 		Summary: models.ComplianceStatusSummary{
-			TotalFrameworks:   len(s.frameworks),
+			TotalFrameworks:     len(s.frameworks),
 			CompliantFrameworks: 0,
-			ActiveViolations:  0,
-			RecentViolations:  0,
+			ActiveViolations:    0,
+			RecentViolations:    0,
 		},
 	}
 
@@ -1109,7 +1247,7 @@ func (s *ComplianceService) GetComplianceStatus(ctx context.Context, filter *mod
 	status.Summary.ActiveViolations = len(activeViolations)
 
 	// Process each framework
-	for frameworkID, framework := range s.frameworks {
+	for frameworkID := range s.frameworks {
 		if filter != nil && len(filter.Frameworks) > 0 {
 			found := false
 			for _, f := range filter.Frameworks {
@@ -1140,7 +1278,7 @@ func (s *ComplianceService) GetComplianceStatus(ctx context.Context, filter *mod
 
 func (s *ComplianceService) getFrameworkStatus(ctx context.Context, frameworkID string, activeViolations []models.ComplianceViolation) models.FrameworkStatus {
 	framework := s.frameworks[frameworkID]
-	
+
 	status := models.FrameworkStatus{
 		FrameworkID:      frameworkID,
 		FrameworkName:    framework.Name,
@@ -1153,11 +1291,11 @@ func (s *ComplianceService) getFrameworkStatus(ctx context.Context, frameworkID 
 	// Count violations for this framework
 	criticalCount := 0
 	highCount := 0
-	
+
 	for _, violation := range activeViolations {
 		if violation.Framework == frameworkID {
 			status.ActiveViolations++
-			
+
 			switch violation.Severity {
 			case models.ComplianceSeverityCritical:
 				criticalCount++
@@ -1201,16 +1339,16 @@ func (s *ComplianceService) TrackComplianceViolation(ctx context.Context, violat
 
 	// Publish violation event
 	violationEvent := map[string]interface{}{
-		"event_type":    "compliance_violation_tracked",
-		"violation_id":  violation.ID,
-		"rule_id":       violation.RuleID,
-		"framework":     violation.Framework,
-		"severity":      violation.Severity,
-		"message":       violation.Message,
-		"api_id":        violation.APIID,
-		"endpoint_id":   violation.EndpointID,
-		"detected_at":   violation.DetectedAt,
-		"status":        violation.Status,
+		"event_type":   "compliance_violation_tracked",
+		"violation_id": violation.ID,
+		"rule_id":      violation.RuleID,
+		"framework":    violation.Framework,
+		"severity":     violation.Severity,
+		"message":      violation.Message,
+		"api_id":       violation.APIID,
+		"endpoint_id":  violation.EndpointID,
+		"detected_at":  violation.DetectedAt,
+		"status":       violation.Status,
 	}
 
 	eventJSON, err := json.Marshal(violationEvent)
@@ -1220,7 +1358,7 @@ func (s *ComplianceService) TrackComplianceViolation(ctx context.Context, violat
 
 	message := kafka.Message{
 		Topic: "compliance_violations",
-		Key:   violation.ID,
+		Key:   []byte(violation.ID),
 		Value: eventJSON,
 	}
 
@@ -1228,9 +1366,9 @@ func (s *ComplianceService) TrackComplianceViolation(ctx context.Context, violat
 		return fmt.Errorf("failed to produce violation event: %w", err)
 	}
 
-	s.logger.Info("Tracked compliance violation", 
-		"violation_id", violation.ID, 
-		"rule_id", violation.RuleID, 
+	s.logger.Info("Tracked compliance violation",
+		"violation_id", violation.ID,
+		"rule_id", violation.RuleID,
 		"framework", violation.Framework,
 		"severity", violation.Severity)
 
@@ -1240,18 +1378,18 @@ func (s *ComplianceService) TrackComplianceViolation(ctx context.Context, violat
 func (s *ComplianceService) publishComplianceEvents(ctx context.Context, result *models.ComplianceValidationResult, request *models.ComplianceValidationRequest) error {
 	// Publish validation completed event
 	validationEvent := map[string]interface{}{
-		"event_type":        "compliance_validation_completed",
-		"request_id":        request.RequestID,
-		"api_id":            request.APIID,
-		"endpoint_id":       request.EndpointID,
-		"overall_status":    result.OverallStatus,
-		"violation_count":   len(result.Violations),
-		"warning_count":     len(result.Warnings),
-		"frameworks":        request.Frameworks,
-		"processing_time":   result.ProcessingTime.Milliseconds(),
-		"validated_at":      result.ValidatedAt,
-		"ip_address":        request.IPAddress,
-		"user_agent":        request.UserAgent,
+		"event_type":      "compliance_validation_completed",
+		"request_id":      request.RequestID,
+		"api_id":          request.APIID,
+		"endpoint_id":     request.EndpointID,
+		"overall_status":  result.OverallStatus,
+		"violation_count": len(result.Violations),
+		"warning_count":   len(result.Warnings),
+		"frameworks":      request.Frameworks,
+		"processing_time": result.ProcessingTime.Milliseconds(),
+		"validated_at":    result.ValidatedAt,
+		"ip_address":      request.IPAddress,
+		"user_agent":      request.UserAgent,
 	}
 
 	eventJSON, err := json.Marshal(validationEvent)
@@ -1261,7 +1399,7 @@ func (s *ComplianceService) publishComplianceEvents(ctx context.Context, result 
 
 	message := kafka.Message{
 		Topic: "compliance_validation_events",
-		Key:   request.RequestID,
+		Key:   []byte(request.RequestID),
 		Value: eventJSON,
 	}
 
@@ -1272,16 +1410,16 @@ func (s *ComplianceService) publishComplianceEvents(ctx context.Context, result 
 	// Publish individual violation events
 	for _, violation := range result.Violations {
 		violationEvent := map[string]interface{}{
-			"event_type":    "compliance_violation_detected",
-			"request_id":    request.RequestID,
-			"violation_id":  violation.ID,
-			"rule_id":       violation.RuleID,
-			"framework":     violation.Framework,
-			"severity":      violation.Severity,
-			"message":       violation.Message,
-			"api_id":        request.APIID,
-			"endpoint_id":   request.EndpointID,
-			"detected_at":   violation.DetectedAt,
+			"event_type":   "compliance_violation_detected",
+			"request_id":   request.RequestID,
+			"violation_id": violation.ID,
+			"rule_id":      violation.RuleID,
+			"framework":    violation.Framework,
+			"severity":     violation.Severity,
+			"message":      violation.Message,
+			"api_id":       request.APIID,
+			"endpoint_id":  request.EndpointID,
+			"detected_at":  violation.DetectedAt,
 		}
 
 		violationJSON, err := json.Marshal(violationEvent)
@@ -1292,7 +1430,7 @@ func (s *ComplianceService) publishComplianceEvents(ctx context.Context, result 
 
 		violationMessage := kafka.Message{
 			Topic: "compliance_violations",
-			Key:   violation.ID,
+			Key:   []byte(violation.ID),
 			Value: violationJSON,
 		}
 
@@ -1302,4 +1440,47 @@ func (s *ComplianceService) publishComplianceEvents(ctx context.Context, result 
 	}
 
 	return nil
+}
+func (s *ComplianceService) GetComplianceFrameworks(ctx context.Context, filter *models.ComplianceFrameworkFilter) ([]models.ComplianceFrameworkData, error) {
+	return s.complianceRepo.GetComplianceFrameworks(ctx, filter)
+}
+
+func (s *ComplianceService) GetComplianceFramework(ctx context.Context, id string) (*models.ComplianceFrameworkData, error) {
+	return s.complianceRepo.GetComplianceFramework(ctx, id)
+}
+
+func (s *ComplianceService) CreateComplianceFramework(ctx context.Context, framework *models.ComplianceFrameworkData) error {
+	return s.complianceRepo.CreateComplianceFramework(ctx, framework)
+}
+
+func (s *ComplianceService) UpdateComplianceFramework(ctx context.Context, framework *models.ComplianceFrameworkData) error {
+	return s.complianceRepo.UpdateComplianceFramework(ctx, framework)
+}
+
+func (s *ComplianceService) DeleteComplianceFramework(ctx context.Context, id string) error {
+	return s.complianceRepo.DeleteComplianceFramework(ctx, id)
+}
+
+func (s *ComplianceService) GetComplianceReports(ctx context.Context, filter *models.ComplianceReportFilter) ([]models.ComplianceReport, error) {
+	return s.complianceRepo.GetComplianceReports(ctx, filter)
+}
+
+func (s *ComplianceService) GetComplianceReport(ctx context.Context, id string) (*models.ComplianceReport, error) {
+	return s.complianceRepo.GetComplianceReport(ctx, id)
+}
+
+func (s *ComplianceService) CreateComplianceReport(ctx context.Context, report *models.ComplianceReport) error {
+	return s.complianceRepo.CreateComplianceReport(ctx, report)
+}
+
+func (s *ComplianceService) UpdateComplianceReport(ctx context.Context, report *models.ComplianceReport) error {
+	return s.complianceRepo.UpdateComplianceReport(ctx, report)
+}
+
+func (s *ComplianceService) DeleteComplianceReport(ctx context.Context, id string) error {
+	return s.complianceRepo.DeleteComplianceReport(ctx, id)
+}
+
+func (s *ComplianceService) GetAuditLog(ctx context.Context, filter *models.AuditLogFilter) ([]models.AuditLogEntry, error) {
+	return s.complianceRepo.GetAuditLog(ctx, filter)
 }

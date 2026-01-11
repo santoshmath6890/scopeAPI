@@ -24,6 +24,10 @@ type DataClassificationServiceInterface interface {
 	CreateClassificationRule(ctx context.Context, rule *models.ClassificationRule) error
 	UpdateClassificationRule(ctx context.Context, ruleID string, rule *models.ClassificationRule) error
 	GetClassificationRules(ctx context.Context, filter *models.ClassificationRuleFilter) ([]models.ClassificationRule, error)
+	GetClassificationRule(ctx context.Context, id string) (*models.ClassificationRule, error)
+	DeleteClassificationRule(ctx context.Context, id string) error
+	EnableClassificationRule(ctx context.Context, id string) error
+	DisableClassificationRule(ctx context.Context, id string) error
 	ApplyDataLabels(ctx context.Context, data map[string]interface{}, labels []models.DataLabel) error
 	GetDataClassificationReport(ctx context.Context, filter *models.ClassificationReportFilter) (*models.ClassificationReport, error)
 }
@@ -62,23 +66,13 @@ func (s *DataClassificationService) loadDefaultRules() {
 			ID:          "public_data",
 			Name:        "Public Data",
 			Description: "Data that can be freely shared",
-			Category:    models.ClassificationCategoryPublic,
+			Category:    models.DataCategoryBusiness,
 			Priority:    1,
 			Conditions: []models.ClassificationCondition{
 				{
 					Field:    "data_type",
 					Operator: "equals",
 					Value:    "public",
-				},
-			},
-			Labels: []models.DataLabel{
-				{
-					Key:   "classification",
-					Value: "public",
-				},
-				{
-					Key:   "sensitivity",
-					Value: "low",
 				},
 			},
 			Actions: []models.ClassificationAction{
@@ -93,23 +87,13 @@ func (s *DataClassificationService) loadDefaultRules() {
 			ID:          "internal_data",
 			Name:        "Internal Data",
 			Description: "Data for internal use only",
-			Category:    models.ClassificationCategoryInternal,
+			Category:    models.DataCategoryBusiness,
 			Priority:    2,
 			Conditions: []models.ClassificationCondition{
 				{
 					Field:    "field_name",
 					Operator: "contains",
 					Value:    "internal",
-				},
-			},
-			Labels: []models.DataLabel{
-				{
-					Key:   "classification",
-					Value: "internal",
-				},
-				{
-					Key:   "sensitivity",
-					Value: "medium",
 				},
 			},
 			Actions: []models.ClassificationAction{
@@ -128,23 +112,13 @@ func (s *DataClassificationService) loadDefaultRules() {
 			ID:          "confidential_data",
 			Name:        "Confidential Data",
 			Description: "Sensitive data requiring protection",
-			Category:    models.ClassificationCategoryConfidential,
+			Category:    models.DataCategoryPersonal,
 			Priority:    3,
 			Conditions: []models.ClassificationCondition{
 				{
 					Field:    "pii_detected",
 					Operator: "equals",
 					Value:    "true",
-				},
-			},
-			Labels: []models.DataLabel{
-				{
-					Key:   "classification",
-					Value: "confidential",
-				},
-				{
-					Key:   "sensitivity",
-					Value: "high",
 				},
 			},
 			Actions: []models.ClassificationAction{
@@ -167,23 +141,13 @@ func (s *DataClassificationService) loadDefaultRules() {
 			ID:          "restricted_data",
 			Name:        "Restricted Data",
 			Description: "Highly sensitive data with strict access controls",
-			Category:    models.ClassificationCategoryRestricted,
+			Category:    models.DataCategoryPersonal,
 			Priority:    4,
 			Conditions: []models.ClassificationCondition{
 				{
 					Field:    "pii_type",
 					Operator: "in",
 					Value:    "ssn,credit_card,passport",
-				},
-			},
-			Labels: []models.DataLabel{
-				{
-					Key:   "classification",
-					Value: "restricted",
-				},
-				{
-					Key:   "sensitivity",
-					Value: "critical",
 				},
 			},
 			Actions: []models.ClassificationAction{
@@ -230,9 +194,6 @@ func (s *DataClassificationService) ClassifyData(ctx context.Context, request *m
 	result := &models.DataClassificationResult{
 		RequestID:       request.RequestID,
 		Classifications: []models.DataClassification{},
-		AppliedLabels:   []models.DataLabel{},
-		ExecutedActions: []models.ClassificationAction{},
-		RulesMatched:    []string{},
 		ProcessingTime:  0,
 		ClassifiedAt:    time.Now(),
 	}
@@ -497,13 +458,13 @@ func (s *DataClassificationService) evaluateFieldNameCondition(condition models.
 	switch condition.Operator {
 	case "contains":
 		for _, fieldName := range fieldNames {
-			if strings.Contains(strings.ToLower(fieldName), strings.ToLower(condition.Value)) {
+			if strings.Contains(strings.ToLower(fieldName), strings.ToLower(fmt.Sprintf("%v", condition.Value))) {
 				return true, fieldName
 			}
 		}
 	case "equals":
 		for _, fieldName := range fieldNames {
-			if strings.EqualFold(fieldName, condition.Value) {
+			if strings.EqualFold(fieldName, fmt.Sprintf("%v", condition.Value)) {
 				return true, fieldName
 			}
 		}
@@ -542,7 +503,7 @@ func (s *DataClassificationService) evaluateNumericCondition(condition models.Cl
 func (s *DataClassificationService) evaluateDataTypeCondition(condition models.ClassificationCondition, fieldTypes map[string]int) (bool, interface{}) {
 	switch condition.Operator {
 	case "contains":
-		if count, exists := fieldTypes[condition.Value]; exists && count > 0 {
+		if count, exists := fieldTypes[fmt.Sprintf("%v", condition.Value)]; exists && count > 0 {
 			return true, count
 		}
 	case "dominant":
@@ -555,7 +516,7 @@ func (s *DataClassificationService) evaluateDataTypeCondition(condition models.C
 				dominantType = dataType
 			}
 		}
-		return dominantType == condition.Value, dominantType
+		return dominantType == fmt.Sprintf("%v", condition.Value), dominantType
 	}
 	return false, nil
 }
@@ -564,7 +525,7 @@ func (s *DataClassificationService) evaluateSensitiveHintsCondition(condition mo
 	switch condition.Operator {
 	case "contains":
 		for _, hint := range hints {
-			if strings.Contains(hint, condition.Value) {
+			if strings.Contains(hint, fmt.Sprintf("%v", condition.Value)) {
 				return true, hint
 			}
 		}
@@ -587,7 +548,7 @@ func (s *DataClassificationService) evaluatePIICondition(condition models.Classi
 
 	switch condition.Operator {
 	case "equals":
-		expectedValue := condition.Value == "true"
+		expectedValue := fmt.Sprintf("%v", condition.Value) == "true"
 		return hasPII == expectedValue, hasPII
 	}
 	return false, nil
@@ -598,7 +559,7 @@ func (s *DataClassificationService) evaluatePIITypeCondition(condition models.Cl
 
 	switch condition.Operator {
 	case "in":
-		targetTypes := strings.Split(condition.Value, ",")
+		targetTypes := strings.Split(fmt.Sprintf("%v", condition.Value), ",")
 		for _, targetType := range targetTypes {
 			targetType = strings.TrimSpace(targetType)
 			for _, detectedType := range detectedTypes {
@@ -609,7 +570,7 @@ func (s *DataClassificationService) evaluatePIITypeCondition(condition models.Cl
 		}
 	case "contains":
 		for _, detectedType := range detectedTypes {
-			if detectedType == condition.Value {
+			if detectedType == fmt.Sprintf("%v", condition.Value) {
 				return true, detectedTypes
 			}
 		}
@@ -625,10 +586,10 @@ func (s *DataClassificationService) evaluateDataFieldCondition(condition models.
 
 	switch condition.Operator {
 	case "equals":
-		return fmt.Sprintf("%v", value) == condition.Value, value
+		return fmt.Sprintf("%v", value) == fmt.Sprintf("%v", condition.Value), value
 	case "contains":
 		if str, ok := value.(string); ok {
-			return strings.Contains(strings.ToLower(str), strings.ToLower(condition.Value)), value
+			return strings.Contains(strings.ToLower(str), strings.ToLower(fmt.Sprintf("%v", condition.Value))), value
 		}
 	case "exists":
 		return true, value
@@ -798,7 +759,7 @@ func (s *DataClassificationService) executeAuditing(ctx context.Context, action 
 
 		message := kafka.Message{
 			Topic: "audit_events",
-			Key:   classification.ID,
+			Key:   []byte(classification.ID),
 			Value: auditJSON,
 		}
 
@@ -834,7 +795,7 @@ func (s *DataClassificationService) executeAccessControl(ctx context.Context, ac
 
 		message := kafka.Message{
 			Topic: "access_control_events",
-			Key:   classification.ID,
+			Key:   []byte(classification.ID),
 			Value: eventJSON,
 		}
 
@@ -870,7 +831,7 @@ func (s *DataClassificationService) executeNotification(ctx context.Context, act
 
 	message := kafka.Message{
 		Topic: "notification_events",
-		Key:   classification.ID,
+		Key:   []byte(classification.ID),
 		Value: eventJSON,
 	}
 
@@ -903,7 +864,7 @@ func (s *DataClassificationService) executeQuarantine(ctx context.Context, actio
 
 	message := kafka.Message{
 		Topic: "quarantine_events",
-		Key:   classification.ID,
+		Key:   []byte(classification.ID),
 		Value: eventJSON,
 	}
 
@@ -993,7 +954,7 @@ func (s *DataClassificationService) validateRule(rule *models.ClassificationRule
 		if condition.Operator == "" {
 			return fmt.Errorf("condition %d: operator is required", i)
 		}
-		if condition.Value == "" {
+		if fmt.Sprintf("%v", condition.Value) == "" {
 			return fmt.Errorf("condition %d: value is required", i)
 		}
 	}
@@ -1035,7 +996,7 @@ func (s *DataClassificationService) matchesFilter(rule *models.ClassificationRul
 		return true
 	}
 
-	if filter.Category != "" && rule.Category != filter.Category {
+	if filter.Category != "" && string(rule.Category) != filter.Category {
 		return false
 	}
 
@@ -1068,7 +1029,7 @@ func (s *DataClassificationService) ApplyDataLabels(ctx context.Context, data ma
 
 	message := kafka.Message{
 		Topic: "labeling_events",
-		Key:   s.calculateDataHash(data),
+		Key:   []byte(s.calculateDataHash(data)),
 		Value: eventJSON,
 	}
 
@@ -1078,6 +1039,48 @@ func (s *DataClassificationService) ApplyDataLabels(ctx context.Context, data ma
 
 	s.logger.Info("Applied data labels", "label_count", len(labels))
 	return nil
+}
+
+func (s *DataClassificationService) GetClassificationRule(ctx context.Context, id string) (*models.ClassificationRule, error) {
+	return s.classificationRepo.GetClassificationRule(ctx, id)
+}
+
+func (s *DataClassificationService) DeleteClassificationRule(ctx context.Context, id string) error {
+	s.logger.Info("Deleting classification rule", "rule_id", id)
+
+	// Delete from repository
+	if err := s.classificationRepo.DeleteClassificationRule(ctx, id); err != nil {
+		return fmt.Errorf("failed to delete classification rule: %w", err)
+	}
+
+	// Remove from memory
+	delete(s.rules, id)
+
+	return nil
+}
+
+func (s *DataClassificationService) EnableClassificationRule(ctx context.Context, id string) error {
+	s.logger.Info("Enabling classification rule", "rule_id", id)
+
+	rule, err := s.GetClassificationRule(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	rule.Enabled = true
+	return s.UpdateClassificationRule(ctx, id, rule)
+}
+
+func (s *DataClassificationService) DisableClassificationRule(ctx context.Context, id string) error {
+	s.logger.Info("Disabling classification rule", "rule_id", id)
+
+	rule, err := s.GetClassificationRule(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	rule.Enabled = false
+	return s.UpdateClassificationRule(ctx, id, rule)
 }
 
 func (s *DataClassificationService) GetDataClassificationReport(ctx context.Context, filter *models.ClassificationReportFilter) (*models.ClassificationReport, error) {
@@ -1132,7 +1135,7 @@ func (s *DataClassificationService) publishClassificationEvents(ctx context.Cont
 
 		message := kafka.Message{
 			Topic: "classification_events",
-			Key:   classification.ID,
+			Key:   []byte(classification.ID),
 			Value: eventJSON,
 		}
 

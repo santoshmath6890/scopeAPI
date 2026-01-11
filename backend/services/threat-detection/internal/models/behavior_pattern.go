@@ -9,6 +9,7 @@ type BehaviorPattern struct {
 	Name            string                 `json:"name" db:"name"`
 	Type            string                 `json:"type" db:"type"`
 	Category        string                 `json:"category" db:"category"`
+	Status          string                 `json:"status" db:"status"`
 	Description     string                 `json:"description" db:"description"`
 	UserID          string                 `json:"user_id,omitempty" db:"user_id"`
 	IPAddress       string                 `json:"ip_address,omitempty" db:"ip_address"`
@@ -43,10 +44,10 @@ type TimePattern struct {
 	DailyDistribution   map[int]float64 `json:"daily_distribution"`
 	WeeklyDistribution  map[int]float64 `json:"weekly_distribution"`
 	MonthlyDistribution map[int]float64 `json:"monthly_distribution"`
-	PeakHours          []int           `json:"peak_hours"`
-	OffHours           []int           `json:"off_hours"`
-	Timezone           string          `json:"timezone"`
-	Seasonality        string          `json:"seasonality,omitempty"`
+	PeakHours           []int           `json:"peak_hours"`
+	OffHours            []int           `json:"off_hours"`
+	Timezone            string          `json:"timezone"`
+	Seasonality         string          `json:"seasonality,omitempty"`
 }
 
 type RequestPattern struct {
@@ -62,77 +63,77 @@ type RequestPattern struct {
 }
 
 type ResponsePattern struct {
-	StatusCodes        map[int]int64          `json:"status_codes"`
-	ContentTypes       map[string]int64       `json:"content_types"`
-	SizeDistribution   SizeDistribution       `json:"size_distribution"`
-	ResponseTimes      ResponseTimePattern    `json:"response_times"`
-	HeaderPatterns     map[string]interface{} `json:"header_patterns"`
-	ErrorPatterns      map[string]int64       `json:"error_patterns"`
-	CachePatterns      map[string]int64       `json:"cache_patterns"`
+	StatusCodes      map[int]int64          `json:"status_codes"`
+	ContentTypes     map[string]int64       `json:"content_types"`
+	SizeDistribution SizeDistribution       `json:"size_distribution"`
+	ResponseTimes    ResponseTimePattern    `json:"response_times"`
+	HeaderPatterns   map[string]interface{} `json:"header_patterns"`
+	ErrorPatterns    map[string]int64       `json:"error_patterns"`
+	CachePatterns    map[string]int64       `json:"cache_patterns"`
 }
 
 type FrequencyPattern struct {
-	RequestsPerSecond  float64           `json:"requests_per_second"`
-	RequestsPerMinute  float64           `json:"requests_per_minute"`
-	RequestsPerHour    float64           `json:"requests_per_hour"`
-	RequestsPerDay     float64           `json:"requests_per_day"`
-	BurstPattern       BurstPattern      `json:"burst_pattern"`
-	IntervalPattern    IntervalPattern   `json:"interval_pattern"`
-	VelocityPattern    VelocityPattern   `json:"velocity_pattern"`
+	RequestsPerSecond float64         `json:"requests_per_second"`
+	RequestsPerMinute float64         `json:"requests_per_minute"`
+	RequestsPerHour   float64         `json:"requests_per_hour"`
+	RequestsPerDay    float64         `json:"requests_per_day"`
+	BurstPattern      BurstPattern    `json:"burst_pattern"`
+	IntervalPattern   IntervalPattern `json:"interval_pattern"`
+	VelocityPattern   VelocityPattern `json:"velocity_pattern"`
 }
 
 type SequenceStep struct {
-	Order       int                    `json:"order"`
-	Endpoint    string                 `json:"endpoint"`
-	Method      string                 `json:"method"`
-	Parameters  map[string]interface{} `json:"parameters,omitempty"`
-	ExpectedDelay time.Duration        `json:"expected_delay,omitempty"`
-	Optional    bool                   `json:"optional"`
-	Weight      float64                `json:"weight"`
+	Order         int                    `json:"order"`
+	Endpoint      string                 `json:"endpoint"`
+	Method        string                 `json:"method"`
+	Parameters    map[string]interface{} `json:"parameters,omitempty"`
+	ExpectedDelay time.Duration          `json:"expected_delay,omitempty"`
+	Optional      bool                   `json:"optional"`
+	Weight        float64                `json:"weight"`
 }
 
 type BaselineMetrics struct {
-	AverageRequestsPerHour   float64                `json:"average_requests_per_hour"`
-	AverageResponseTime      time.Duration          `json:"average_response_time"`
-	AveragePayloadSize       int64                  `json:"average_payload_size"`
-	CommonEndpoints          map[string]float64     `json:"common_endpoints"`
-	CommonParameters         map[string]float64     `json:"common_parameters"`
-	CommonHeaders            map[string]float64     `json:"common_headers"`
-	TypicalErrorRate         float64                `json:"typical_error_rate"`
-	TypicalGeolocations      map[string]float64     `json:"typical_geolocations"`
-	EstablishedAt            time.Time              `json:"established_at"`
-	LastUpdated              time.Time              `json:"last_updated"`
-	SampleSize               int64                  `json:"sample_size"`
-	ConfidenceLevel          float64                `json:"confidence_level"`
+	AverageRequestsPerHour float64            `json:"average_requests_per_hour"`
+	AverageResponseTime    time.Duration      `json:"average_response_time"`
+	AveragePayloadSize     int64              `json:"average_payload_size"`
+	CommonEndpoints        map[string]float64 `json:"common_endpoints"`
+	CommonParameters       map[string]float64 `json:"common_parameters"`
+	CommonHeaders          map[string]float64 `json:"common_headers"`
+	TypicalErrorRate       float64            `json:"typical_error_rate"`
+	TypicalGeolocations    map[string]float64 `json:"typical_geolocations"`
+	EstablishedAt          time.Time          `json:"established_at"`
+	LastUpdated            time.Time          `json:"last_updated"`
+	SampleSize             int64              `json:"sample_size"`
+	ConfidenceLevel        float64            `json:"confidence_level"`
 }
 
 type PatternThresholds struct {
-	FrequencyThreshold     float64 `json:"frequency_threshold"`
-	VelocityThreshold      float64 `json:"velocity_threshold"`
-	SizeThreshold          int64   `json:"size_threshold"`
-	ResponseTimeThreshold  time.Duration `json:"response_time_threshold"`
-	ErrorRateThreshold     float64 `json:"error_rate_threshold"`
-	DeviationThreshold     float64 `json:"deviation_threshold"`
-	AnomalyScoreThreshold  float64 `json:"anomaly_score_threshold"`
+	FrequencyThreshold    float64       `json:"frequency_threshold"`
+	VelocityThreshold     float64       `json:"velocity_threshold"`
+	SizeThreshold         int64         `json:"size_threshold"`
+	ResponseTimeThreshold time.Duration `json:"response_time_threshold"`
+	ErrorRateThreshold    float64       `json:"error_rate_threshold"`
+	DeviationThreshold    float64       `json:"deviation_threshold"`
+	AnomalyScoreThreshold float64       `json:"anomaly_score_threshold"`
 }
 
 type SizeDistribution struct {
-	Min        int64   `json:"min"`
-	Max        int64   `json:"max"`
-	Mean       float64 `json:"mean"`
-	Median     float64 `json:"median"`
-	StdDev     float64 `json:"std_dev"`
+	Min         int64            `json:"min"`
+	Max         int64            `json:"max"`
+	Mean        float64          `json:"mean"`
+	Median      float64          `json:"median"`
+	StdDev      float64          `json:"std_dev"`
 	Percentiles map[string]int64 `json:"percentiles"`
 }
 
 type ResponseTimePattern struct {
-	Min         time.Duration        `json:"min"`
-	Max         time.Duration        `json:"max"`
-	Mean        time.Duration        `json:"mean"`
-	Median      time.Duration        `json:"median"`
-	StdDev      time.Duration        `json:"std_dev"`
-	Percentiles map[string]time.Duration `json:"percentiles"`
-	Distribution map[string]int64    `json:"distribution"`
+	Min          time.Duration            `json:"min"`
+	Max          time.Duration            `json:"max"`
+	Mean         time.Duration            `json:"mean"`
+	Median       time.Duration            `json:"median"`
+	StdDev       time.Duration            `json:"std_dev"`
+	Percentiles  map[string]time.Duration `json:"percentiles"`
+	Distribution map[string]int64         `json:"distribution"`
 }
 
 type BurstPattern struct {
@@ -152,24 +153,26 @@ type IntervalPattern struct {
 }
 
 type VelocityPattern struct {
-	Acceleration    float64 `json:"acceleration"`
-	Deceleration    float64 `json:"deceleration"`
-	PeakVelocity    float64 `json:"peak_velocity"`
-	AverageVelocity float64 `json:"average_velocity"`
+	Acceleration     float64 `json:"acceleration"`
+	Deceleration     float64 `json:"deceleration"`
+	PeakVelocity     float64 `json:"peak_velocity"`
+	AverageVelocity  float64 `json:"average_velocity"`
 	VelocityVariance float64 `json:"velocity_variance"`
 }
 
 type BehaviorAnalysisRequest struct {
-	TrafficData    map[string]interface{} `json:"traffic_data"`
-	UserID         string                 `json:"user_id,omitempty"`
-	SessionID      string                 `json:"session_id,omitempty"`
-	IPAddress      string                 `json:"ip_address,omitempty"`
-	TimeWindow     time.Duration          `json:"time_window,omitempty"`
-	AnalysisType   string                 `json:"analysis_type"`
-	IncludeBaseline bool                  `json:"include_baseline"`
-	Configuration  map[string]interface{} `json:"configuration,omitempty"`
-	RequestID      string                 `json:"request_id"`
-	Timestamp      time.Time              `json:"timestamp"`
+	TrafficData     map[string]interface{} `json:"traffic_data"`
+	EntityID        string                 `json:"entity_id,omitempty"`
+	EntityType      string                 `json:"entity_type,omitempty"`
+	UserID          string                 `json:"user_id,omitempty"`
+	SessionID       string                 `json:"session_id,omitempty"`
+	IPAddress       string                 `json:"ip_address,omitempty"`
+	TimeWindow      time.Duration          `json:"time_window,omitempty"`
+	AnalysisType    string                 `json:"analysis_type"`
+	IncludeBaseline bool                   `json:"include_baseline"`
+	Configuration   map[string]interface{} `json:"configuration,omitempty"`
+	RequestID       string                 `json:"request_id"`
+	Timestamp       time.Time              `json:"timestamp"`
 }
 
 type BaselineCreationRequest struct {
@@ -194,40 +197,40 @@ type BehaviorAnalysisResult struct {
 }
 
 type BehaviorAnomaly struct {
-	Type           string                 `json:"type"`
-	Description    string                 `json:"description"`
-	Severity       string                 `json:"severity"`
-	Score          float64                `json:"score"`
-	Pattern        BehaviorPattern        `json:"pattern"`
-	Deviation      map[string]interface{} `json:"deviation"`
-	Context        map[string]interface{} `json:"context"`
-	Recommendations []string              `json:"recommendations"`
+	Type            string                 `json:"type"`
+	Description     string                 `json:"description"`
+	Severity        string                 `json:"severity"`
+	Score           float64                `json:"score"`
+	Pattern         BehaviorPattern        `json:"pattern"`
+	Deviation       map[string]interface{} `json:"deviation"`
+	Context         map[string]interface{} `json:"context"`
+	Recommendations []string               `json:"recommendations"`
 }
 
 type RiskAssessment struct {
-	OverallRiskScore   float64            `json:"overall_risk_score"`
-	RiskLevel          string             `json:"risk_level"`
-	RiskFactors        []RiskFactor       `json:"risk_factors"`
-	MitigationActions  []string           `json:"mitigation_actions"`
-	ConfidenceLevel    float64            `json:"confidence_level"`
-	AssessmentBasis    string             `json:"assessment_basis"`
+	OverallRiskScore  float64      `json:"overall_risk_score"`
+	RiskLevel         string       `json:"risk_level"`
+	RiskFactors       []RiskFactor `json:"risk_factors"`
+	MitigationActions []string     `json:"mitigation_actions"`
+	ConfidenceLevel   float64      `json:"confidence_level"`
+	AssessmentBasis   string       `json:"assessment_basis"`
 }
 
 type RiskFactor struct {
-	Factor      string  `json:"factor"`
-	Score       float64 `json:"score"`
-	Weight      float64 `json:"weight"`
-	Description string  `json:"description"`
+	Factor      string   `json:"factor"`
+	Score       float64  `json:"score"`
+	Weight      float64  `json:"weight"`
+	Description string   `json:"description"`
 	Evidence    []string `json:"evidence"`
 }
 
 type BaselineComparison struct {
-	HasBaseline        bool                   `json:"has_baseline"`
-	BaselineAge        time.Duration          `json:"baseline_age,omitempty"`
-	DeviationScore     float64                `json:"deviation_score"`
-	SignificantChanges []BaselineDeviation    `json:"significant_changes"`
-	Stability          float64                `json:"stability"`
-	Confidence         float64                `json:"confidence"`
+	HasBaseline        bool                `json:"has_baseline"`
+	BaselineAge        time.Duration       `json:"baseline_age,omitempty"`
+	DeviationScore     float64             `json:"deviation_score"`
+	SignificantChanges []BaselineDeviation `json:"significant_changes"`
+	Stability          float64             `json:"stability"`
+	Confidence         float64             `json:"confidence"`
 }
 
 type BaselineDeviation struct {
@@ -252,14 +255,14 @@ const (
 
 // Behavior categories
 const (
-	BehaviorCategoryAccess    = "access"
-	BehaviorCategoryUsage     = "usage"
-	BehaviorCategoryTiming    = "timing"
-	BehaviorCategoryVolume    = "volume"
-	BehaviorCategorySequence  = "sequence"
-	BehaviorCategoryLocation  = "location"
-	BehaviorCategoryDevice    = "device"
-	BehaviorCategoryContent   = "content"
+	BehaviorCategoryAccess   = "access"
+	BehaviorCategoryUsage    = "usage"
+	BehaviorCategoryTiming   = "timing"
+	BehaviorCategoryVolume   = "volume"
+	BehaviorCategorySequence = "sequence"
+	BehaviorCategoryLocation = "location"
+	BehaviorCategoryDevice   = "device"
+	BehaviorCategoryContent  = "content"
 )
 
 // Risk levels
@@ -272,42 +275,73 @@ const (
 )
 
 type BaselineProfile struct {
+	EntityID         string            `json:"entity_id" db:"entity_id"`
+	EntityType       string            `json:"entity_type" db:"entity_type"`
 	AccessPatterns   *AccessPatterns   `json:"access_patterns,omitempty"`
 	UsagePatterns    *UsagePatterns    `json:"usage_patterns,omitempty"`
 	TimingPatterns   *TimingPatterns   `json:"timing_patterns,omitempty"`
 	LocationPatterns *LocationPatterns `json:"location_patterns,omitempty"`
-	// Add more fields as needed
+	CreatedAt        time.Time         `json:"created_at" db:"created_at"`
+	UpdatedAt        time.Time         `json:"updated_at" db:"updated_at"`
 }
 
 type AccessPatterns struct {
-	NormalAccessHours      []int   `json:"normal_access_hours"`
-	AverageHourlyAccess    float64 `json:"average_hourly_access"`
+	NormalAccessHours   []int   `json:"normal_access_hours"`
+	AverageHourlyAccess float64 `json:"average_hourly_access"`
 }
 
 type UsagePatterns struct {
-	CommonEndpoints map[string]float64 `json:"common_endpoints"`
-	MethodFrequency map[string]float64 `json:"method_frequency"`
+	CommonEndpoints        map[string]float64 `json:"common_endpoints"`
+	MethodFrequency        map[string]float64 `json:"method_frequency"`
+	CommonEndpointSequence []string           `json:"common_endpoint_sequence"`
 }
 
-type TimingPatterns struct {}
-type LocationPatterns struct {}
+type TimingPatterns struct {
+	AverageResponseTime float64 `json:"average_response_time"`
+}
+type LocationPatterns struct {
+	CommonCountries []string `json:"common_countries"`
+	CommonCities    []string `json:"common_cities"`
+}
 
 type BehaviorPatternFilter struct {
-	EntityID    string `json:"entity_id,omitempty"`
-	EntityType  string `json:"entity_type,omitempty"`
-	PatternType string `json:"pattern_type,omitempty"`
-	Severity    string `json:"severity,omitempty"`
-	Status      string `json:"status,omitempty"`
+	EntityID     string  `json:"entity_id,omitempty"`
+	EntityType   string  `json:"entity_type,omitempty"`
+	PatternType  string  `json:"pattern_type,omitempty"`
+	Type         string  `json:"type,omitempty"`
+	Category     string  `json:"category,omitempty"`
+	UserID       string  `json:"user_id,omitempty"`
+	IPAddress    string  `json:"ip_address,omitempty"`
+	APIID        string  `json:"api_id,omitempty"`
+	Severity     string  `json:"severity,omitempty"`
+	Status       string  `json:"status,omitempty"`
+	MinRiskScore float64 `json:"min_risk_score,omitempty"`
+	MaxRiskScore float64 `json:"max_risk_score,omitempty"`
+	Page         int     `json:"page,omitempty"`
+	Limit        int     `json:"limit,omitempty"`
 }
 
 type BehaviorPatternUpdate struct {
-	Status  string `json:"status,omitempty"`
-	Notes   string `json:"notes,omitempty"`
+	Status      string                 `json:"status,omitempty"`
+	Description string                 `json:"description,omitempty"`
+	RiskScore   float64                `json:"risk_score,omitempty"`
+	Confidence  float64                `json:"confidence,omitempty"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	Notes       string                 `json:"notes,omitempty"`
 }
 
 type BehaviorChange struct {
-	ChangeType string    `json:"change_type"`
-	EntityID   string    `json:"entity_id"`
-	Timestamp  time.Time `json:"timestamp"`
-	Details    string    `json:"details"`
+	ID          string                 `json:"id"`
+	ChangeType  string                 `json:"change_type"`
+	EntityID    string                 `json:"entity_id"`
+	EntityType  string                 `json:"entity_type"`
+	Timestamp   time.Time              `json:"timestamp"`
+	DetectedAt  time.Time              `json:"detected_at"`
+	Severity    string                 `json:"severity"`
+	Magnitude   string                 `json:"magnitude"`
+	Description string                 `json:"description"`
+	RiskScore   float64                `json:"risk_score"`
+	Confidence  float64                `json:"confidence"`
+	Metadata    map[string]interface{} `json:"metadata"`
+	Details     string                 `json:"details"`
 }

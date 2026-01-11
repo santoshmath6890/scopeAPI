@@ -4,21 +4,19 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"scopeapi.local/backend/services/gateway-integration/internal/models"
 	"scopeapi.local/backend/services/gateway-integration/internal/services"
-	"scopeapi.local/backend/shared/monitoring/metrics"
 )
 
 // NginxHandler handles HTTP requests for NGINX gateway integration
 type NginxHandler struct {
-	nginxService services.NginxIntegrationService
-	
+	nginxService *services.NginxIntegrationService
 }
 
 // NewNginxHandler creates a new NginxHandler instance
-func NewNginxHandler(nginxService services.NginxIntegrationService, ) *NginxHandler {
+func NewNginxHandler(nginxService *services.NginxIntegrationService) *NginxHandler {
 	return &NginxHandler{
 		nginxService: nginxService,
-		metrics:      metrics,
 	}
 }
 
@@ -32,19 +30,14 @@ func (h *NginxHandler) GetStatus(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	status, err := h.nginxService.GetStatus(c.Request.Context(), integrationID)
 	if err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{"status": status})
 }
 
@@ -58,19 +51,14 @@ func (h *NginxHandler) GetConfig(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	config, err := h.nginxService.GetConfig(c.Request.Context(), integrationID)
 	if err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{"config": config})
 }
 
@@ -84,24 +72,19 @@ func (h *NginxHandler) UpdateConfig(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
-	var configData map[string]interface{}
-	if err := c.ShouldBindJSON(&configData); err != nil {
+	var config models.NginxConfig
+	if err := c.ShouldBindJSON(&config); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
 		return
 	}
 
-	if err := h.nginxService.UpdateConfig(c.Request.Context(), integrationID, configData); err != nil {
-		
+	if err := h.nginxService.UpdateConfig(c.Request.Context(), integrationID, &config); err != nil {
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{"message": "NGINX configuration updated successfully"})
 }
 
@@ -115,18 +98,13 @@ func (h *NginxHandler) ReloadConfig(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	if err := h.nginxService.ReloadConfig(c.Request.Context(), integrationID); err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{"message": "NGINX configuration reloaded successfully"})
 }
 
@@ -140,19 +118,14 @@ func (h *NginxHandler) GetUpstreams(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	upstreams, err := h.nginxService.GetUpstreams(c.Request.Context(), integrationID)
 	if err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{
 		"upstreams": upstreams,
 		"count":     len(upstreams),
@@ -169,24 +142,19 @@ func (h *NginxHandler) UpdateUpstream(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
-	var upstreamData map[string]interface{}
-	if err := c.ShouldBindJSON(&upstreamData); err != nil {
+	var upstream models.NginxUpstream
+	if err := c.ShouldBindJSON(&upstream); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
 		return
 	}
 
-	if err := h.nginxService.UpdateUpstream(c.Request.Context(), integrationID, upstreamData); err != nil {
-		
+	if err := h.nginxService.UpdateUpstream(c.Request.Context(), integrationID, &upstream); err != nil {
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{"message": "Upstream configuration updated successfully"})
 }
 
@@ -200,17 +168,15 @@ func (h *NginxHandler) SyncConfiguration(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
-	if err := h.nginxService.SyncConfiguration(c.Request.Context(), integrationID); err != nil {
-		
+	result, err := h.nginxService.SyncConfiguration(c.Request.Context(), integrationID)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
-	c.JSON(http.StatusOK, gin.H{"message": "NGINX configuration synchronized successfully"})
-} 
+	c.JSON(http.StatusOK, gin.H{
+		"message": "NGINX configuration synchronized successfully",
+		"result":  result,
+	})
+}

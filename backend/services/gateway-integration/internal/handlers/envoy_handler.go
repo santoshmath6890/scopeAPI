@@ -4,17 +4,17 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"scopeapi.local/backend/services/gateway-integration/internal/models"
 	"scopeapi.local/backend/services/gateway-integration/internal/services"
-	"scopeapi.local/backend/shared/monitoring/metrics"
 )
 
 // EnvoyHandler handles HTTP requests for Envoy gateway integration
 type EnvoyHandler struct {
-	envoyService services.EnvoyIntegrationService
+	envoyService *services.EnvoyIntegrationService
 }
 
 // NewEnvoyHandler creates a new EnvoyHandler instance
-func NewEnvoyHandler(envoyService services.EnvoyIntegrationService) *EnvoyHandler {
+func NewEnvoyHandler(envoyService *services.EnvoyIntegrationService) *EnvoyHandler {
 	return &EnvoyHandler{
 		envoyService: envoyService,
 	}
@@ -30,10 +30,6 @@ func (h *EnvoyHandler) GetStatus(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	status, err := h.envoyService.GetStatus(c.Request.Context(), integrationID)
 	if err != nil {
@@ -53,10 +49,6 @@ func (h *EnvoyHandler) GetClusters(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	clusters, err := h.envoyService.GetClusters(c.Request.Context(), integrationID)
 	if err != nil {
@@ -79,10 +71,6 @@ func (h *EnvoyHandler) GetListeners(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	listeners, err := h.envoyService.GetListeners(c.Request.Context(), integrationID)
 	if err != nil {
@@ -105,19 +93,14 @@ func (h *EnvoyHandler) GetFilters(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	filters, err := h.envoyService.GetFilters(c.Request.Context(), integrationID)
 	if err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{
 		"filters": filters,
 		"count":   len(filters),
@@ -134,28 +117,23 @@ func (h *EnvoyHandler) CreateFilter(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
-	var filterData map[string]interface{}
-	if err := c.ShouldBindJSON(&filterData); err != nil {
+	var filter models.EnvoyFilter
+	if err := c.ShouldBindJSON(&filter); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
 		return
 	}
 
-	filter, err := h.envoyService.CreateFilter(c.Request.Context(), integrationID, filterData)
+	createdFilter, err := h.envoyService.CreateFilter(c.Request.Context(), integrationID, &filter)
 	if err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Filter created successfully",
-		"filter":  filter,
+		"filter":  createdFilter,
 	})
 }
 
@@ -169,10 +147,6 @@ func (h *EnvoyHandler) UpdateFilter(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	// Extract filter ID from URL parameter
 	filterID := c.Param("id")
@@ -181,23 +155,22 @@ func (h *EnvoyHandler) UpdateFilter(c *gin.Context) {
 		return
 	}
 
-	var filterData map[string]interface{}
-	if err := c.ShouldBindJSON(&filterData); err != nil {
+	var filter models.EnvoyFilter
+	if err := c.ShouldBindJSON(&filter); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
 		return
 	}
 
-	filter, err := h.envoyService.UpdateFilter(c.Request.Context(), integrationID, filterID, filterData)
+	updatedFilter, err := h.envoyService.UpdateFilter(c.Request.Context(), integrationID, filterID, &filter)
 	if err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Filter updated successfully",
-		"filter":  filter,
+		"filter":  updatedFilter,
 	})
 }
 
@@ -211,10 +184,6 @@ func (h *EnvoyHandler) DeleteFilter(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
 	// Extract filter ID from URL parameter
 	filterID := c.Param("id")
@@ -224,12 +193,11 @@ func (h *EnvoyHandler) DeleteFilter(c *gin.Context) {
 	}
 
 	if err := h.envoyService.DeleteFilter(c.Request.Context(), integrationID, filterID); err != nil {
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
 	c.JSON(http.StatusOK, gin.H{"message": "Filter deleted successfully"})
 }
 
@@ -243,17 +211,15 @@ func (h *EnvoyHandler) SyncConfiguration(c *gin.Context) {
 	}
 
 	integrationID := integrationIDStr
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid integration_id parameter"})
-		return
-	}
 
-	if err := h.envoyService.SyncConfiguration(c.Request.Context(), integrationID); err != nil {
-		
+	result, err := h.envoyService.SyncConfiguration(c.Request.Context(), integrationID)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	
-	c.JSON(http.StatusOK, gin.H{"message": "Envoy configuration synchronized successfully"})
-} 
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Envoy configuration synchronized successfully",
+		"result":  result,
+	})
+}

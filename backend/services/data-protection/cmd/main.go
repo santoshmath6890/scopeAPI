@@ -94,7 +94,7 @@ func main() {
 
 	// Metrics endpoint
 	router.GET("/metrics", func(c *gin.Context) {
-		metricsCollector.ServeHTTP(c.Writer, c.Request)
+		metricsCollector.Handler().ServeHTTP(c.Writer, c.Request)
 	})
 
 	// API routes

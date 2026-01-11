@@ -5,9 +5,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"data-protection/internal/models"
 	"data-protection/internal/services"
+
+	"github.com/gin-gonic/gin"
 	"scopeapi.local/backend/shared/logging"
 )
 
@@ -100,7 +101,7 @@ func (h *ComplianceHandler) GetComplianceFramework(c *gin.Context) {
 
 // CreateComplianceFramework creates a new compliance framework
 func (h *ComplianceHandler) CreateComplianceFramework(c *gin.Context) {
-	var framework models.ComplianceFramework
+	var framework models.ComplianceFrameworkData
 	if err := c.ShouldBindJSON(&framework); err != nil {
 		h.logger.Error("Failed to bind compliance framework", "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -184,7 +185,7 @@ func (h *ComplianceHandler) UpdateComplianceFramework(c *gin.Context) {
 		return
 	}
 
-	var framework models.ComplianceFramework
+	var framework models.ComplianceFrameworkData
 	if err := c.ShouldBindJSON(&framework); err != nil {
 		h.logger.Error("Failed to bind compliance framework update", "error", err)
 		c.JSON(http.StatusBadRequest, gin.H{

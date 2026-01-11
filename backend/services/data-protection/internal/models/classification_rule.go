@@ -67,6 +67,7 @@ type ClassificationRule struct {
 	AccessControls   []AccessControl           `json:"access_controls" db:"access_controls"`
 	EncryptionConfig *EncryptionConfig         `json:"encryption_config,omitempty" db:"encryption_config"`
 	Metadata         map[string]interface{}    `json:"metadata" db:"metadata"`
+	Labels           []DataLabel               `json:"labels" db:"labels"`
 	CreatedAt        time.Time                 `json:"created_at" db:"created_at"`
 	UpdatedAt        time.Time                 `json:"updated_at" db:"updated_at"`
 	CreatedBy        string                    `json:"created_by" db:"created_by"`
@@ -76,7 +77,7 @@ type ClassificationRule struct {
 type ClassificationCondition struct {
 	Field         string                 `json:"field"`
 	Operator      string                 `json:"operator"`
-	Value         string                 `json:"value"`
+	Value         interface{}            `json:"value"`
 	CaseSensitive bool                   `json:"case_sensitive"`
 	Weight        float64                `json:"weight"`
 	Context       map[string]interface{} `json:"context"`
@@ -153,6 +154,8 @@ type DataClassificationRequest struct {
 	Context     map[string]interface{} `json:"context"`
 	IPAddress   string                 `json:"ip_address"`
 	UserAgent   string                 `json:"user_agent"`
+	Data        map[string]interface{} `json:"data"`
+	DataSource  string                 `json:"data_source"`
 }
 
 type ClassificationOptions struct {
@@ -174,6 +177,9 @@ type DataClassificationResult struct {
 	ProcessingTime  time.Duration          `json:"processing_time"`
 	Metadata        map[string]interface{} `json:"metadata"`
 	ClassifiedAt    time.Time              `json:"classified_at"`
+	RulesMatched    []string               `json:"rules_matched"`
+	AppliedLabels   []DataLabel            `json:"applied_labels"`
+	ExecutedActions []ClassificationAction `json:"executed_actions"`
 }
 
 type DataClassification struct {
@@ -192,6 +198,9 @@ type DataClassification struct {
 	RuleName          string                  `json:"rule_name"`
 	Location          DataLocation            `json:"location"`
 	Context           ClassificationContext   `json:"context"`
+	MatchContext      map[string]interface{}  `json:"match_context"`
+	Confidence        float64                 `json:"confidence"`
+	Labels            []DataLabel             `json:"labels"`
 	ComplianceFlags   []string                `json:"compliance_flags"`
 	ProcessingActions []ProcessingAction      `json:"processing_actions"`
 	Metadata          map[string]interface{}  `json:"metadata"`
@@ -240,6 +249,9 @@ type ClassificationSummary struct {
 	RecommendedActions        []string                        `json:"recommended_actions"`
 	OverallRiskScore          float64                         `json:"overall_risk_score"`
 	ProcessingErrors          []string                        `json:"processing_errors"`
+	CategoryBreakdown         map[string]int                  `json:"category_breakdown"`
+	LabelBreakdown            map[string]int                  `json:"label_breakdown"`
+	RuleUsage                 map[string]int                  `json:"rule_usage"`
 }
 
 type ClassificationFilter struct {
@@ -285,6 +297,7 @@ type ClassificationTrend struct {
 // ClassificationRuleFilter - Filter for classification rules
 type ClassificationRuleFilter struct {
 	Category string   `json:"category,omitempty"`
+	Name     string   `json:"name,omitempty"`
 	Method   string   `json:"method,omitempty"`
 	Enabled  *bool    `json:"enabled,omitempty"`
 	Priority *int     `json:"priority,omitempty"`
@@ -302,6 +315,8 @@ type DataLabel struct {
 // ClassificationReportFilter - Filter for classification reports
 type ClassificationReportFilter struct {
 	Category  string     `json:"category,omitempty"`
+	Since     *time.Time `json:"since,omitempty"`
+	Until     *time.Time `json:"until,omitempty"`
 	StartDate *time.Time `json:"start_date,omitempty"`
 	EndDate   *time.Time `json:"end_date,omitempty"`
 	Limit     int        `json:"limit,omitempty"`
@@ -310,10 +325,14 @@ type ClassificationReportFilter struct {
 
 // ClassificationReport - Classification analysis report
 type ClassificationReport struct {
-	ID          string                 `json:"id"`
-	Summary     map[string]interface{} `json:"summary"`
-	Details     map[string]interface{} `json:"details"`
-	GeneratedAt time.Time              `json:"generated_at"`
+	ID              string                      `json:"id"`
+	Details         map[string]interface{}      `json:"details"`
+	GeneratedAt     time.Time                   `json:"generated_at"`
+	Filter          *ClassificationReportFilter `json:"filter"`
+	Summary         ClassificationSummary       `json:"summary"`
+	Classifications []DataClassification        `json:"classifications"`
+	Trends          []ClassificationTrend       `json:"trends"`
+	Recommendations []string                    `json:"recommendations"`
 }
 
 type ClassificationData struct {

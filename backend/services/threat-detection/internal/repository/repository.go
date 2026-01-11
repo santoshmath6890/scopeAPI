@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"time"
+
 	"scopeapi.local/backend/services/threat-detection/internal/models"
 )
 
@@ -52,7 +53,7 @@ type ThreatRepositoryInterface interface {
 	CreateThreatSignature(ctx context.Context, signature *models.ThreatSignature) error
 	DeleteThreatSignature(ctx context.Context, id string) error
 	GetSignatureMatchStatistics(ctx context.Context) (*models.SignatureMatchStats, error)
-	
+
 	// Additional threat management methods
 	GetThreats(ctx context.Context, filter *models.ThreatFilter) ([]models.Threat, error)
 	GetThreat(ctx context.Context, threatID string) (*models.Threat, error)
@@ -68,7 +69,7 @@ type PatternRepositoryInterface interface {
 	GetBehaviorPattern(ctx context.Context, patternID string) (*models.BehaviorPattern, error)
 	SaveBehaviorPattern(ctx context.Context, pattern *models.BehaviorPattern) error
 	ListBehaviorPatterns(ctx context.Context, filter *models.BehaviorPatternFilter) ([]models.BehaviorPattern, error)
-	
+
 	// Additional methods for behavioral analysis
 	GetRecentAccessCount(ctx context.Context, entityID string, entityType string, duration time.Duration) (int, error)
 	GetRecentRequestCount(ctx context.Context, entityID string, entityType string, duration time.Duration) (int, error)
@@ -80,13 +81,14 @@ type PatternRepositoryInterface interface {
 	UpdateBehaviorPattern(ctx context.Context, patternID string, pattern *models.BehaviorPattern) error
 	CreateBaselineProfile(ctx context.Context, profile *models.BaselineProfile) error
 	GetBaselineProfile(ctx context.Context, entityID string, entityType string) (*models.BaselineProfile, error)
+	GetHistoricalCountries(ctx context.Context, entityID string, entityType string) ([]string, error)
 }
 
 // In-memory implementation of ThreatRepositoryInterface
 
 type MemoryThreatRepository struct {
-	threats     map[string]*models.Threat
-	signatures  map[string]*models.ThreatSignature
+	threats    map[string]*models.Threat
+	signatures map[string]*models.ThreatSignature
 }
 
 type MemoryPatternRepository struct {
@@ -199,19 +201,19 @@ func (r *MemoryThreatRepository) DeleteThreat(ctx context.Context, threatID stri
 
 func (r *MemoryThreatRepository) GetThreatStatistics(ctx context.Context, timeRange time.Duration) (*models.ThreatStatistics, error) {
 	return &models.ThreatStatistics{
-		TotalThreats:      int64(len(r.threats)),
-		ActiveThreats:     0,
-		ResolvedThreats:   0,
-		CriticalThreats:   0,
-		HighThreats:       0,
-		MediumThreats:     0,
-		LowThreats:        0,
-		ThreatsByType:     make(map[string]int64),
-		ThreatsBySource:   make(map[string]int64),
-		RecentThreats:     0,
-		TrendData:         []models.ThreatTrendPoint{},
-		TopTargetedAPIs:   []models.APIThreatSummary{},
-		TopAttackerIPs:    []models.IPThreatSummary{},
+		TotalThreats:    int64(len(r.threats)),
+		ActiveThreats:   0,
+		ResolvedThreats: 0,
+		CriticalThreats: 0,
+		HighThreats:     0,
+		MediumThreats:   0,
+		LowThreats:      0,
+		ThreatsByType:   make(map[string]int64),
+		ThreatsBySource: make(map[string]int64),
+		RecentThreats:   0,
+		TrendData:       []models.ThreatTrendPoint{},
+		TopTargetedAPIs: []models.APIThreatSummary{},
+		TopAttackerIPs:  []models.IPThreatSummary{},
 	}, nil
 }
 
@@ -232,8 +234,8 @@ func (r *MemoryThreatRepository) GetFailedAuthAttempts(ctx context.Context, ipAd
 	count := 0
 	cutoff := time.Now().Add(-timeWindow)
 	for _, threat := range r.threats {
-		if threat.IPAddress == ipAddress && threat.CreatedAt.After(cutoff) && 
-		   (threat.Type == "authentication" || threat.AttackType == "brute_force") {
+		if threat.IPAddress == ipAddress && threat.CreatedAt.After(cutoff) &&
+			(threat.Type == "authentication" || threat.AttackType == "brute_force") {
 			count++
 		}
 	}
@@ -278,6 +280,10 @@ func (r *MemoryPatternRepository) SaveBehaviorPattern(ctx context.Context, patte
 	return nil
 }
 
+func (r *MemoryPatternRepository) GetHistoricalCountries(ctx context.Context, entityID string, entityType string) ([]string, error) {
+	return []string{"US", "UK", "CA"}, nil
+}
+
 func (r *MemoryPatternRepository) ListBehaviorPatterns(ctx context.Context, filter *models.BehaviorPatternFilter) ([]models.BehaviorPattern, error) {
 	var patterns []models.BehaviorPattern
 	for _, pattern := range r.patterns {
@@ -300,7 +306,7 @@ func (r *MemoryPatternRepository) GetRecentAccessCount(ctx context.Context, enti
 	// In-memory implementation - count patterns for this entity within time window
 	count := 0
 	cutoff := time.Now().Add(-duration)
-	
+
 	for _, pattern := range r.patterns {
 		if pattern.CreatedAt.After(cutoff) {
 			// Check if pattern belongs to this entity
@@ -311,7 +317,7 @@ func (r *MemoryPatternRepository) GetRecentAccessCount(ctx context.Context, enti
 			}
 		}
 	}
-	
+
 	return count, nil
 }
 
@@ -319,7 +325,7 @@ func (r *MemoryPatternRepository) GetRecentRequestCount(ctx context.Context, ent
 	// In-memory implementation - count patterns for this entity within time window
 	count := 0
 	cutoff := time.Now().Add(-duration)
-	
+
 	for _, pattern := range r.patterns {
 		if pattern.CreatedAt.After(cutoff) {
 			// Check if pattern belongs to this entity
@@ -330,7 +336,7 @@ func (r *MemoryPatternRepository) GetRecentRequestCount(ctx context.Context, ent
 			}
 		}
 	}
-	
+
 	return count, nil
 }
 
@@ -341,9 +347,9 @@ func (r *MemoryPatternRepository) GetBaselineRequestCount(ctx context.Context, e
 	case "ip_address":
 		return 10, nil // 10 requests per minute baseline
 	case "user_id":
-		return 5, nil  // 5 requests per minute baseline
+		return 5, nil // 5 requests per minute baseline
 	default:
-		return 8, nil  // Default baseline
+		return 8, nil // Default baseline
 	}
 }
 
@@ -351,7 +357,7 @@ func (r *MemoryPatternRepository) GetRecentEndpointSequence(ctx context.Context,
 	// In-memory implementation - return recent endpoint sequence
 	var endpoints []string
 	cutoff := time.Now().Add(-5 * time.Minute) // Last 5 minutes
-	
+
 	// Collect endpoints from recent patterns
 	for _, pattern := range r.patterns {
 		if pattern.CreatedAt.After(cutoff) {
@@ -366,12 +372,12 @@ func (r *MemoryPatternRepository) GetRecentEndpointSequence(ctx context.Context,
 			}
 		}
 	}
-	
+
 	// Limit the sequence length
 	if len(endpoints) > limit {
 		endpoints = endpoints[len(endpoints)-limit:]
 	}
-	
+
 	return endpoints, nil
 }
 
@@ -379,7 +385,7 @@ func (r *MemoryPatternRepository) GetRecentMethodSequence(ctx context.Context, e
 	// In-memory implementation - return recent HTTP method sequence
 	var methods []string
 	cutoff := time.Now().Add(-5 * time.Minute) // Last 5 minutes
-	
+
 	// Collect methods from recent patterns
 	for _, pattern := range r.patterns {
 		if pattern.CreatedAt.After(cutoff) {
@@ -394,12 +400,12 @@ func (r *MemoryPatternRepository) GetRecentMethodSequence(ctx context.Context, e
 			}
 		}
 	}
-	
+
 	// Limit the sequence length
 	if len(methods) > limit {
 		methods = methods[len(methods)-limit:]
 	}
-	
+
 	return methods, nil
 }
 
@@ -435,14 +441,14 @@ func (r *MemoryPatternRepository) GetBaselineProfile(ctx context.Context, entity
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
 		UsagePatterns: &models.UsagePatterns{
-			CommonEndpoints: map[string]bool{
-				"/api/v1/users": true,
-				"/api/v1/health": true,
+			CommonEndpoints: map[string]float64{
+				"/api/v1/users":  1.0,
+				"/api/v1/health": 1.0,
 			},
 			MethodFrequency: map[string]float64{
-				"GET":  0.7,
-				"POST": 0.2,
-				"PUT":  0.08,
+				"GET":    0.7,
+				"POST":   0.2,
+				"PUT":    0.08,
 				"DELETE": 0.02,
 			},
 		},
@@ -529,7 +535,7 @@ func (r *MemoryAnomalyRepository) GetRecentRequestCount(ctx context.Context, ent
 	// Count anomalies for this entity within time window
 	count := 0
 	cutoff := time.Now().Add(-duration)
-	
+
 	for _, anomaly := range r.anomalies {
 		if anomaly.FirstDetected.After(cutoff) {
 			// Check if anomaly belongs to this entity
@@ -540,7 +546,7 @@ func (r *MemoryAnomalyRepository) GetRecentRequestCount(ctx context.Context, ent
 			}
 		}
 	}
-	
+
 	return count, nil
 }
 
@@ -550,7 +556,7 @@ func (r *MemoryAnomalyRepository) GetBaselineRequestCount(ctx context.Context, e
 	case "ip_address":
 		return 15, nil // 15 requests per minute baseline
 	case "user_id":
-		return 8, nil  // 8 requests per minute baseline
+		return 8, nil // 8 requests per minute baseline
 	default:
 		return 12, nil // Default baseline
 	}
@@ -575,26 +581,26 @@ func (r *MemoryAnomalyRepository) UpdateAnomalyFeedback(ctx context.Context, fee
 func (r *MemoryAnomalyRepository) GetAnomalyStatistics(ctx context.Context, filter *models.AnomalyFilter) (*models.AnomalyStatistics, error) {
 	// Calculate statistics from in-memory anomalies
 	stats := &models.AnomalyStatistics{
-		TotalAnomalies:    int64(len(r.anomalies)),
-		AnomaliesByType:   make(map[string]int64),
+		TotalAnomalies:      int64(len(r.anomalies)),
+		AnomaliesByType:     make(map[string]int64),
 		AnomaliesBySeverity: make(map[string]int64),
-		AnomaliesByStatus: make(map[string]int64),
-		RecentAnomalies:   0,
-		GeneratedAt:       time.Now(),
+		AnomaliesByStatus:   make(map[string]int64),
+		RecentAnomalies:     0,
+		GeneratedAt:         time.Now(),
 	}
-	
+
 	// Calculate counts by type, severity, and status
 	for _, anomaly := range r.anomalies {
 		stats.AnomaliesByType[anomaly.Type]++
 		stats.AnomaliesBySeverity[anomaly.Severity]++
 		stats.AnomaliesByStatus[anomaly.Status]++
-		
+
 		// Count recent anomalies (last 24 hours)
-		if anomaly.FirstDetected.After(time.Now().Add(-24*time.Hour)) {
+		if anomaly.FirstDetected.After(time.Now().Add(-24 * time.Hour)) {
 			stats.RecentAnomalies++
 		}
 	}
-	
+
 	return stats, nil
 }
 
@@ -607,13 +613,13 @@ func (r *MemoryAnomalyRepository) StoreBaselineStatistics(ctx context.Context, e
 func (r *MemoryAnomalyRepository) GetModelPerformance(ctx context.Context, modelVersion string) (*models.ModelPerformanceMetric, error) {
 	// Return model performance metrics
 	return &models.ModelPerformanceMetric{
-		ModelVersion:    modelVersion,
-		Accuracy:        0.92,
-		Precision:       0.89,
-		Recall:          0.91,
-		F1Score:         0.90,
+		ModelVersion:      modelVersion,
+		Accuracy:          0.92,
+		Precision:         0.89,
+		Recall:            0.91,
+		F1Score:           0.90,
 		FalsePositiveRate: 0.08,
 		FalseNegativeRate: 0.09,
-		LastUpdated:     time.Now(),
+		LastUpdated:       time.Now(),
 	}, nil
 }

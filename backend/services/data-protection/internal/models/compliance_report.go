@@ -25,6 +25,24 @@ const (
 	ComplianceStatusNonCompliant       ComplianceStatus = "non_compliant"
 	ComplianceStatusUnknown            ComplianceStatus = "unknown"
 	ComplianceStatusInProgress         ComplianceStatus = "in_progress"
+	ComplianceStatusViolation          ComplianceStatus = "violation"
+	ComplianceStatusWarning            ComplianceStatus = "warning"
+)
+
+type ComplianceCategory string
+
+const (
+	ComplianceCategoryPrivacy            ComplianceCategory = "privacy"
+	ComplianceCategorySecurity           ComplianceCategory = "security"
+	ComplianceCategoryPHI                ComplianceCategory = "phi"
+	ComplianceCategoryCardholderData     ComplianceCategory = "cardholder_data"
+	ComplianceCategoryFinancialReporting ComplianceCategory = "financial_reporting"
+	ComplianceCategoryLegal              ComplianceCategory = "legal"
+	ComplianceCategoryOther              ComplianceCategory = "other"
+	ComplianceCategoryConsent            ComplianceCategory = "consent"
+	ComplianceCategoryDataMinimization   ComplianceCategory = "data_minimization"
+	ComplianceCategoryPrivacyNotice      ComplianceCategory = "privacy_notice"
+	ComplianceCategoryAuditTrail         ComplianceCategory = "audit_trail"
 )
 
 type ComplianceSeverity string
@@ -51,6 +69,7 @@ type ComplianceReport struct {
 	Name             string                     `json:"name" db:"name"`
 	Description      string                     `json:"description" db:"description"`
 	Type             string                     `json:"type" db:"type"`
+	FrameworkID      string                     `json:"framework_id" db:"framework_id"`
 	Framework        ComplianceFramework        `json:"framework" db:"framework"`
 	Status           ComplianceStatus           `json:"status" db:"status"`
 	Summary          ComplianceReportSummary    `json:"summary" db:"summary"`
@@ -255,6 +274,10 @@ type ComplianceReportFilter struct {
 	EndpointIDs   []string   `json:"endpoint_ids,omitempty"`
 	Severities    []string   `json:"severities,omitempty"`
 	Statuses      []string   `json:"statuses,omitempty"`
+	FrameworkID   string     `json:"framework_id,omitempty"`
+	Status        string     `json:"status,omitempty"`
+	Since         *time.Time `json:"since,omitempty"`
+	Until         *time.Time `json:"until,omitempty"`
 	StartDate     *time.Time `json:"start_date,omitempty"`
 	EndDate       *time.Time `json:"end_date,omitempty"`
 	Categories    []string   `json:"categories,omitempty"`
@@ -275,7 +298,7 @@ type ComplianceValidation struct {
 	OverallScore     float64                              `json:"overall_score" db:"overall_score"`
 	ViolationCount   int                                  `json:"violation_count" db:"violation_count"`
 	WarningCount     int                                  `json:"warning_count" db:"warning_count"`
-	FrameworkResults map[string]FrameworkValidationResult `json:"framework_results" db:"framework_results"`
+	FrameworkResults map[string]FrameworkComplianceResult `json:"framework_results" db:"framework_results"`
 	Violations       []ComplianceViolation                `json:"violations" db:"violations"`
 	Warnings         []ComplianceWarning                  `json:"warnings" db:"warnings"`
 	ProcessingTime   time.Duration                        `json:"processing_time" db:"processing_time"`
@@ -325,19 +348,21 @@ type ComplianceWarning struct {
 }
 
 type ComplianceValidationRequest struct {
-	RequestID   string                 `json:"request_id"`
-	APIID       string                 `json:"api_id"`
-	EndpointID  string                 `json:"endpoint_id"`
-	Frameworks  []string               `json:"frameworks"`
-	Content     string                 `json:"content"`
-	ContentType string                 `json:"content_type"`
-	Source      string                 `json:"source"`
-	Rules       []string               `json:"rules"`
-	Options     ValidationOptions      `json:"options"`
-	Context     map[string]interface{} `json:"context"`
-	IPAddress   string                 `json:"ip_address"`
-	UserAgent   string                 `json:"user_agent"`
-	DataFactors map[string]interface{} `json:"data_factors"`
+	RequestID       string                 `json:"request_id"`
+	APIID           string                 `json:"api_id"`
+	EndpointID      string                 `json:"endpoint_id"`
+	Frameworks      []string               `json:"frameworks"`
+	Content         string                 `json:"content"`
+	ContentType     string                 `json:"content_type"`
+	Source          string                 `json:"source"`
+	Rules           []string               `json:"rules"`
+	Options         ValidationOptions      `json:"options"`
+	Context         map[string]interface{} `json:"context"`
+	IPAddress       string                 `json:"ip_address"`
+	UserAgent       string                 `json:"user_agent"`
+	DataFactors     map[string]interface{} `json:"data_factors"`
+	SecurityFactors map[string]interface{} `json:"security_factors"`
+	ContextFactors  map[string]interface{} `json:"context_factors"`
 }
 
 type ValidationOptions struct {
@@ -351,18 +376,21 @@ type ValidationOptions struct {
 }
 
 type ComplianceValidationResult struct {
-	RequestID        string                               `json:"request_id"`
-	OverallStatus    ComplianceStatus                     `json:"overall_status"`
-	OverallScore     float64                              `json:"overall_score"`
-	ViolationCount   int                                  `json:"violation_count"`
-	WarningCount     int                                  `json:"warning_count"`
-	FrameworkResults map[string]FrameworkValidationResult `json:"framework_results"`
-	Violations       []ComplianceViolation                `json:"violations"`
-	Warnings         []ComplianceWarning                  `json:"warnings"`
-	Recommendations  []ComplianceRecommendation           `json:"recommendations"`
-	ProcessingTime   time.Duration                        `json:"processing_time"`
-	Metadata         map[string]interface{}               `json:"metadata"`
-	ValidatedAt      time.Time                            `json:"validated_at"`
+	RequestID             string                               `json:"request_id"`
+	Regulations           []string                             `json:"regulations"`
+	OverallStatus         ComplianceStatus                     `json:"overall_status"`
+	OverallScore          float64                              `json:"overall_score"`
+	ViolationCount        int                                  `json:"violation_count"`
+	WarningCount          int                                  `json:"warning_count"`
+	FrameworkResults      map[string]FrameworkComplianceResult `json:"framework_results"`
+	Violations            []ComplianceViolation                `json:"violations"`
+	Warnings              []ComplianceWarning                  `json:"warnings"`
+	Recommendations       []ComplianceRecommendation           `json:"recommendations"`
+	RecommendationStrings []string                             `json:"recommendation_strings"`
+	Issues                []ComplianceIssue                    `json:"issues"`
+	ProcessingTime        time.Duration                        `json:"processing_time"`
+	Metadata              map[string]interface{}               `json:"metadata"`
+	ValidatedAt           time.Time                            `json:"validated_at"`
 }
 
 type ComplianceRule struct {
@@ -375,8 +403,8 @@ type ComplianceRule struct {
 	Type         string                 `json:"type" db:"type"`
 	Enabled      bool                   `json:"enabled" db:"enabled"`
 	Priority     int                    `json:"priority" db:"priority"`
-	Conditions   []RuleCondition        `json:"conditions" db:"conditions"`
-	Actions      []RuleAction           `json:"actions" db:"actions"`
+	Conditions   []ComplianceCondition  `json:"conditions" db:"conditions"`
+	Actions      []ComplianceAction     `json:"actions" db:"actions"`
 	Requirements []string               `json:"requirements" db:"requirements"`
 	Tags         []string               `json:"tags" db:"tags"`
 	References   []string               `json:"references" db:"references"`
@@ -471,19 +499,22 @@ type ComplianceValidationFilter struct {
 
 // ComplianceFrameworkData - Compliance framework definition
 type ComplianceFrameworkData struct {
-	ID          string    `json:"id" db:"id"`
-	Name        string    `json:"name" db:"name"`
-	Description string    `json:"description" db:"description"`
-	Version     string    `json:"version" db:"version"`
-	Region      string    `json:"region" db:"region"`
-	Categories  []string  `json:"categories" db:"categories"`
-	Enabled     bool      `json:"enabled" db:"enabled"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+	ID           string                  `json:"id" db:"id"`
+	Name         string                  `json:"name" db:"name"`
+	Description  string                  `json:"description" db:"description"`
+	Type         string                  `json:"type" db:"type"`
+	Version      string                  `json:"version" db:"version"`
+	Region       string                  `json:"region" db:"region"`
+	Categories   []string                `json:"categories" db:"categories"`
+	Requirements []ComplianceRequirement `json:"requirements" db:"requirements"`
+	Enabled      bool                    `json:"enabled" db:"enabled"`
+	CreatedAt    time.Time               `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time               `json:"updated_at" db:"updated_at"`
 }
 
 // ComplianceFrameworkFilter - Filter for compliance frameworks
 type ComplianceFrameworkFilter struct {
+	Type       string   `json:"type,omitempty"`
 	Region     string   `json:"region,omitempty"`
 	Categories []string `json:"categories,omitempty"`
 	Enabled    *bool    `json:"enabled,omitempty"`
@@ -497,6 +528,8 @@ type ComplianceFrameworkFilter struct {
 
 // TimeRange - Time range for filtering
 type TimeRange struct {
+	Start     time.Time `json:"start"`
+	End       time.Time `json:"end"`
 	StartDate time.Time `json:"start_date"`
 	EndDate   time.Time `json:"end_date"`
 	Since     time.Time `json:"since"`
@@ -505,13 +538,16 @@ type TimeRange struct {
 
 // AuditLogFilter - Filter for audit logs
 type AuditLogFilter struct {
-	StartDate *time.Time `json:"start_date,omitempty"`
-	EndDate   *time.Time `json:"end_date,omitempty"`
-	Action    string     `json:"action,omitempty"`
-	UserID    string     `json:"user_id,omitempty"`
-	Resource  string     `json:"resource,omitempty"`
-	Limit     int        `json:"limit,omitempty"`
-	Offset    int        `json:"offset,omitempty"`
+	StartDate    *time.Time `json:"start_date,omitempty"`
+	EndDate      *time.Time `json:"end_date,omitempty"`
+	Since        *time.Time `json:"since,omitempty"`
+	Until        *time.Time `json:"until,omitempty"`
+	Action       string     `json:"action,omitempty"`
+	UserID       string     `json:"user_id,omitempty"`
+	ResourceType string     `json:"resource_type,omitempty"`
+	Resource     string     `json:"resource,omitempty"`
+	Limit        int        `json:"limit,omitempty"`
+	Offset       int        `json:"offset,omitempty"`
 }
 
 // AuditLogEntry - Audit log entry
@@ -564,6 +600,45 @@ type RiskScoringResult struct {
 	ProcessingTime  time.Duration          `json:"processing_time"`
 	Metadata        map[string]interface{} `json:"metadata"`
 	CalculatedAt    time.Time              `json:"calculated_at"`
+}
+
+type RiskAssessmentRequest struct {
+	RequestID       string                 `json:"request_id"`
+	APIID           string                 `json:"api_id"`
+	EndpointID      string                 `json:"endpoint_id"`
+	DataFactors     map[string]interface{} `json:"data_factors"`
+	SecurityFactors map[string]interface{} `json:"security_factors"`
+	ContextFactors  map[string]interface{} `json:"context_factors"`
+	IPAddress       string                 `json:"ip_address"`
+	UserAgent       string                 `json:"user_agent"`
+	DataSource      string                 `json:"data_source"`
+}
+
+type RiskScoreFilter struct {
+	DataSource string     `json:"data_source"`
+	RiskLevel  string     `json:"risk_level"`
+	Since      *time.Time `json:"since"`
+	Until      *time.Time `json:"until"`
+}
+
+type MitigationPlan struct {
+	ID                string             `json:"id"`
+	Title             string             `json:"title"`
+	Description       string             `json:"description"`
+	RiskID            string             `json:"risk_id"`
+	MitigationActions []MitigationAction `json:"mitigation_actions"`
+	Status            string             `json:"status"`
+	CreatedAt         time.Time          `json:"created_at"`
+	UpdatedAt         time.Time          `json:"updated_at"`
+}
+
+type MitigationAction struct {
+	ID          string    `json:"id"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Status      string    `json:"status"`
+	AssignedTo  string    `json:"assigned_to"`
+	DueDate     time.Time `json:"due_date"`
 }
 
 type RiskScoreBreakdown struct {
@@ -671,13 +746,19 @@ type RiskAssessment struct {
 
 // FrameworkComplianceResult - Compliance result for a framework
 type FrameworkComplianceResult struct {
-	FrameworkID    string                `json:"framework_id"`
-	FrameworkName  string                `json:"framework_name"`
-	Status         string                `json:"status"`
-	Score          float64               `json:"score"`
-	Violations     []ComplianceViolation `json:"violations"`
-	Requirements   []RequirementResult   `json:"requirements"`
-	ProcessingTime time.Duration         `json:"processing_time"`
+	FrameworkID       string                `json:"framework_id"`
+	FrameworkName     string                `json:"framework_name"`
+	Framework         string                `json:"framework"`
+	Status            ComplianceStatus      `json:"status"`
+	Score             float64               `json:"score"`
+	ViolationCount    int                   `json:"violation_count"`
+	WarningCount      int                   `json:"warning_count"`
+	Violations        []ComplianceViolation `json:"violations"`
+	Warnings          []ComplianceWarning   `json:"warnings"`
+	Requirements      []RequirementResult   `json:"requirements"`
+	RequirementsMet   int                   `json:"requirements_met"`
+	TotalRequirements int                   `json:"total_requirements"`
+	ProcessingTime    time.Duration         `json:"processing_time"`
 }
 
 // ComplianceCondition - Compliance rule condition
@@ -698,8 +779,8 @@ type ComplianceAction struct {
 	Description string                 `json:"description"`
 }
 
-// DataAnalysis - Data analysis result
-type DataAnalysis struct {
+// ComplianceDataAnalysis - Data analysis result for compliance
+type ComplianceDataAnalysis struct {
 	DataType        string                 `json:"data_type"`
 	Classification  string                 `json:"classification"`
 	Sensitivity     string                 `json:"sensitivity"`
@@ -714,13 +795,17 @@ type DataAnalysis struct {
 type ComplianceIssue struct {
 	ID          string                 `json:"id"`
 	Type        string                 `json:"type"`
-	Severity    string                 `json:"severity"`
+	Severity    ComplianceSeverity     `json:"severity"`
 	Framework   string                 `json:"framework"`
+	Regulation  string                 `json:"regulation"`
+	Article     string                 `json:"article"`
+	Title       string                 `json:"title"`
 	Rule        string                 `json:"rule"`
 	Description string                 `json:"description"`
 	Location    string                 `json:"location"`
 	Evidence    string                 `json:"evidence"`
 	Suggestion  string                 `json:"suggestion"`
+	Category    ComplianceCategory     `json:"category"`
 	Metadata    map[string]interface{} `json:"metadata"`
 	DetectedAt  time.Time              `json:"detected_at"`
 }
@@ -747,4 +832,92 @@ type ComplianceRequirement struct {
 	Controls    []string               `json:"controls"`
 	References  []string               `json:"references"`
 	Metadata    map[string]interface{} `json:"metadata"`
+}
+
+// RiskProfileFilter - Filter for risk profiles
+type RiskProfileFilter struct {
+	Category string `json:"category,omitempty"`
+	Enabled  *bool  `json:"enabled,omitempty"`
+	Name     string `json:"name,omitempty"`
+}
+
+// RiskTrendFilter - Filter for risk trends
+type RiskTrendFilter struct {
+	APIID      string    `json:"api_id,omitempty"`
+	EndpointID string    `json:"endpoint_id,omitempty"`
+	TimeRange  TimeRange `json:"time_range,omitempty"`
+}
+
+// RiskTrendAnalysis - Risk trend analysis result
+type RiskTrendAnalysis struct {
+	ID              string           `json:"id"`
+	GeneratedAt     time.Time        `json:"generated_at"`
+	Filter          *RiskTrendFilter `json:"filter"`
+	TimeRange       TimeRange        `json:"time_range"`
+	Trends          []RiskTrend      `json:"trends"`
+	Summary         RiskTrendSummary `json:"summary"`
+	Recommendations []string         `json:"recommendations"`
+}
+
+// RiskTrend - Single point in a risk trend
+type RiskTrend struct {
+	Date         time.Time         `json:"date"`
+	AverageScore float64           `json:"average_score"`
+	RiskCounts   map[RiskLevel]int `json:"risk_counts"`
+}
+
+// RiskTrendSummary - Summary of risk trends
+type RiskTrendSummary struct {
+	TotalAssessments   int     `json:"total_assessments"`
+	AverageScore       float64 `json:"average_score"`
+	ScoreChange        float64 `json:"score_change"`
+	TrendDirection     string  `json:"trend_direction"`
+	HighestRiskAPI     string  `json:"highest_risk_api"`
+	MostCommonRiskType string  `json:"most_common_risk_type"`
+}
+
+// RiskReportFilter - Filter for risk reports
+type RiskReportFilter struct {
+	APIID      string    `json:"api_id,omitempty"`
+	EndpointID string    `json:"endpoint_id,omitempty"`
+	TimeRange  TimeRange `json:"time_range,omitempty"`
+}
+
+// RiskReport - Risk assessment report
+type RiskReport struct {
+	ID              string                 `json:"id"`
+	GeneratedAt     time.Time              `json:"generated_at"`
+	Filter          *RiskReportFilter      `json:"filter"`
+	Summary         RiskReportSummary      `json:"summary"`
+	Details         []RiskAssessmentDetail `json:"details"`
+	Trends          []RiskTrend            `json:"trends"`
+	Recommendations []string               `json:"recommendations"`
+}
+
+// RiskReportSummary - Summary of a risk report
+type RiskReportSummary struct {
+	TotalAssessments int               `json:"total_assessments"`
+	RiskDistribution map[RiskLevel]int `json:"risk_distribution"`
+	AverageScore     float64           `json:"average_score"`
+	TopRisks         []TopRisk         `json:"top_risks"`
+}
+
+// TopRisk - Most significant risk identified
+type TopRisk struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Severity    RiskLevel `json:"severity"`
+	Score       float64   `json:"score"`
+}
+
+// RiskAssessmentDetail - Detailed risk assessment result
+type RiskAssessmentDetail struct {
+	ID         string    `json:"id"`
+	RequestID  string    `json:"request_id"`
+	APIID      string    `json:"api_id"`
+	EndpointID string    `json:"endpoint_id"`
+	RiskScore  float64   `json:"risk_score"`
+	RiskLevel  RiskLevel `json:"risk_level"`
+	AssessedAt time.Time `json:"assessed_at"`
 }
